@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
@@ -135,8 +136,6 @@ export default function ContasReceber() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   // ── Data ──
-  const [items, setItems] = useState<CR[]>([])
-  const [loading, setLoading] = useState(true)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
@@ -232,63 +231,70 @@ export default function ContasReceber() {
   const companyId = selectedCompany?.id
 
   // ── Fetch items ──
-  async function fetchItems() {
-    if (!companyId) return
-    setLoading(true)
-    // Paginar para trazer todos (Supabase limita 1000/request)
-    const pageSize = 1000
-    let allData: any[] = []
-    let page = 0
-    while (true) {
-      const { data } = await db
-        .from('contas_receber')
-        .select('*')
-        .eq('company_id', companyId)
-        .is('deleted_at', null)
-        .order('data_vencimento', { ascending: true })
-        .range(page * pageSize, (page + 1) * pageSize - 1)
-      if (!data || data.length === 0) break
-      allData = allData.concat(data)
-      if (data.length < pageSize) break
-      page++
-    }
+  // Contas a receber (React Query: cacheia entre navegações — reabrir a tela
+  // com a mesma empresa aparece na hora). Recarrega via fetchItems após mutações.
+  const { data: itemsData, isLoading, refetch: refetchItems } = useQuery({
+    queryKey: ['contas-receber', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      // Paginar para trazer todos (Supabase limita 1000/request)
+      const pageSize = 1000
+      let allData: any[] = []
+      let page = 0
+      while (true) {
+        const { data } = await db
+          .from('contas_receber')
+          .select('*')
+          .eq('company_id', companyId)
+          .is('deleted_at', null)
+          .order('data_vencimento', { ascending: true })
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+        if (!data || data.length === 0) break
+        allData = allData.concat(data)
+        if (data.length < pageSize) break
+        page++
+      }
 
-    // Itens da venda vinculada (para mostrar o que foi vendido em cada titulo)
-    const vendaIds = Array.from(new Set(allData.filter((cr: any) => cr.venda_id).map((cr: any) => cr.venda_id as string)))
-    const itensLabelByVenda: Record<string, string> = {}
-    if (vendaIds.length > 0) {
-      const chunkSize = 200
-      for (let i = 0; i < vendaIds.length; i += chunkSize) {
-        const chunk = vendaIds.slice(i, i + chunkSize)
-        const { data: itens } = await db
-          .from('vendas_itens')
-          .select('venda_id, descricao, quantidade')
-          .in('venda_id', chunk)
-        const byVenda: Record<string, { descricao: string; quantidade: number }[]> = {}
-        ;(itens || []).forEach((it: any) => {
-          if (!byVenda[it.venda_id]) byVenda[it.venda_id] = []
-          byVenda[it.venda_id].push({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1 })
-        })
-        for (const vid of Object.keys(byVenda)) {
-          const arr = byVenda[vid]
-          if (arr.length === 1) {
-            const it = arr[0]
-            itensLabelByVenda[vid] = it.quantidade > 1 ? `${it.descricao} (${it.quantidade}x)` : it.descricao
-          } else {
-            const extra = arr.length - 1
-            itensLabelByVenda[vid] = `${arr[0].descricao} · +${extra} ${extra === 1 ? 'item' : 'itens'}`
+      // Itens da venda vinculada (para mostrar o que foi vendido em cada titulo)
+      const vendaIds = Array.from(new Set(allData.filter((cr: any) => cr.venda_id).map((cr: any) => cr.venda_id as string)))
+      const itensLabelByVenda: Record<string, string> = {}
+      if (vendaIds.length > 0) {
+        const chunkSize = 200
+        for (let i = 0; i < vendaIds.length; i += chunkSize) {
+          const chunk = vendaIds.slice(i, i + chunkSize)
+          const { data: itens } = await db
+            .from('vendas_itens')
+            .select('venda_id, descricao, quantidade')
+            .in('venda_id', chunk)
+          const byVenda: Record<string, { descricao: string; quantidade: number }[]> = {}
+          ;(itens || []).forEach((it: any) => {
+            if (!byVenda[it.venda_id]) byVenda[it.venda_id] = []
+            byVenda[it.venda_id].push({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1 })
+          })
+          for (const vid of Object.keys(byVenda)) {
+            const arr = byVenda[vid]
+            if (arr.length === 1) {
+              const it = arr[0]
+              itensLabelByVenda[vid] = it.quantidade > 1 ? `${it.descricao} (${it.quantidade}x)` : it.descricao
+            } else {
+              const extra = arr.length - 1
+              itensLabelByVenda[vid] = `${arr[0].descricao} · +${extra} ${extra === 1 ? 'item' : 'itens'}`
+            }
           }
         }
       }
-    }
 
-    const enriched: CR[] = (allData as CR[]).map(cr => ({
-      ...cr,
-      _itensVenda: cr.venda_id ? (itensLabelByVenda[cr.venda_id] || null) : null,
-    }))
-    setItems(enriched)
-    setLoading(false)
-  }
+      const enriched: CR[] = (allData as CR[]).map(cr => ({
+        ...cr,
+        _itensVenda: cr.venda_id ? (itensLabelByVenda[cr.venda_id] || null) : null,
+      }))
+      return enriched
+    },
+  })
+  const items = itemsData ?? []
+  const loading = isLoading
+  // Mantém o nome usado nos pontos que recarregam após mutação; ignora args (ex.: onChange).
+  const fetchItems = () => refetchItems()
 
   // ── Fetch lookups ──
   async function fetchLookups() {
@@ -308,7 +314,7 @@ export default function ContasReceber() {
   }
 
   useEffect(() => {
-    fetchItems()
+    // fetchItems agora é automático via useQuery; aqui só os lookups.
     fetchLookups()
   }, [companyId])
 

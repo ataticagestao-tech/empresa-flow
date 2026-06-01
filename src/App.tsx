@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,77 +15,93 @@ import { PersistentLayout } from "@/components/layout/PersistentLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
+// Telas leves do "esqueleto" (login, 404) ficam embutidas — abrem na hora.
 import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import CompanyDashboard from "./pages/CompanyDashboard";
-import Indicadores from "./pages/Indicadores";
-import RadarLegislativo from "./pages/RadarLegislativo";
-import Financeiro from "./pages/Financeiro";
-import Empresas from "./pages/Empresas";
-import Clientes from "./pages/Clientes";
-import Fornecedores from "./pages/Fornecedores";
-import Movimentacoes from "./pages/Movimentacoes";
-import Categorias from "./pages/Categorias";
-import ContasBancarias from "./pages/ContasBancarias";
-import ContasPagar from "./pages/ContasPagar";
-import ContasFixas from "./pages/ContasFixas";
-import ContasReceber from "./pages/ContasReceber";
-import Conciliacao from "./pages/Conciliacao";
-import Relatorios from "./pages/Relatorios";
-import Configuracoes from "./pages/Configuracoes";
-import Equipe from "./pages/Equipe";
-import ImportData from "./pages/ImportData";
-import Ajuda from "./pages/Ajuda";
-import CRM from "./pages/CRM";
-
-import ProdutosDepartamentos from "./pages/ProdutosDepartamentos";
-import ProdutosCategoria from "./pages/ProdutosCategoria";
-import Recibos from "./pages/Recibos";
 import NotFound from "./pages/NotFound";
-import AdminUsuarios from "./pages/AdminUsuarios";
-import WhatsappAutorizados from "./pages/WhatsappAutorizados";
-import LogAtividades from "./pages/LogAtividades";
-import ContaBloqueada from "./pages/ContaBloqueada";
-import PlanoContas from "./pages/PlanoContas";
-import Funcionarios from "./pages/Funcionarios";
-import CadastrosPendentes from "./pages/CadastrosPendentes";
-import FluxoCaixaProjetado from "./pages/FluxoCaixaProjetado";
-import Orcamento from "./pages/Orcamento";
-import PrevisaoReceitas from "./pages/PrevisaoReceitas";
-import Cenarios from "./pages/Cenarios";
-import Vendas from "./pages/Vendas";
-import FichaTecnica from "./pages/FichaTecnica";
-import ComposicaoCusto from "./pages/ComposicaoCusto";
-import MargensDesconto from "./pages/MargensDesconto";
-import TabelaPrecos from "./pages/TabelaPrecos";
-import MarkupSimulador from "./pages/MarkupSimulador";
-import CentrosCusto from "./pages/CentrosCusto";
-import ReguaCobranca from "./pages/ReguaCobranca";
-import DRE from "./pages/DRE";
-import EstoqueProdutos from "./pages/EstoqueProdutos";
-import OrdensCompra from "./pages/OrdensCompra";
-import Inventario from "./pages/Inventario";
-import Documentos from "./pages/Documentos";
-import MultiEmpresa from "./pages/MultiEmpresa";
-import ContratosRecorrentes from "./pages/ContratosRecorrentes";
-import EmpresaResumo from "./pages/EmpresaResumo";
-import ImportacaoXML from "./pages/ImportacaoXML";
-import FolhaPagamento from "./pages/FolhaPagamento";
-import PontoEletronico from "./pages/PontoEletronico";
-import FeriasAfastamentos from "./pages/FeriasAfastamentos";
-import EncargosRH from "./pages/EncargosRH";
-import AdmissoesDemissoes from "./pages/AdmissoesDemissoes";
-import FluxoCaixa from "./pages/FluxoCaixa";
-import MapeamentoContabil from "./pages/MapeamentoContabil";
-import NfseEmissao from "./pages/NfseEmissao";
-import NfseConfiguracoes from "./pages/NfseConfiguracoes";
-import PrevisaoImpostos from "./pages/PrevisaoImpostos";
-import PainelGerencial from "./pages/PainelGerencial";
-import AreaContador from "./pages/AreaContador";
-import VendaSistema from "./pages/VendaSistema";
-import Checkout from "./pages/Checkout";
 
-const queryClient = new QueryClient();
+// Code splitting: cada tela vira um arquivo separado, baixado só quando é aberta.
+// Isso quebra o bundle único de ~2 MB e faz o sistema abrir muito mais rápido.
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const CompanyDashboard = lazy(() => import("./pages/CompanyDashboard"));
+const Indicadores = lazy(() => import("./pages/Indicadores"));
+const RadarLegislativo = lazy(() => import("./pages/RadarLegislativo"));
+const Financeiro = lazy(() => import("./pages/Financeiro"));
+const Empresas = lazy(() => import("./pages/Empresas"));
+const Clientes = lazy(() => import("./pages/Clientes"));
+const Fornecedores = lazy(() => import("./pages/Fornecedores"));
+const Movimentacoes = lazy(() => import("./pages/Movimentacoes"));
+const Categorias = lazy(() => import("./pages/Categorias"));
+const ContasBancarias = lazy(() => import("./pages/ContasBancarias"));
+const ContasPagar = lazy(() => import("./pages/ContasPagar"));
+const ContasFixas = lazy(() => import("./pages/ContasFixas"));
+const ContasReceber = lazy(() => import("./pages/ContasReceber"));
+const Conciliacao = lazy(() => import("./pages/Conciliacao"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
+const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const Equipe = lazy(() => import("./pages/Equipe"));
+const ImportData = lazy(() => import("./pages/ImportData"));
+const Ajuda = lazy(() => import("./pages/Ajuda"));
+const CRM = lazy(() => import("./pages/CRM"));
+const ProdutosDepartamentos = lazy(() => import("./pages/ProdutosDepartamentos"));
+const ProdutosCategoria = lazy(() => import("./pages/ProdutosCategoria"));
+const Recibos = lazy(() => import("./pages/Recibos"));
+const AdminUsuarios = lazy(() => import("./pages/AdminUsuarios"));
+const WhatsappAutorizados = lazy(() => import("./pages/WhatsappAutorizados"));
+const LogAtividades = lazy(() => import("./pages/LogAtividades"));
+const ContaBloqueada = lazy(() => import("./pages/ContaBloqueada"));
+const PlanoContas = lazy(() => import("./pages/PlanoContas"));
+const Funcionarios = lazy(() => import("./pages/Funcionarios"));
+const CadastrosPendentes = lazy(() => import("./pages/CadastrosPendentes"));
+const FluxoCaixaProjetado = lazy(() => import("./pages/FluxoCaixaProjetado"));
+const Orcamento = lazy(() => import("./pages/Orcamento"));
+const PrevisaoReceitas = lazy(() => import("./pages/PrevisaoReceitas"));
+const Cenarios = lazy(() => import("./pages/Cenarios"));
+const Vendas = lazy(() => import("./pages/Vendas"));
+const FichaTecnica = lazy(() => import("./pages/FichaTecnica"));
+const ComposicaoCusto = lazy(() => import("./pages/ComposicaoCusto"));
+const MargensDesconto = lazy(() => import("./pages/MargensDesconto"));
+const TabelaPrecos = lazy(() => import("./pages/TabelaPrecos"));
+const MarkupSimulador = lazy(() => import("./pages/MarkupSimulador"));
+const CentrosCusto = lazy(() => import("./pages/CentrosCusto"));
+const ReguaCobranca = lazy(() => import("./pages/ReguaCobranca"));
+const DRE = lazy(() => import("./pages/DRE"));
+const EstoqueProdutos = lazy(() => import("./pages/EstoqueProdutos"));
+const OrdensCompra = lazy(() => import("./pages/OrdensCompra"));
+const Inventario = lazy(() => import("./pages/Inventario"));
+const Documentos = lazy(() => import("./pages/Documentos"));
+const MultiEmpresa = lazy(() => import("./pages/MultiEmpresa"));
+const ContratosRecorrentes = lazy(() => import("./pages/ContratosRecorrentes"));
+const EmpresaResumo = lazy(() => import("./pages/EmpresaResumo"));
+const ImportacaoXML = lazy(() => import("./pages/ImportacaoXML"));
+const FolhaPagamento = lazy(() => import("./pages/FolhaPagamento"));
+const PontoEletronico = lazy(() => import("./pages/PontoEletronico"));
+const FeriasAfastamentos = lazy(() => import("./pages/FeriasAfastamentos"));
+const EncargosRH = lazy(() => import("./pages/EncargosRH"));
+const AdmissoesDemissoes = lazy(() => import("./pages/AdmissoesDemissoes"));
+const FluxoCaixa = lazy(() => import("./pages/FluxoCaixa"));
+const MapeamentoContabil = lazy(() => import("./pages/MapeamentoContabil"));
+const NfseEmissao = lazy(() => import("./pages/NfseEmissao"));
+const NfseConfiguracoes = lazy(() => import("./pages/NfseConfiguracoes"));
+const PrevisaoImpostos = lazy(() => import("./pages/PrevisaoImpostos"));
+const PainelGerencial = lazy(() => import("./pages/PainelGerencial"));
+const AreaContador = lazy(() => import("./pages/AreaContador"));
+const VendaSistema = lazy(() => import("./pages/VendaSistema"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Dados ficam "frescos" por 1 min: trocar de tela e voltar, ou alternar
+      // a aba do navegador, NÃO dispara recarregamento — fica instantâneo.
+      staleTime: 60 * 1000,
+      // Mantém o resultado em cache por 5 min depois de sair da tela.
+      gcTime: 5 * 60 * 1000,
+      // Não recarrega tudo só por voltar o foco para a aba do navegador.
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const RequireAuth = () => {
   const { user, loading } = useAuth();
@@ -166,6 +183,7 @@ const App = () => (
             <ReciboModalProvider />
             <ConfirmDialogProvider>
             <BrowserRouter>
+              <Suspense fallback={<LoadingScreen />}>
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/venda" element={<VendaSistema />} />
@@ -252,6 +270,7 @@ const App = () => (
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
             </BrowserRouter>
             </ConfirmDialogProvider>
           </CompanyProvider>
