@@ -8,7 +8,7 @@ import { fetchMargensRaw } from "@/modules/finance/presentation/hooks/useMargens
  * Contexto da página de Indicadores (UMA empresa).
  *
  * Reúne os números que dão sentido aos 4 indicadores ANTES deles:
- *  - kpis        : faturamento / despesa total / resultado do período + saldo em caixa (posição atual).
+ *  - kpis        : faturamento / despesa total / resultado do período + geração de caixa (resultado acumulado até o fim do período).
  *  - serie       : faturamento × despesa × resultado dos últimos `meses` meses (gráfico de barras+linha).
  *  - composicao  : decomposição do resultado do período (Receita − Custo − Despesa Op. − Outras).
  *
@@ -21,7 +21,8 @@ export interface ContextoKpis {
   faturamento: number;
   despesaTotal: number;
   resultado: number;
-  saldoCaixa: number;
+  /** Resultado acumulado: o que restou no período + saldo (resultado) dos meses anteriores, até o fim do período. */
+  geracaoCaixa: number;
 }
 
 export interface ContextoSeriePonto {
@@ -63,7 +64,7 @@ const EMPTY_COMPOSICAO: ContextoComposicao = {
 };
 
 const EMPTY: ContextoIndicadoresData = {
-  kpis: { faturamento: 0, despesaTotal: 0, resultado: 0, saldoCaixa: 0 },
+  kpis: { faturamento: 0, despesaTotal: 0, resultado: 0, geracaoCaixa: 0 },
   serie: [],
   composicao: EMPTY_COMPOSICAO,
 };
@@ -85,18 +86,8 @@ function mesPeriodo(d: Date): { start: string; end: string } | null {
   return { start: format(ini, "yyyy-MM-dd"), end: format(fim, "yyyy-MM-dd") };
 }
 
-/** Soma o saldo atual de todas as contas bancárias da empresa (posição atual). */
-async function fetchSaldoCaixa(db: any, companyId: string): Promise<number> {
-  const { data, error } = await db
-    .from("v_saldo_contas_bancarias")
-    .select("saldo_atual")
-    .eq("company_id", companyId);
-  if (error) throw error;
-  return ((data || []) as Array<{ saldo_atual: number | null }>).reduce(
-    (acc, r) => acc + (Number(r.saldo_atual) || 0),
-    0,
-  );
-}
+/** Data bem antiga só para abranger todo o histórico no acumulado. */
+const INICIO_HISTORICO = "2000-01-01";
 
 export function useContextoIndicadores({
   companyId,
@@ -131,25 +122,30 @@ export function useContextoIndicadores({
       const mesesDates: Date[] = [];
       for (let i = meses - 1; i >= 0; i--) mesesDates.push(subMonths(hoje, i));
 
-      const serie = await Promise.all(
-        mesesDates.map(async (d): Promise<ContextoSeriePonto> => {
-          const label = mesLabel(d);
-          const per = mesPeriodo(d);
-          if (!per) return { mes: label, faturamento: 0, despesa: 0, resultado: 0 };
-          const r = await fetchMargensRaw(db, companyId, per.start, per.end);
-          const desp = r.custo + r.despesaOperacional + r.outras;
-          return { mes: label, faturamento: r.receita, despesa: desp, resultado: r.receita - desp };
-        }),
-      );
+      // Série + acumulado de todo o histórico até o fim do período, em paralelo.
+      const [serie, rawAcum] = await Promise.all([
+        Promise.all(
+          mesesDates.map(async (d): Promise<ContextoSeriePonto> => {
+            const label = mesLabel(d);
+            const per = mesPeriodo(d);
+            if (!per) return { mes: label, faturamento: 0, despesa: 0, resultado: 0 };
+            const r = await fetchMargensRaw(db, companyId, per.start, per.end);
+            const desp = r.custo + r.despesaOperacional + r.outras;
+            return { mes: label, faturamento: r.receita, despesa: desp, resultado: r.receita - desp };
+          }),
+        ),
+        fetchMargensRaw(db, companyId, INICIO_HISTORICO, periodEnd),
+      ]);
 
-      // ── Saldo em caixa (posição atual) ──
-      const saldoCaixa = await fetchSaldoCaixa(db, companyId);
+      // ── Geração de caixa = resultado acumulado (o que restou no período + saldo dos meses anteriores) ──
+      const geracaoCaixa =
+        rawAcum.receita - (rawAcum.custo + rawAcum.despesaOperacional + rawAcum.outras);
 
       const kpis: ContextoKpis = {
         faturamento: composicao.receita,
         despesaTotal,
         resultado,
-        saldoCaixa,
+        geracaoCaixa,
       };
 
       return { kpis, serie, composicao };
