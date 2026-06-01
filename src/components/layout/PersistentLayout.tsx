@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Outlet, useLocation, Link } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { AppHeader } from "./AppHeader";
 import { AppTopNav } from "./AppTopNav";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -73,7 +74,17 @@ function LayoutMain() {
     >
       <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-8 lg:px-12">
         {title && <PageBreadcrumb title={title} />}
-        <Outlet />
+        {/* Suspense aqui (e não em volta do app inteiro): o menu do topo fica
+            fixo e só o miolo mostra o "carregando" ao abrir uma tela sob demanda. */}
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-24 text-[#667085]">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </div>
     </main>
   );

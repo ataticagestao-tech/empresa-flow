@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
@@ -145,16 +146,44 @@ export default function ContasPagar() {
   const confirm = useConfirm()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Data
-  const [contas, setContas] = useState<ContaPagar[]>([])
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
-  const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [clients, setClients] = useState<Client[]>([])
-  const [loading, setLoading] = useState(true)
+  // Data (React Query: cacheia entre navegações — reabrir a tela aparece na hora)
+  const { data: cpData, isLoading, refetch: refetchData } = useQuery({
+    queryKey: ['contas-pagar', selectedCompany?.id],
+    enabled: !!selectedCompany,
+    queryFn: async () => {
+      const cid = selectedCompany!.id
+      const db = activeClient as any
+      const [cpRes, bankRes, chartRes, ccRes, prodRes, supRes, empRes, cliRes] = await Promise.all([
+        db.from('contas_pagar').select('*').or(`company_id.eq.${cid},unidade_destino_id.eq.${cid}`).is('deleted_at', null).in('status', ['aberto', 'parcial', 'vencido', 'pago']).order('data_vencimento', { ascending: true }).limit(5000),
+        db.from('bank_accounts').select('id, company_id, name, banco, type').eq('company_id', cid),
+        db.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', cid).order('code'),
+        db.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', cid).eq('ativo', true),
+        db.from('products').select('id, description, code').eq('company_id', cid).eq('is_active', true).order('description'),
+        db.from('suppliers').select('id, razao_social, cpf_cnpj, dados_bancarios_pix').eq('company_id', cid).order('razao_social'),
+        db.from('employees').select('id, nome_completo, name, cpf, chave_pix_folha').eq('company_id', cid),
+        db.from('clients').select('id, razao_social').eq('company_id', cid).eq('is_active', true).order('razao_social'),
+      ])
+      return {
+        contas: (cpRes.data || []) as ContaPagar[],
+        bankAccounts: (bankRes.data || []) as BankAccount[],
+        chartAccounts: (chartRes.data || []) as ChartAccount[],
+        centrosCusto: (ccRes.data || []) as CentroCusto[],
+        products: (prodRes.data || []) as Product[],
+        suppliers: (supRes.data || []) as Supplier[],
+        employees: (empRes.data || []) as Employee[],
+        clients: (cliRes.data || []) as Client[],
+      }
+    },
+  })
+  const contas = cpData?.contas ?? []
+  const bankAccounts = cpData?.bankAccounts ?? []
+  const chartAccounts = cpData?.chartAccounts ?? []
+  const centrosCusto = cpData?.centrosCusto ?? []
+  const products = cpData?.products ?? []
+  const suppliers = cpData?.suppliers ?? []
+  const employees = cpData?.employees ?? []
+  const clients = cpData?.clients ?? []
+  const loading = isLoading
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
@@ -369,38 +398,12 @@ export default function ContasPagar() {
   useEffect(() => { setGlobalPage(0) }, [searchTerm, statusFilter, sectorFilter, dateFrom, dateTo])
 
   // ─── Data Loading ───────────────────────────────────────────────
+  // Recarrega os dados (refetch da query) e limpa a seleção. Usado após
+  // salvar/excluir/pagar etc. A busca inicial é automática (useQuery acima).
   const loadData = useCallback(async () => {
-    if (!selectedCompany) return
-    setLoading(true)
-
-    const db = activeClient as any
-
-    const [cpRes, bankRes, chartRes, ccRes, prodRes, supRes, empRes, cliRes] = await Promise.all([
-      db.from('contas_pagar').select('*').or(`company_id.eq.${selectedCompany.id},unidade_destino_id.eq.${selectedCompany.id}`).is('deleted_at', null).in('status', ['aberto', 'parcial', 'vencido', 'pago']).order('data_vencimento', { ascending: true }).limit(5000),
-      db.from('bank_accounts').select('id, company_id, name, banco, type').eq('company_id', selectedCompany.id),
-      db.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).order('code'),
-      db.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', selectedCompany.id).eq('ativo', true),
-      db.from('products').select('id, description, code').eq('company_id', selectedCompany.id).eq('is_active', true).order('description'),
-      db.from('suppliers').select('id, razao_social, cpf_cnpj, dados_bancarios_pix').eq('company_id', selectedCompany.id).order('razao_social'),
-      db.from('employees').select('id, nome_completo, name, cpf, chave_pix_folha').eq('company_id', selectedCompany.id),
-      db.from('clients').select('id, razao_social').eq('company_id', selectedCompany.id).eq('is_active', true).order('razao_social'),
-    ])
-
-    setContas(cpRes.data || [])
-    setBankAccounts(bankRes.data || [])
-    setChartAccounts(chartRes.data || [])
-    setCentrosCusto(ccRes.data || [])
-    setProducts(prodRes.data || [])
-    setSuppliers(supRes.data || [])
-    setEmployees(empRes.data || [])
-    setClients(cliRes.data || [])
+    await refetchData()
     setSelectedIds(new Set())
-    setLoading(false)
-  }, [selectedCompany, activeClient])
-
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+  }, [refetchData])
 
   // ─── Open new title modal when ?new=true ─────────────────────────
   useEffect(() => {

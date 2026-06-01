@@ -5,6 +5,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib/format'
+import { useQuery } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
@@ -241,7 +242,6 @@ export default function Vendas() {
   const db = activeClient as any
 
   // ─── Data state ──────────────────────────────────────────────
-  const [vendas, setVendas] = useState<Venda[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -261,8 +261,6 @@ export default function Vendas() {
   // violation 23503 quando produto carrega conta_contabil_id órfão (ex.: plano
   // de contas resetado e produto manteve referência antiga).
   const [validContaContabilIds, setValidContaContabilIds] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   // ─── Filter state ────────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('')
@@ -428,6 +426,109 @@ export default function Vendas() {
 
   // ─── Computed ────────────────────────────────────────────────
   const companyId = selectedCompany?.id
+
+  // ─── Vendas (React Query: cacheia entre navegações) ──────────
+  // A consulta pesada (vendas + itens + CRs do período) fica em cache: reabrir a
+  // tela com o mesmo período aparece na hora, sem refazer a busca. Recarrega só
+  // quando muda empresa/período — ou após salvar/excluir, via fetchVendas (refetch).
+  const {
+    data: vendasData,
+    isLoading: vendasLoading,
+    error: vendasError,
+    refetch: refetchVendas,
+  } = useQuery({
+    queryKey: ['vendas', companyId, dateFrom, dateTo],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const inicio = dateFrom
+      const fim = dateTo
+
+      const pageSize = 1000
+      const vendasBase: Venda[] = []
+      let fromIdx = 0
+      while (true) {
+        const { data, error: err } = await db
+          .from('vendas')
+          .select('id, company_id, cliente_nome, cliente_cpf_cnpj, tipo, valor_total, data_venda, forma_pagamento, status')
+          .eq('company_id', companyId)
+          .is('deleted_at', null)
+          .gte('data_venda', inicio)
+          .lte('data_venda', fim)
+          .order('data_venda', { ascending: false })
+          .range(fromIdx, fromIdx + pageSize - 1)
+        if (err) throw err
+        const batch = (data as Venda[]) || []
+        vendasBase.push(...batch)
+        if (batch.length < pageSize) break
+        fromIdx += pageSize
+      }
+
+      const vendaIds = vendasBase.map(v => v.id)
+      const itensByVenda = new Map<string, VendaItem[]>()
+      const crsByVenda = new Map<string, ContaReceber[]>()
+
+      if (vendaIds.length > 0) {
+        // Chunk IN (...) para não estourar limite de URL do PostgREST
+        const chunkSize = 300
+        const chunks: string[][] = []
+        for (let i = 0; i < vendaIds.length; i += chunkSize) {
+          chunks.push(vendaIds.slice(i, i + chunkSize))
+        }
+
+        const itensPromises = chunks.map(ids =>
+          db.from('vendas_itens')
+            .select('id, venda_id, descricao, quantidade, valor_unitario, valor_total')
+            .in('venda_id', ids)
+        )
+        const crsPromises = chunks.map(ids =>
+          db.from('contas_receber')
+            .select('id, venda_id, status, valor, valor_pago, data_vencimento, forma_recebimento, conta_bancaria_id')
+            .in('venda_id', ids)
+            .is('deleted_at', null)
+        )
+
+        const [itensResults, crsResults] = await Promise.all([
+          Promise.all(itensPromises),
+          Promise.all(crsPromises),
+        ])
+
+        for (const res of itensResults) {
+          if (res.error) throw res.error
+          for (const it of (res.data as (VendaItem & { venda_id: string })[]) || []) {
+            const arr = itensByVenda.get(it.venda_id) || []
+            arr.push(it)
+            itensByVenda.set(it.venda_id, arr)
+          }
+        }
+
+        for (const res of crsResults) {
+          if (res.error) throw res.error
+          for (const cr of (res.data as (ContaReceber & { venda_id: string })[]) || []) {
+            const arr = crsByVenda.get(cr.venda_id) || []
+            arr.push(cr)
+            crsByVenda.set(cr.venda_id, arr)
+          }
+        }
+      }
+
+      const all: Venda[] = vendasBase.map(v => ({
+        ...v,
+        cliente_nome: toTitleCase(v.cliente_nome),
+        vendas_itens: (itensByVenda.get(v.id) || []).map(it => ({
+          ...it,
+          descricao: toTitleCase(it.descricao),
+        })),
+        contas_receber: crsByVenda.get(v.id) || [],
+      }))
+
+      return all
+    },
+  })
+  const vendas = vendasData ?? []
+  const loading = vendasLoading
+  const error = vendasError ? ((vendasError as Error).message || 'Erro ao buscar vendas') : null
+  // Mantém o nome usado nos pontos que recarregam após salvar/excluir.
+  const fetchVendas = refetchVendas
 
   // mesDate kept for backward compat (agenda label, etc)
   const mesDate = useMemo(() => parseISO(dateFrom), [dateFrom])
@@ -685,100 +786,6 @@ export default function Vendas() {
   // Nested select (`vendas_itens(*), contas_receber(*)`) estava estourando
   // statement timeout quando o histórico crescia. Flat + IN (...) é muito
   // mais barato para o PostgREST e usa os índices em venda_id.
-  const fetchVendas = useCallback(async () => {
-    if (!companyId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const inicio = dateFrom
-      const fim = dateTo
-
-      const pageSize = 1000
-      const vendasBase: Venda[] = []
-      let fromIdx = 0
-      while (true) {
-        const { data, error: err } = await db
-          .from('vendas')
-          .select('id, company_id, cliente_nome, cliente_cpf_cnpj, tipo, valor_total, data_venda, forma_pagamento, status')
-          .eq('company_id', companyId)
-          .is('deleted_at', null)
-          .gte('data_venda', inicio)
-          .lte('data_venda', fim)
-          .order('data_venda', { ascending: false })
-          .range(fromIdx, fromIdx + pageSize - 1)
-        if (err) throw err
-        const batch = (data as Venda[]) || []
-        vendasBase.push(...batch)
-        if (batch.length < pageSize) break
-        fromIdx += pageSize
-      }
-
-      const vendaIds = vendasBase.map(v => v.id)
-      const itensByVenda = new Map<string, VendaItem[]>()
-      const crsByVenda = new Map<string, ContaReceber[]>()
-
-      if (vendaIds.length > 0) {
-        // Chunk IN (...) para não estourar limite de URL do PostgREST
-        const chunkSize = 300
-        const chunks: string[][] = []
-        for (let i = 0; i < vendaIds.length; i += chunkSize) {
-          chunks.push(vendaIds.slice(i, i + chunkSize))
-        }
-
-        const itensPromises = chunks.map(ids =>
-          db.from('vendas_itens')
-            .select('id, venda_id, descricao, quantidade, valor_unitario, valor_total')
-            .in('venda_id', ids)
-        )
-        const crsPromises = chunks.map(ids =>
-          db.from('contas_receber')
-            .select('id, venda_id, status, valor, valor_pago, data_vencimento, forma_recebimento, conta_bancaria_id')
-            .in('venda_id', ids)
-            .is('deleted_at', null)
-        )
-
-        const [itensResults, crsResults] = await Promise.all([
-          Promise.all(itensPromises),
-          Promise.all(crsPromises),
-        ])
-
-        for (const res of itensResults) {
-          if (res.error) throw res.error
-          for (const it of (res.data as (VendaItem & { venda_id: string })[]) || []) {
-            const arr = itensByVenda.get(it.venda_id) || []
-            arr.push(it)
-            itensByVenda.set(it.venda_id, arr)
-          }
-        }
-
-        for (const res of crsResults) {
-          if (res.error) throw res.error
-          for (const cr of (res.data as (ContaReceber & { venda_id: string })[]) || []) {
-            const arr = crsByVenda.get(cr.venda_id) || []
-            arr.push(cr)
-            crsByVenda.set(cr.venda_id, arr)
-          }
-        }
-      }
-
-      const all: Venda[] = vendasBase.map(v => ({
-        ...v,
-        cliente_nome: toTitleCase(v.cliente_nome),
-        vendas_itens: (itensByVenda.get(v.id) || []).map(it => ({
-          ...it,
-          descricao: toTitleCase(it.descricao),
-        })),
-        contas_receber: crsByVenda.get(v.id) || [],
-      }))
-
-      setVendas(all)
-    } catch (e: any) {
-      setError(e.message || 'Erro ao buscar vendas')
-    } finally {
-      setLoading(false)
-    }
-  }, [companyId, dateFrom, dateTo])
-
   const fetchAuxData = useCallback(async () => {
     if (!companyId || !activeClient) return
 
@@ -822,7 +829,7 @@ export default function Vendas() {
     setProdutos(prods)
   }, [companyId, activeClient])
 
-  useEffect(() => { fetchVendas() }, [fetchVendas])
+  // fetchVendas agora é gerenciado pelo useQuery (busca automática ao mudar empresa/período).
   useEffect(() => { fetchAuxData() }, [fetchAuxData])
 
   // ─── Open new sale modal when ?new=true ──────────────────────

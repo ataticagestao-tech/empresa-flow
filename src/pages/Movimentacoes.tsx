@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -126,13 +127,6 @@ export default function Movimentacoes() {
   const companyId = selectedCompany?.id
 
   // ---- State ----
-  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([])
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
-  const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
-  const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(false)
-
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -208,13 +202,55 @@ export default function Movimentacoes() {
   const [formCentroCustoId, setFormCentroCustoId] = useState('')
   const [formObservacao, setFormObservacao] = useState('')
 
-  // ---- Fetch data ----
+  // ---- Fetch data (React Query: cacheia entre navegações) ----
+  const queryClient = useQueryClient()
   const [activeSearchTerm, setActiveSearchTerm] = useState('')
 
-  const fetchData = useCallback(async () => {
-    if (!companyId) return
-    setLoading(true)
-    try {
+  // Dados de referência (bancos, plano de contas, centros, produtos) mudam pouco:
+  // ficam 5 min em cache e NÃO recarregam ao mexer no período/busca nem ao reabrir a tela.
+  const { data: refData } = useQuery({
+    queryKey: ['movimentacoes-ref', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const client = activeClient ?? supabase
+      const [bankData, coaData, ccData, prodData] = await Promise.all([
+        safeQuery(
+          () => (client as any).from('bank_accounts').select('id, company_id, name, banco').eq('company_id', companyId),
+          'bank_accounts'
+        ),
+        safeQuery(
+          () => (client as any).from('chart_of_accounts').select('id, company_id, code, name').eq('company_id', companyId).order('code'),
+          'chart_of_accounts'
+        ),
+        safeQuery(
+          () => (client as any).from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', companyId).order('descricao'),
+          'centros_custo'
+        ),
+        safeQuery(
+          () => (client as any).from('products').select('id, description, code').eq('company_id', companyId).eq('is_active', true).order('description'),
+          'products'
+        ),
+      ])
+      return {
+        bankAccounts: (bankData as BankAccount[]) || [],
+        chartAccounts: (coaData as ChartAccount[]) || [],
+        centrosCusto: (ccData as CentroCusto[]) || [],
+        products: (prodData as Product[]) || [],
+      }
+    },
+  })
+  const bankAccounts = refData?.bankAccounts ?? []
+  const chartAccounts = refData?.chartAccounts ?? []
+  const centrosCusto = refData?.centrosCusto ?? []
+  const products = refData?.products ?? []
+
+  // Movimentações: recarrega só quando muda empresa, período ou busca. Reabrir a
+  // tela com os mesmos filtros (dentro do cache) aparece na hora, sem nova consulta.
+  const { data: movimentacoesData, isLoading } = useQuery({
+    queryKey: ['movimentacoes', companyId, dateStart, dateEnd, activeSearchTerm],
+    enabled: !!companyId,
+    queryFn: async () => {
       const client = activeClient ?? supabase
 
       let matchingCoaIds: string[] = []
@@ -261,59 +297,13 @@ export default function Movimentacoes() {
           .limit(5000)
       }
 
-      const [movData, bankData, coaData, ccData, prodData] = await Promise.all([
-        safeQuery(buildMovQuery, 'movimentacoes'),
-        safeQuery(
-          () =>
-            (client as any)
-              .from('bank_accounts')
-              .select('id, company_id, name, banco')
-              .eq('company_id', companyId),
-          'bank_accounts'
-        ),
-        safeQuery(
-          () =>
-            (client as any)
-              .from('chart_of_accounts')
-              .select('id, company_id, code, name')
-              .eq('company_id', companyId)
-              .order('code'),
-          'chart_of_accounts'
-        ),
-        safeQuery(
-          () =>
-            (client as any)
-              .from('centros_custo')
-              .select('id, company_id, codigo, descricao')
-              .eq('company_id', companyId)
-              .order('descricao'),
-          'centros_custo'
-        ),
-        safeQuery(
-          () =>
-            (client as any)
-              .from('products')
-              .select('id, description, code')
-              .eq('company_id', companyId)
-              .eq('is_active', true)
-              .order('description'),
-          'products'
-        ),
-      ])
-
-      setMovimentacoes((movData as Movimentacao[]) || [])
-      setBankAccounts((bankData as BankAccount[]) || [])
-      setChartAccounts((coaData as ChartAccount[]) || [])
-      setCentrosCusto((ccData as CentroCusto[]) || [])
-      setProducts((prodData as Product[]) || [])
-    } finally {
-      setLoading(false)
-    }
-  }, [companyId, activeClient, dateStart, dateEnd, activeSearchTerm])
-
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+      const movData = await safeQuery(buildMovQuery, 'movimentacoes')
+      return (movData as Movimentacao[]) || []
+    },
+  })
+  const movimentacoes = movimentacoesData ?? []
+  // isLoading = só quando não há dado em cache; revisitar a tela mostra o cache na hora.
+  const loading = isLoading
 
   // ---- Derived data ----
   const afterBankFilter = useMemo(() => {
@@ -541,7 +531,7 @@ export default function Movimentacoes() {
       }
       resetForm()
       setModalOpen(false)
-      fetchData()
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes', companyId] })
     } finally {
       setModalSaving(false)
     }
