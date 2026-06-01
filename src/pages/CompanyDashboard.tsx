@@ -15,6 +15,7 @@ import IndicadoresEconomicos from "@/components/dashboard/IndicadoresEconomicos"
 import BolsaTicker from "@/components/dashboard/BolsaTicker";
 import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { CicloCaixaCard } from "@/components/dashboard/CicloCaixaCard";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek,
     subMonths, subWeeks, subDays, addDays, addMonths, format, differenceInDays, differenceInCalendarDays,
@@ -1590,50 +1591,34 @@ export default function CompanyDashboard() {
                           </div>
                           <div style={{ flex: 1, display: "flex", padding: 12, minHeight: 0 }}>
                             {/* Moldura branca sobreposta (igual ao gráfico de pizza) */}
-                            <div style={{ flex: 1, display: "flex", gap: 6, justifyContent: "center", alignItems: "center", border: "var(--border-hairline)", borderRadius: 8, background: "#FFFFFF", padding: 14, overflow: "hidden" }}>
-                            {/* Day-of-week labels */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, color: C.textMuted, paddingTop: 20 }}>
-                                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-                                    <div key={d} style={{ height: 32, display: "flex", alignItems: "center" }}>{d}</div>
-                                ))}
+                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", border: "var(--border-hairline)", borderRadius: 8, background: "#FFFFFF", padding: 14, overflow: "hidden" }}>
+                            {/* Rótulo do(s) mês(es) */}
+                            <div style={{ fontSize: 10, fontWeight: 600, color: C.text2, marginBottom: 6, paddingLeft: 30, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                                {heatmap.monthLabels.map((m) => m.label).join(" · ")}
                             </div>
-                            {/* Weeks */}
-                            <div style={{ display: "flex", flexDirection: "column" }}>
-                                {/* Month labels row */}
-                                <div style={{ display: "flex", gap: 4, height: 16, marginBottom: 4, position: "relative" }}>
-                                    {heatmap.weeks.map((_, wi) => {
-                                        const monthAtThisCol = heatmap.monthLabels.find(m => m.weekIndex === wi);
-                                        return (
-                                            <div key={wi} style={{ width: 32, fontSize: 10, fontWeight: 600, color: C.text2, textAlign: "left", marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
-                                                {monthAtThisCol?.label || ""}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div style={{ display: "flex", gap: 4 }}>
-                                {heatmap.weeks.map((week, wi) => (
-                                    <div key={wi} style={{ display: "flex", flexDirection: "column", gap: 4, marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
-                                        {week.map((day, di) => day ? (
-                                            <div
-                                                key={di}
-                                                title={`${format(day.date, "dd/MM")} · ${fmt(day.value)}`}
-                                                style={{
-                                                    width: 32, height: 32, borderRadius: 7,
-                                                    background: heatmapColor(day.value, heatmap.max),
-                                                    border: "1px solid var(--hairline-soft)",
-                                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                                    fontSize: 12, fontWeight: 600,
-                                                    color: day.value === 0 ? C.textMuted : (day.value / (heatmap.max || 1)) >= 0.5 ? "#fff" : C.text1,
-                                                }}
-                                            >
-                                                {format(day.date, "d")}
-                                            </div>
-                                        ) : (
-                                            <div key={di} style={{ width: 32, height: 32 }} />
-                                        ))}
-                                    </div>
+                            {/* Grade responsiva: coluna de rótulos + 1 coluna por semana (preenche largura e altura) */}
+                            <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: `auto repeat(${heatmap.weeks.length}, minmax(0, 1fr))`, gridTemplateRows: "repeat(7, 1fr)", gridAutoFlow: "column", gap: 4, width: "100%" }}>
+                                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
+                                    <div key={d} style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 5, fontSize: 9.5, color: C.textMuted }}>{d}</div>
                                 ))}
-                                </div>
+                                {heatmap.weeks.map((week, wi) => week.map((day, di) => day ? (
+                                    <div
+                                        key={`${wi}-${di}`}
+                                        title={`${format(day.date, "dd/MM")} · ${fmt(day.value)}`}
+                                        style={{
+                                            borderRadius: 6, minHeight: 30,
+                                            background: heatmapColor(day.value, heatmap.max),
+                                            border: "1px solid #1D2939",
+                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                            fontSize: 12, fontWeight: 600,
+                                            color: day.value === 0 ? C.textMuted : (day.value / (heatmap.max || 1)) >= 0.5 ? "#fff" : C.text1,
+                                        }}
+                                    >
+                                        {format(day.date, "d")}
+                                    </div>
+                                ) : (
+                                    <div key={`${wi}-${di}`} />
+                                )))}
                             </div>
                             </div>
                           </div>
@@ -1895,7 +1880,7 @@ export default function CompanyDashboard() {
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
-                                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }} axisLine={{ stroke: "#475569", strokeWidth: 1 }} tickLine={{ stroke: "#475569" }} interval={rows.length > 8 ? 1 : 0} tickMargin={8} />
+                                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }} axisLine={{ stroke: "#475569", strokeWidth: 1 }} tickLine={{ stroke: "#475569" }} interval={0} tickMargin={8} padding={{ left: 28, right: 28 }} />
                                         <YAxis tick={{ fontSize: 9, fill: C.text2, fontWeight: 500 }} axisLine={{ stroke: "#475569", strokeWidth: 1 }} tickLine={{ stroke: "#475569" }} tickFormatter={(v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} width={36} />
                                         <Tooltip
                                             contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
