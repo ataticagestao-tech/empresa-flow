@@ -455,6 +455,27 @@ export default function CompanyDashboard() {
         [serie3m]
     );
 
+    // Receita vs. Despesas — comparativo MÊS A MÊS do ano corrente (valores de cada mês)
+    const serieAnoBarras = useMemo(() => {
+        const ano = format(today, "yyyy");
+        return (serie12m as any[]).filter((m) => (m.ym || "").startsWith(ano));
+    }, [serie12m, today]);
+    const mediaFatAnoMes = useMemo(() => {
+        const ano = format(today, "yyyy");
+        const meses = (serie12m as any[]).filter((m) => (m.ym || "").startsWith(ano));
+        return meses.length ? meses.reduce((s: number, m: any) => s + (m.faturamento || 0), 0) / meses.length : 0;
+    }, [serie12m, today]);
+    const mediaDespAnoMes = useMemo(() => {
+        const ano = format(today, "yyyy");
+        const meses = (serie12m as any[]).filter((m) => (m.ym || "").startsWith(ano));
+        return meses.length ? meses.reduce((s: number, m: any) => s + (m.despesa || 0), 0) / meses.length : 0;
+    }, [serie12m, today]);
+    const totaisAno = useMemo(() => {
+        const fat = serieAnoBarras.reduce((s: number, m: any) => s + (m.faturamento || 0), 0);
+        const desp = serieAnoBarras.reduce((s: number, m: any) => s + (m.despesa || 0), 0);
+        return { fat, desp, resultado: fat - desp };
+    }, [serieAnoBarras]);
+
     // Médias dos últimos 6 meses (mês atual + 5 anteriores) — base das
     // linhas de referência aplicadas a todos os gráficos do dashboard.
     const ref6m = useMemo(() => {
@@ -1782,31 +1803,45 @@ export default function CompanyDashboard() {
                     </div>
                 </div>
 
-                {/* ── Receita vs. Despesas (12 meses, barras agrupadas) ── */}
+                {/* ── Gráficos analíticos em 2 colunas (mais estreitos) ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start", marginBottom: 16 }}>
+                {/* ── Receita vs. Despesas (comparativo mês a mês do ano) ── */}
                 <ChartCard
                     title="Receita vs. Despesas"
-                    subtitle="Mês atual + 2 anteriores · R$ mil · competência"
-                    info="Faturamento (vendas por data de venda) e Despesas (contas a pagar por vencimento) do mês atual e dos 2 meses anteriores. Janela fixa — NÃO acompanha o filtro de período. Eixo em R$ mil. Exclui transferências."
-                    style={{ marginBottom: 16 }}
+                    subtitle={`Comparativo mês a mês · ${format(today, "yyyy")}`}
+                    info="Faturamento (vendas por data de venda) e Despesas (contas a pagar por vencimento) de CADA mês do ano corrente — valores do mês, não acumulados. Competência. Exclui transferências."
                 >
+                    <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+                        {[
+                            { label: "Faturamento médio", value: mediaFatAnoMes },
+                            { label: "Despesa média", value: mediaDespAnoMes },
+                            { label: "Resultado médio", value: mediaFatAnoMes - mediaDespAnoMes },
+                        ].map((s) => (
+                            <div key={s.label} style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 9.5, color: C.text2, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 2 }}>{s.label}</div>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums", lineHeight: 1.15, whiteSpace: "nowrap" }}>{fmt(s.value)}</div>
+                            </div>
+                        ))}
+                    </div>
                     <div style={whitePanel}>
-                        <div style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 8, fontSize: 13, color: C.text2, fontWeight: 600 }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 18, height: 12, background: "#039855", borderRadius: 4 }} />Faturamento</span>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 18, height: 12, background: "#E53E3E", borderRadius: 4 }} />Despesas</span>
+                        <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 8, fontSize: 12, color: C.text2 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />Faturamento</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />Despesas</span>
                         </div>
-                        <ResponsiveContainer width="100%" height={360}>
-                            <BarChart data={serie3m} margin={{ top: 12, right: 16, left: 8, bottom: 4 }} barCategoryGap="34%" barGap={1}>
+                        <ResponsiveContainer width="100%" height={230}>
+                            <BarChart data={serieAnoBarras} margin={{ top: 12, right: 8, left: 0, bottom: 4 }} barCategoryGap="8%" barGap={1}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
-                                <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={{ stroke: C.border }} tickLine={false} interval={0} tickMargin={8} />
-                                <YAxis tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} domain={[0, (dataMax: number) => Math.ceil((dataMax * 1.25) / 1000) * 1000]} tickFormatter={(v) => (v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} width={48} />
+                                <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }} axisLine={{ stroke: "#475569", strokeWidth: 1 }} tickLine={{ stroke: "#475569" }} interval={0} tickMargin={8} />
+                                <YAxis tick={{ fontSize: 9, fill: C.text2, fontWeight: 500 }} axisLine={{ stroke: "#475569", strokeWidth: 1 }} tickLine={{ stroke: "#475569" }} domain={[0, (dataMax: number) => dataMax * 1.15]} tickFormatter={(v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} width={36} />
                                 <Tooltip
                                     contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
                                     formatter={(v: number, name: string) => [fmtFull(v), name === "faturamento" ? "Faturamento" : "Despesas"]}
                                     cursor={{ fill: "rgba(3, 152, 85, 0.08)" }}
                                 />
-                                <ReferenceLine y={mediaFat3m} {...refLineProps} label={refLabel("Média")} />
-                                <Bar dataKey="faturamento" name="faturamento" fill="#039855" radius={[4, 4, 0, 0]} maxBarSize={46} />
-                                <Bar dataKey="despesa" name="despesa" fill="#E53E3E" radius={[4, 4, 0, 0]} maxBarSize={46} />
+                                <Bar dataKey="faturamento" name="faturamento" fill="#039855" radius={[4, 4, 0, 0]} maxBarSize={70} />
+                                <Bar dataKey="despesa" name="despesa" fill="#EF9F27" radius={[4, 4, 0, 0]} maxBarSize={70} />
+                                <ReferenceLine y={mediaFatAnoMes} stroke="#047857" strokeWidth={1.5} strokeDasharray="5 5" label={{ value: "Fat. médio", position: "insideTopRight", fill: "#047857", fontSize: 10, fontWeight: 600 }} />
+                                <ReferenceLine y={mediaDespAnoMes} stroke="#B45309" strokeWidth={1.5} strokeDasharray="5 5" label={{ value: "Desp. média", position: "insideTopRight", fill: "#B45309", fontSize: 10, fontWeight: 600 }} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -1815,37 +1850,41 @@ export default function CompanyDashboard() {
                 {/* ── Faturamento Acumulado × Despesa Acumulada ── */}
                 <ChartCard
                     title="Faturamento Acumulado × Despesa Acumulada"
-                    subtitle={`${periodLabel} · soma corrida no período`}
-                    info="Soma acumulada (running total) do faturamento e da despesa ao longo do período selecionado, no mesmo regime do dashboard. Útil para ver em que ponto do mês a receita ultrapassa (ou não) a despesa."
-                    style={{ marginBottom: 16 }}
+                    subtitle={`Acumulado no ano · ${format(today, "yyyy")}`}
+                    info="Soma acumulada (running total) do faturamento e da despesa MÊS A MÊS dentro do ano corrente (year-to-date), reiniciando em janeiro. Competência. Mostra a trajetória do acumulado no ano e em que ponto a despesa ultrapassa (ou não) o faturamento."
                 >
                     {(() => {
-                        const rev = chartRevExp || [];
-                        const desp = chartDespDiarias || [];
+                        const anoCorrente = format(today, "yyyy");
+                        const mesesAno = (serie12m as any[]).filter((m) => (m.ym || "").startsWith(anoCorrente));
                         let af = 0, ad = 0;
-                        const rows = rev.map((r: any, i: number) => {
-                            af += r.Receita || 0;
-                            ad += (desp[i] && desp[i].despesa) || 0;
-                            return { label: r.label, fat: af, desp: ad };
+                        const rows = mesesAno.map((m) => {
+                            af += m.faturamento || 0;
+                            ad += m.despesa || 0;
+                            return { label: m.label, fat: af, desp: ad };
                         });
                         const fatFinal = af, despFinal = ad, saldoFinal = af - ad;
+                        const mediaFatMes = rows.length ? af / rows.length : 0;
                         return (
                             <>
-                                <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+                                <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
                                     {[
-                                        { label: "Faturamento acum.", value: fatFinal, color: "#039855" },
-                                        { label: "Despesa acum.", value: despFinal, color: "#EF9F27" },
-                                        { label: "Resultado", value: saldoFinal, color: saldoFinal >= 0 ? "#039855" : "#E53E3E" },
+                                        { label: "Faturamento acum.", value: fatFinal },
+                                        { label: "Despesa acum.", value: despFinal },
+                                        { label: "Resultado", value: saldoFinal },
                                     ].map((s) => (
-                                        <div key={s.label} style={{ flex: 1 }}>
-                                            <div style={{ fontSize: 10.5, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600, marginBottom: 3 }}>{s.label}</div>
-                                            <div style={{ fontSize: 19, fontWeight: 700, color: s.color, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>{fmt(s.value)}</div>
+                                        <div key={s.label} style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: 9.5, color: C.text2, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 2 }}>{s.label}</div>
+                                            <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums", lineHeight: 1.15, whiteSpace: "nowrap" }}>{fmt(s.value)}</div>
                                         </div>
                                     ))}
                                 </div>
                                 <div style={whitePanel}>
-                                <ResponsiveContainer width="100%" height={320}>
-                                    <ComposedChart data={rows} margin={{ top: 12, right: 16, left: 8, bottom: 4 }}>
+                                <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 8, fontSize: 12, color: C.text2 }}>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />Faturamento acumulado</span>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />Despesa acumulada</span>
+                                </div>
+                                <ResponsiveContainer width="100%" height={230}>
+                                    <ComposedChart data={rows} margin={{ top: 12, right: 8, left: 0, bottom: 4 }}>
                                         <defs>
                                             <linearGradient id="accFat" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="0%" stopColor="#039855" stopOpacity={0.18} />
@@ -1857,38 +1896,32 @@ export default function CompanyDashboard() {
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
-                                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={{ stroke: C.border }} tickLine={false} interval={rows.length > 20 ? 2 : 0} tickMargin={8} />
-                                        <YAxis tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} width={48} />
+                                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }} axisLine={{ stroke: "#475569", strokeWidth: 1 }} tickLine={{ stroke: "#475569" }} interval={rows.length > 8 ? 1 : 0} tickMargin={8} />
+                                        <YAxis tick={{ fontSize: 9, fill: C.text2, fontWeight: 500 }} axisLine={{ stroke: "#475569", strokeWidth: 1 }} tickLine={{ stroke: "#475569" }} tickFormatter={(v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} width={36} />
                                         <Tooltip
                                             contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
                                             formatter={(v: number, name: string) => [fmtFull(v), name === "fat" ? "Faturamento acum." : "Despesa acum."]}
                                             cursor={{ stroke: "rgba(3, 152, 85, 0.12)", strokeWidth: 36 }}
                                         />
-                                        <ReferenceLine y={refPeriodo.fat} {...refLineProps} label={refLabel("Média período")} />
+                                        <ReferenceLine y={mediaFatMes} {...refLineProps} label={refLabel("Média mensal")} />
                                         <Area type="monotone" dataKey="fat" stroke="#039855" strokeWidth={2.2} fill="url(#accFat)" dot={false} name="fat" />
                                         <Area type="monotone" dataKey="desp" stroke="#EF9F27" strokeWidth={2.2} fill="url(#accDesp)" dot={false} name="desp" />
                                     </ComposedChart>
                                 </ResponsiveContainer>
-                                <div style={{ display: "flex", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 8 }}>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />Faturamento acumulado</span>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />Despesa acumulada</span>
-                                </div>
                                 </div>
                             </>
                         );
                     })()}
                 </ChartCard>
 
-                {/* ── Row: Margem Líquida + Forecast (lado a lado) ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16, alignItems: "start" }}>
-                    {/* Evolução da Margem Líquida mês a mês */}
+                    {/* ── Evolução da Margem Líquida ── */}
                     <ChartCard
                         title="Evolução da Margem Líquida"
                         subtitle={`${periodLabel} · % · acompanha o filtro`}
                         info="Margem líquida por bucket = (Faturamento − Despesa) ÷ Faturamento, na granularidade do período selecionado (dia/semana/mês). Exclui transferências."
                     >
                         <div style={whitePanel}>
-                        <ResponsiveContainer width="100%" height={280}>
+                        <ResponsiveContainer width="100%" height={230}>
                             <AreaChart data={serieMargem} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
                                 <defs>
                                     <linearGradient id="gMargem" x1="0" y1="0" x2="0" y2="1">
@@ -1911,6 +1944,9 @@ export default function CompanyDashboard() {
                         </div>
                     </ChartCard>
 
+                    {/* Ciclo de Caixa (PMR / PMP / Ciclo Financeiro) */}
+                    <CicloCaixaCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
+
                     {/* Forecast — Geração de Caixa */}
                     <ChartCard
                         title="Forecast — Geração de Caixa"
@@ -1918,7 +1954,7 @@ export default function CompanyDashboard() {
                         info="Geração de caixa por bucket = Faturamento − Despesa, na granularidade do período (dia/semana/mês). A linha tracejada projeta 3 buckets à frente por regressão linear sobre o período; R² indica o quanto a tendência explica a série."
                     >
                         <div style={whitePanel}>
-                        <ResponsiveContainer width="100%" height={280}>
+                        <ResponsiveContainer width="100%" height={230}>
                             <ComposedChart data={serieForecast.rows} margin={{ top: 12, right: 16, left: 8, bottom: 4 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
                                 <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }} axisLine={{ stroke: C.border }} tickLine={false} tickMargin={8} interval={0} />
@@ -1939,14 +1975,13 @@ export default function CompanyDashboard() {
                         </div>
                         </div>
                     </ChartCard>
-                </div>
 
-                {/* ── Faturamento Mensal × Corrigido pela Inflação (IPCA) ── */}
+                {/* ── Faturamento Mensal × Corrigido pela Inflação (IPCA) — largura cheia ── */}
                 <ChartCard
                     title="Faturamento Mensal × Corrigido pela Inflação"
                     subtitle={temIpca ? `${periodLabel} · valores em R$ de hoje (IPCA)` : `${periodLabel} · IPCA indisponível no momento`}
                     info="Faturamento nominal por bucket do período e o mesmo valor corrigido pelo IPCA do mês correspondente — em poder de compra de hoje. A correção pela inflação só é perceptível quando o período abrange vários meses (granularidade mensal); em períodos curtos as linhas praticamente coincidem."
-                    style={{ marginBottom: 16 }}
+                    style={{ gridColumn: "1 / -1" }}
                 >
                     <div style={whitePanel}>
                     <ResponsiveContainer width="100%" height={320}>
@@ -1970,6 +2005,7 @@ export default function CompanyDashboard() {
                     </div>
                     </div>
                 </ChartCard>
+                </div>
 
                 {/* ── Row: Contas a Receber + A Pagar (lado a lado) ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
