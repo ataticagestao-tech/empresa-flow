@@ -11,27 +11,29 @@ const C = {
     serif: "Georgia, 'Times New Roman', serif",
 };
 
-const tempoAtras = (pub: string) => {
+/** Data da notícia em dd/mm (ou dd/mm/aa se de outro ano). */
+const dataNoticia = (pub: string) => {
     if (!pub) return "";
     const d = new Date(pub);
     if (isNaN(d.getTime())) return "";
-    const min = Math.floor((Date.now() - d.getTime()) / 60000);
-    if (min < 60) return `${min}min`;
-    if (min < 1440) return `${Math.floor(min / 60)}h`;
-    return `${Math.floor(min / 1440)}d`;
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const anoAtual = new Date().getFullYear();
+    return d.getFullYear() === anoAtual
+        ? `${dia}/${mes}`
+        : `${dia}/${mes}/${String(d.getFullYear()).slice(-2)}`;
 };
 
 export default function NoticiasSetor() {
     const { setor } = useSetorEmpresa();
-    const { noticias, loading, error, refetch } = useNoticiasSetor(setor);
+    // 5 notícias fixas; o excedente fica em "Ver todos" (outra página).
+    const { noticias, loading, error, refetch } = useNoticiasSetor(setor, 5);
 
     const wrap: React.CSSProperties = {
         width: 240, flexShrink: 0,
         background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12,
         padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,.05)",
-        // Estica como uma guia até o fim da coluna (fundo do quadro branco à esquerda).
-        flex: 1, minHeight: 240,
-        display: "flex", flexDirection: "column",
+        alignSelf: "flex-start",
     };
 
     return (
@@ -46,8 +48,6 @@ export default function NoticiasSetor() {
             </div>
             <p style={{ margin: "0 0 8px", fontSize: 10.5, color: C.muted, textTransform: "uppercase", letterSpacing: ".04em", fontWeight: 600 }}>{setor.label}</p>
 
-            {/* Área de conteúdo: cresce e rola internamente para o card ocupar a altura toda */}
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             {loading ? (
                 <div style={{ height: 180, borderRadius: 8, background: "#F2F4F7" }} className="animate-pulse" />
             ) : noticias.length === 0 ? (
@@ -59,18 +59,17 @@ export default function NoticiasSetor() {
                     {noticias.map((n, i) => (
                         <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
                             style={{ display: "block", textDecoration: "none", padding: "8px 0", borderTop: i === 0 ? "none" : `1px solid ${C.border}` }}>
-                            <p style={{ margin: 0, fontSize: 12, color: C.text1, lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                            <p style={{ margin: 0, fontSize: 12, color: C.text1, lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                                 {n.titulo}
                             </p>
                             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
                                 <span style={{ fontSize: 10, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>{n.fonte}</span>
-                                {tempoAtras(n.data) && <span style={{ fontSize: 10, color: C.muted }}>· {tempoAtras(n.data)}</span>}
+                                {dataNoticia(n.data) && <span style={{ fontSize: 10, color: C.muted }}>· {dataNoticia(n.data)}</span>}
                             </div>
                         </a>
                     ))}
                 </div>
             )}
-            </div>
 
             <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 4 }}>
                 <span style={{ fontSize: 10, color: C.muted }}>Fonte: Google Notícias</span>

@@ -16,6 +16,18 @@ const C = {
     serif: "Georgia, 'Times New Roman', serif",
 };
 
+/** Data em dd/mm (ou dd/mm/aa se de outro ano). */
+const dataProp = (pub: string | null) => {
+    if (!pub) return "";
+    const d = new Date(pub);
+    if (isNaN(d.getTime())) return "";
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    return d.getFullYear() === new Date().getFullYear()
+        ? `${dia}/${mes}`
+        : `${dia}/${mes}/${String(d.getFullYear()).slice(-2)}`;
+};
+
 export default function RadarLegislativo() {
     const { setor } = useSetorEmpresa();
     const { proposicoes, loading } = useRadarLegislativo({ temas: setor.temas, limit: 5 });
@@ -69,6 +81,7 @@ export default function RadarLegislativo() {
                                     </span>
                                 )}
                                 {p.tema && <span style={{ fontSize: 9.5, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.tema}</span>}
+                                {dataProp(p.data_apresentacao) && <span style={{ fontSize: 9.5, color: C.muted, marginLeft: "auto", flexShrink: 0 }}>{dataProp(p.data_apresentacao)}</span>}
                             </div>
                             <p style={{
                                 margin: 0, fontSize: 11.5, color: C.text2, lineHeight: 1.35,
