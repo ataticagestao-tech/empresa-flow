@@ -133,7 +133,9 @@ export default function WhatsappAutorizados() {
     if (foneNorm.length < 12 || foneNorm.length > 13) return toast.error("Telefone inválido (use DDD + número)");
 
     setSalvando(true);
-    const { data, error } = await activeClient
+    // Verificação por código desligada: cadastrar já libera o número (status verificado).
+    // Um gatilho no banco (trg_whatsapp_acesso_auto_verificar) garante isso mesmo em inserts diretos.
+    const { error } = await activeClient
       .from("whatsapp_acesso")
       .insert({
         phone: foneNorm,
@@ -144,10 +146,9 @@ export default function WhatsappAutorizados() {
           lancar_cp: permLancarCp,
           baixar_cp: permBaixarCp,
         },
-        status: "pendente",
-      })
-      .select("id")
-      .single();
+        status: "verificado",
+        verified_at: new Date().toISOString(),
+      });
 
     if (error) {
       setSalvando(false);
@@ -155,11 +156,7 @@ export default function WhatsappAutorizados() {
       return toast.error("Erro: " + error.message);
     }
 
-    toast.success("Cadastrado! Enviando código pelo WhatsApp...");
-    // Envia código via edge function
-    if (data?.id) {
-      await enviarCodigo(data.id);
-    }
+    toast.success("Cadastrado e liberado! Já pode usar o Assistente Tatica.");
 
     setSalvando(false);
     limparForm();
@@ -248,7 +245,7 @@ export default function WhatsappAutorizados() {
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
                   <Button onClick={adicionar} disabled={salvando} className="bg-emerald-600 hover:bg-emerald-700">
-                    {salvando ? "Salvando..." : "Cadastrar e enviar código"}
+                    {salvando ? "Salvando..." : "Cadastrar e liberar"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
