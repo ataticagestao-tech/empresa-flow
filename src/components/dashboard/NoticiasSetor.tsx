@@ -29,7 +29,9 @@ export default function NoticiasSetor() {
         width: 240, flexShrink: 0,
         background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12,
         padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,.05)",
-        alignSelf: "flex-start",
+        // Estica como uma guia até o fim da coluna (fundo do quadro branco à esquerda).
+        flex: 1, minHeight: 240,
+        display: "flex", flexDirection: "column",
     };
 
     return (
@@ -44,6 +46,8 @@ export default function NoticiasSetor() {
             </div>
             <p style={{ margin: "0 0 8px", fontSize: 10.5, color: C.muted, textTransform: "uppercase", letterSpacing: ".04em", fontWeight: 600 }}>{setor.label}</p>
 
+            {/* Área de conteúdo: cresce e rola internamente para o card ocupar a altura toda */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             {loading ? (
                 <div style={{ height: 180, borderRadius: 8, background: "#F2F4F7" }} className="animate-pulse" />
             ) : noticias.length === 0 ? (
@@ -66,6 +70,7 @@ export default function NoticiasSetor() {
                     ))}
                 </div>
             )}
+            </div>
 
             <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 4 }}>
                 <span style={{ fontSize: 10, color: C.muted }}>Fonte: Google Notícias</span>

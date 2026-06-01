@@ -13,7 +13,6 @@ import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, Cale
 import { SectionTitle } from "@/components/ui/section-title";
 import IndicadoresEconomicos from "@/components/dashboard/IndicadoresEconomicos";
 import VendasPorItemCard from "@/components/dashboard/VendasPorItemCard";
-import NoticiasCard from "@/components/dashboard/NoticiasCard";
 import RadarLegislativo from "@/components/dashboard/RadarLegislativo";
 import NoticiasSetor from "@/components/dashboard/NoticiasSetor";
 import BolsaTicker from "@/components/dashboard/BolsaTicker";
@@ -1285,7 +1284,7 @@ export default function CompanyDashboard() {
             <div style={{ marginBottom: 12 }}>
                 <DashboardTabs active="visao" />
             </div>
-            <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "stretch", flexWrap: "wrap" }}>
             <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ flex: 1, minWidth: 320, fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ marginBottom: 14 }}>
@@ -1912,12 +1911,14 @@ export default function CompanyDashboard() {
 
             </div>
 
-            {/* ── Coluna lateral: widgets empilhados (240px) ── */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, alignSelf: "flex-start" }}>
+            {/* ── Coluna lateral: widgets empilhados (240px) ──
+                 minHeight 0 permite a coluna encolher até a altura do quadro branco
+                 (definida pelo container align-items: stretch). O último widget
+                 (Notícias do setor) estica como guia e rola internamente se passar. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, minHeight: 0 }}>
                 <IndicadoresEconomicos />
                 <RadarLegislativo />
                 <NoticiasSetor />
-                <NoticiasCard />
             </div>
             </div>
         </AppLayout>
