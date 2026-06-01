@@ -6,6 +6,8 @@ import { CicloCaixaCard } from "@/components/dashboard/CicloCaixaCard";
 import { LiquidezCard } from "@/components/dashboard/LiquidezCard";
 import { MargensCard } from "@/components/dashboard/MargensCard";
 import { PontoEquilibrioCard } from "@/components/dashboard/PontoEquilibrioCard";
+import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { ContextoIndicadores } from "@/components/dashboard/ContextoIndicadores";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, format,
 } from "date-fns";
@@ -70,6 +72,10 @@ export default function Indicadores() {
 
     return (
         <AppLayout title="Indicadores">
+            {/* ── Abas do Dashboard (Visão Geral | Indicadores) ── */}
+            <div style={{ marginBottom: 12 }}>
+                <DashboardTabs active="indicadores" />
+            </div>
             <div
                 className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]"
                 style={{ fontFamily: "var(--font-base)" }}
@@ -116,10 +122,11 @@ export default function Indicadores() {
                     </div>
                 ) : (
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                        <ContextoIndicadores companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
+                        <PontoEquilibrioCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
+                        <MargensCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
                         <CicloCaixaCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
                         <LiquidezCard companyId={cId} periodEnd={periodEnd} />
-                        <MargensCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
-                        <PontoEquilibrioCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
                     </div>
                 )}
             </div>
