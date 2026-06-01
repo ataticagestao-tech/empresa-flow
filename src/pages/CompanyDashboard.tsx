@@ -12,6 +12,8 @@ import {
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
 import IndicadoresEconomicos from "@/components/dashboard/IndicadoresEconomicos";
+import VendasPorItemCard from "@/components/dashboard/VendasPorItemCard";
+import NoticiasCard from "@/components/dashboard/NoticiasCard";
 import BolsaTicker from "@/components/dashboard/BolsaTicker";
 import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -1544,6 +1546,9 @@ export default function CompanyDashboard() {
                     </div>
                 </div>
 
+                {/* ── Vendas por item × mês passado (barras deitadas) ── */}
+                <VendasPorItemCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
+
                 {/* ── Heatmap: Faturamento Diário do Mês ── */}
                 <div style={{ ...billoraCard, marginBottom: 16, overflow: "hidden" }}>
                     <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
@@ -1900,8 +1905,11 @@ export default function CompanyDashboard() {
 
             </div>
 
-            {/* ── Painel lateral: Indicadores Econômicos (BCB) ── */}
-            <IndicadoresEconomicos />
+            {/* ── Coluna lateral: widgets empilhados (240px) ── */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, alignSelf: "flex-start" }}>
+                <IndicadoresEconomicos />
+                <NoticiasCard />
+            </div>
             </div>
         </AppLayout>
     );
