@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { addMonths, format } from 'date-fns'
 import { normalizarRegime, type AnexoSimples } from '../fiscal/apuracao'
+import { isSalarioPuro } from './calculo'
 
 // Terceiros / Sistema S (SESI+SENAI+SENAC+SEBRAE+INCRA+Salário-Educação ≈ 5,8%)
 const TERCEIROS_ALIQ = 0.058
@@ -42,13 +43,31 @@ export async function calcularEncargosCompetencia({
   try {
     const { data: folhas } = await db
       .from('folha_pagamento')
-      .select('total_proventos, inss_funcionario, irrf, fgts_mes, inss_patronal')
+      .select('employee_id, total_proventos, inss_funcionario, irrf, fgts_mes, inss_patronal')
       .eq('company_id', companyId)
       .eq('competencia', competencia)
       .eq('tipo', 'mensal')
     if (!folhas || folhas.length === 0) {
       return { sucesso: false, semFolha: true, erro: 'Nenhuma folha encontrada para esta competência.' }
     }
+
+    // Estágio/PJ/autônomo entram na folha só com o salário — não geram encargos
+    // patronais. FGTS/INSS já vêm zerados da folha; aqui também os tiramos da
+    // base de proventos do RAT×FAP e Terceiros.
+    const empIds = [...new Set(folhas.map((f: any) => f.employee_id).filter(Boolean))]
+    let salarioPuroIds = new Set<string>()
+    if (empIds.length > 0) {
+      const { data: emps } = await db
+        .from('employees')
+        .select('id, tipo_contrato')
+        .in('id', empIds)
+      salarioPuroIds = new Set(
+        (emps || [])
+          .filter((e: any) => isSalarioPuro(e.tipo_contrato))
+          .map((e: any) => e.id)
+      )
+    }
+    const folhasComEncargo = folhas.filter((f: any) => !salarioPuroIds.has(f.employee_id))
 
     const { data: comp } = await db
       .from('companies')
@@ -88,11 +107,11 @@ export async function calcularEncargosCompetencia({
 
     const ratFapAliq = (ratPct / 100) * fap
 
-    const fgtsTotal = folhas.reduce((s: number, f: any) => s + (f.fgts_mes || 0), 0)
-    const inssPatronal = folhas.reduce((s: number, f: any) => s + (f.inss_patronal || 0), 0)
-    const inssFuncionarios = folhas.reduce((s: number, f: any) => s + (f.inss_funcionario || 0), 0)
-    const irrfRetido = folhas.reduce((s: number, f: any) => s + (f.irrf || 0), 0)
-    const totalProventos = folhas.reduce((s: number, f: any) => s + (f.total_proventos || 0), 0)
+    const fgtsTotal = folhasComEncargo.reduce((s: number, f: any) => s + (f.fgts_mes || 0), 0)
+    const inssPatronal = folhasComEncargo.reduce((s: number, f: any) => s + (f.inss_patronal || 0), 0)
+    const inssFuncionarios = folhasComEncargo.reduce((s: number, f: any) => s + (f.inss_funcionario || 0), 0)
+    const irrfRetido = folhasComEncargo.reduce((s: number, f: any) => s + (f.irrf || 0), 0)
+    const totalProventos = folhasComEncargo.reduce((s: number, f: any) => s + (f.total_proventos || 0), 0)
 
     const ratFap = round2(totalProventos * ratFapAliq)
     const terceiros = round2(totalProventos * TERCEIROS_ALIQ)

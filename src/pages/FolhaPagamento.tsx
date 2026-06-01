@@ -15,7 +15,7 @@ import { PagePanel } from '@/components/layout/PagePanel'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
-import { calcularINSS, calcularIRRF, type FaixaINSS, type FaixaIRRF } from '@/lib/folha/calculo'
+import { calcularINSS, calcularIRRF, isSalarioPuro, type FaixaINSS, type FaixaIRRF } from '@/lib/folha/calculo'
 import { calcularEncargosCompetencia } from '@/lib/folha/encargos'
 import { computeDropdownCoords, dropdownPositionStyle, type DropdownCoords } from '@/lib/dropdownPosition'
 
@@ -92,9 +92,10 @@ const TIPO_CONTRATO_LABELS: Record<string, string> = {
   autonomo: 'Autônomo',
 }
 
-// REGRA DO SISTEMA: PJ e autônomo são pagos via NF/RPA e NUNCA entram na folha CLT.
-// Apenas estes tipos podem ser calculados na folha de pagamento.
-const TIPOS_CONTRATO_FOLHA = ['clt', 'temporario', 'estagio']
+// Tipos que entram na folha. CLT e temporário recebem o cálculo CLT completo
+// (INSS/IRRF/VT/FGTS/INSS patronal). Estágio, PJ e autônomo entram só com o
+// salário informado no cadastro (salário puro) — ver isSalarioPuro.
+const TIPOS_CONTRATO_FOLHA = ['clt', 'temporario', 'estagio', 'pj', 'autonomo']
 
 // tipo_contrato nulo no cadastro tem default 'clt'
 const normalizaTipoContrato = (t?: string | null) => (t || 'clt').toLowerCase()
@@ -397,30 +398,45 @@ export default function FolhaPagamentoPage() {
         }
 
         const salarioBase = func.salario_base || func.salary || 0
+        const salarioPuro = isSalarioPuro(func.tipo_contrato)
 
-        // Horas extras aprovadas do Ponto — só entram na folha mensal.
-        // Valor-hora = salário / 220 (CLT). HE 50% = ×1,5 · HE 100% = ×2,0.
-        const he = calcForm.tipo === 'mensal' ? (pontoHoras[func.id] || { he50: 0, he100: 0 }) : { he50: 0, he100: 0 }
-        const valorHora = salarioBase / 220
-        const valorHE50 = Math.round(he.he50 * valorHora * 1.5 * 100) / 100
-        const valorHE100 = Math.round(he.he100 * valorHora * 2.0 * 100) / 100
+        // Estágio/PJ/autônomo: só o salário informado, sem cálculo.
+        // CLT/temporário: cálculo CLT completo (HE + INSS + IRRF + VT + encargos).
+        let he = { he50: 0, he100: 0 }
+        let valorHE50 = 0
+        let valorHE100 = 0
+        let totalProventos = Math.round(salarioBase * 100) / 100
+        let inssFunc = 0
+        let irrf = 0
+        let vt = 0
+        let fgts = 0
+        let inssPatronal = 0
 
-        // Bruto = salário base + horas extras
-        const totalProventos = Math.round((salarioBase + valorHE50 + valorHE100) * 100) / 100
+        if (!salarioPuro) {
+          // Horas extras aprovadas do Ponto — só entram na folha mensal.
+          // Valor-hora = salário / 220 (CLT). HE 50% = ×1,5 · HE 100% = ×2,0.
+          he = calcForm.tipo === 'mensal' ? (pontoHoras[func.id] || { he50: 0, he100: 0 }) : { he50: 0, he100: 0 }
+          const valorHora = salarioBase / 220
+          valorHE50 = Math.round(he.he50 * valorHora * 1.5 * 100) / 100
+          valorHE100 = Math.round(he.he100 * valorHora * 2.0 * 100) / 100
 
-        // INSS progressivo sobre o bruto
-        const inssFunc = calcularINSS(totalProventos, faixasINSS)
+          // Bruto = salário base + horas extras
+          totalProventos = Math.round((salarioBase + valorHE50 + valorHE100) * 100) / 100
 
-        // IRRF sobre bruto - INSS
-        const baseIRRF = totalProventos - inssFunc
-        const irrf = calcularIRRF(baseIRRF, faixasIRRF)
+          // INSS progressivo sobre o bruto
+          inssFunc = calcularINSS(totalProventos, faixasINSS)
 
-        // VT: 6% do salário base (não incide sobre HE)
-        const vt = Math.round(salarioBase * 0.06 * 100) / 100
+          // IRRF sobre bruto - INSS
+          const baseIRRF = totalProventos - inssFunc
+          irrf = calcularIRRF(baseIRRF, faixasIRRF)
 
-        // FGTS 8% e INSS patronal 20% sobre o bruto
-        const fgts = Math.round(totalProventos * 0.08 * 100) / 100
-        const inssPatronal = Math.round(totalProventos * 0.20 * 100) / 100
+          // VT: 6% do salário base (não incide sobre HE)
+          vt = Math.round(salarioBase * 0.06 * 100) / 100
+
+          // FGTS 8% e INSS patronal 20% sobre o bruto
+          fgts = Math.round(totalProventos * 0.08 * 100) / 100
+          inssPatronal = Math.round(totalProventos * 0.20 * 100) / 100
+        }
 
         const totalDescontos = Math.round((inssFunc + irrf + vt) * 100) / 100
         const valorLiquido = Math.round((totalProventos - totalDescontos) * 100) / 100
@@ -889,7 +905,7 @@ export default function FolhaPagamentoPage() {
                             className="rounded border-gray-300 disabled:opacity-50"
                           />
                           {label}
-                          {!elegivel && <span className="text-[11px] text-gray-400">— fora da folha (NF/RPA)</span>}
+                          {isSalarioPuro(key) && <span className="text-[11px] text-gray-400">— só salário (sem cálculo)</span>}
                         </span>
                         <span className="text-xs text-gray-400">{count} ativo(s)</span>
                       </label>
@@ -921,11 +937,13 @@ export default function FolhaPagamentoPage() {
                 </div>
               )}
               <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-1">
+                <p><strong>CLT / Temporário</strong> — cálculo completo:</p>
                 <p>INSS: tabela progressiva {new Date().getFullYear()}</p>
                 <p>IRRF: tabela progressiva {new Date().getFullYear()}</p>
                 <p>FGTS: 8% | INSS patronal: 20%</p>
                 <p>VT: 6% do salario base</p>
                 <p>Horas extras: puxadas do Ponto aprovado (50% e 100%) — só na folha mensal</p>
+                <p className="pt-1"><strong>Estágio / PJ / Autônomo</strong> — só o salário informado no cadastro, sem descontos nem encargos.</p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
