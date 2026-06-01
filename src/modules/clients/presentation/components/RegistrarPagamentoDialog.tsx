@@ -73,6 +73,23 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
 
             const ac = activeClient as any;
 
+            // Garante que a venda do contrato ainda existe. Ela pode ter sido
+            // excluída em outra aba/sessão enquanto este card ficava em cache —
+            // sem esta checagem, o INSERT abaixo falha com um erro de foreign
+            // key cru ("contas_receber_venda_id_fkey") incompreensível.
+            const { data: vendaAtual, error: vendaErr } = await ac
+                .from("vendas")
+                .select("id")
+                .eq("id", contrato.id)
+                .is("deleted_at", null)
+                .maybeSingle();
+            if (vendaErr) throw vendaErr;
+            if (!vendaAtual) {
+                throw new Error(
+                    "Este contrato não existe mais (pode ter sido excluído). Atualize a página (F5) e tente novamente."
+                );
+            }
+
             const obsBase = modoQuitacao
                 ? `Quitação — ${contrato.procedimento || "contrato"}`
                 : `Pagamento avulso — ${contrato.procedimento || "contrato"}`;
@@ -115,9 +132,9 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
             // Mov é criada automaticamente pelo trigger garantir_mov_ao_quitar_cr
             // ao detectar status='pago' + conta_bancaria_id preenchido.
 
-            // No modo Quitação, soft-delete das CRs em aberto da venda
-            // (as que ainda não foram pagas) — limpa o calendário de parcelas.
             if (modoQuitacao) {
+                // Quitação: zera todo o calendário em aberto da venda
+                // (as parcelas que ainda não foram pagas).
                 const { error: delErr } = await ac
                     .from("contas_receber")
                     .update({ deleted_at: new Date().toISOString() })
@@ -126,6 +143,52 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                     .is("deleted_at", null)
                     .neq("id", cr.id);
                 if (delErr) console.error("[RegistrarPagamento] erro ao limpar parcelas em aberto:", delErr);
+            } else {
+                // Pagamento avulso: abate o valor pago das parcelas em aberto,
+                // da mais antiga para a mais nova (FIFO). Sem isto, o pagamento
+                // ficaria DUPLICADO por cima das parcelas originais (o calendário
+                // continuaria cheio mesmo com o saldo quitado). Assim, o que sobra
+                // em aberto sempre reflete o que realmente falta receber.
+                const { data: abertas, error: abertasErr } = await ac
+                    .from("contas_receber")
+                    .select("id, valor, valor_pago")
+                    .eq("venda_id", contrato.id)
+                    .eq("status", "aberto")
+                    .is("deleted_at", null)
+                    .neq("id", cr.id)
+                    .order("data_vencimento", { ascending: true });
+
+                if (abertasErr) {
+                    console.error("[RegistrarPagamento] erro ao buscar parcelas em aberto:", abertasErr);
+                } else {
+                    let restante = v;
+                    const aRemover: string[] = [];
+                    for (const p of (abertas as any[]) || []) {
+                        if (restante <= 0.005) break;
+                        const emAberto = parseFloat(p.valor || 0) - parseFloat(p.valor_pago || 0);
+                        if (restante >= emAberto - 0.005) {
+                            // Parcela totalmente coberta pelo pagamento → remove.
+                            aRemover.push(p.id);
+                            restante -= emAberto;
+                        } else {
+                            // Parcela parcialmente coberta → encolhe o valor que resta.
+                            const novoValor = Math.round((emAberto - restante) * 100) / 100;
+                            const { error: shrinkErr } = await ac
+                                .from("contas_receber")
+                                .update({ valor: novoValor })
+                                .eq("id", p.id);
+                            if (shrinkErr) console.error("[RegistrarPagamento] erro ao ajustar parcela parcial:", shrinkErr);
+                            restante = 0;
+                        }
+                    }
+                    if (aRemover.length > 0) {
+                        const { error: delErr } = await ac
+                            .from("contas_receber")
+                            .update({ deleted_at: new Date().toISOString() })
+                            .in("id", aRemover);
+                        if (delErr) console.error("[RegistrarPagamento] erro ao baixar parcelas em aberto:", delErr);
+                    }
+                }
             }
 
             return cr;
@@ -139,6 +202,9 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
         },
         onError: (err: any) => {
             toast.error(err?.message || "Erro ao registrar pagamento");
+            // Se o contrato sumiu/ficou inconsistente, recarrega a lista para
+            // remover o card fantasma sem precisar de F5 manual.
+            queryClient.invalidateQueries({ queryKey: ["client-contratos"] });
         },
     });
 

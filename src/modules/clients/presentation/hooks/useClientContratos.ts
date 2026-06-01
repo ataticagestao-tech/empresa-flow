@@ -76,6 +76,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                 .eq("company_id", selectedCompany!.id)
                 .eq("tipo", "contrato")
                 .eq("cliente_cpf_cnpj", docLimpo)
+                .is("deleted_at", null)
                 .order("data_venda", { ascending: false });
 
             if (vendasErr) throw vendasErr;
