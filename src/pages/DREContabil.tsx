@@ -30,8 +30,8 @@ export default function DREContabil() {
   const db = activeClient as any;
 
   const hoje = new Date();
-  const [dateFrom, setDateFrom] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM-dd"));
-  const [dateTo, setDateTo] = useState(format(endOfMonth(hoje), "yyyy-MM-dd"));
+  const [dateFrom, setDateFrom] = useState(format(startOfMonth(subMonths(hoje, 1)), "yyyy-MM-dd"));
+  const [dateTo, setDateTo] = useState(format(endOfMonth(subMonths(hoje, 1)), "yyyy-MM-dd"));
 
   const dataInicio = dateFrom;
   const dataFim = dateTo;

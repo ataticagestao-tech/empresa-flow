@@ -35,7 +35,7 @@ export default function Indicadores() {
     const cId = selectedCompany?.id;
     const companyName = selectedCompany?.razao_social || selectedCompany?.nome_fantasia || "Empresa";
 
-    const [period, setPeriod] = useState<Period>("mes");
+    const [period, setPeriod] = useState<Period>("mes_anterior");
 
     const { periodStart, periodEnd, periodLabel } = useMemo(() => {
         const today = new Date();

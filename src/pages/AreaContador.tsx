@@ -169,7 +169,7 @@ export default function AreaContador() {
 
   const monthOptions = useMemo(buildMonthOptions, []);
   const [selectedMonth, setSelectedMonth] = useState(
-    format(new Date(), "yyyy-MM"),
+    format(subMonths(new Date(), 1), "yyyy-MM"),
   );
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
 

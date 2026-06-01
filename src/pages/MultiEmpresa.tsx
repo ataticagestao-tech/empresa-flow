@@ -1170,7 +1170,7 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
   };
   const empCols = useColunasAjustaveis(EMP_COL_ORDER, EMP_COL_WIDTHS_DEFAULT, "multiempresa_empresas");
 
-  const [periodo, setPeriodo] = useState<"mes" | "mes_anterior" | "ano" | "mes_especifico">("mes");
+  const [periodo, setPeriodo] = useState<"mes" | "mes_anterior" | "ano" | "mes_especifico">("mes_anterior");
   const now = new Date();
   const [mesEspecifico, setMesEspecifico] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
   const [addOpen, setAddOpen] = useState(false);
