@@ -8,6 +8,7 @@ import { PLANO_PATRIMONIAL, GRUPO_LABELS, type ContaModelo } from "@/data/planoC
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { BookOpen, Plus, X, Check, ChevronRight, ChevronDown, Download } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
+import { ClassificacaoCustos } from "@/pages/ClassificacaoCustos";
 
 interface Conta {
   id: string; code: string; name: string; level: number;
@@ -567,17 +568,17 @@ export default function PlanoContas() {
         <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 space-y-2 min-h-[calc(100vh-150px)]">
         {/* Cabeçalho estilo header escuro + abas (como Operacional) */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
-          <div className="bg-[#2A2724] px-4 py-3">
+          <div className="bg-[#071D41] px-4 py-3">
             <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Plano de Contas</h1>
             <p className="text-[11px] text-white/80 mt-0.5">Estrutura de contas contábeis para classificar receitas, custos e despesas</p>
           </div>
           <div className="flex px-4 border-b border-[#EAECF0] overflow-x-auto">
-            {["todas", "receitas", "custos", "despesas", "patrimoniais", "analiticas"].map(f => (
+            {["todas", "receitas", "custos", "despesas", "patrimoniais", "analiticas", "fixo_variavel"].map(f => (
               <button key={f} onClick={() => setFilterType(f)}
                 className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${
                   filterType === f ? "text-[#059669] border-[#059669]" : "text-[#555] border-transparent hover:text-[#1D2939]"
                 }`}>
-                {f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : f === "patrimoniais" ? "Patrimoniais" : "Analíticas"}
+                {f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : f === "patrimoniais" ? "Patrimoniais" : f === "analiticas" ? "Analíticas" : "Fixo / Variável"}
               </button>
             ))}
           </div>
@@ -761,8 +762,10 @@ export default function PlanoContas() {
           </div>
         )}
 
-        {/* Tree */}
-        {isLoading ? (
+        {/* Aba Fixo/Variável — tela de classificação de custos */}
+        {filterType === "fixo_variavel" ? (
+          <ClassificacaoCustos />
+        ) : isLoading ? (
           <div className="text-center py-12 text-sm text-[#555]">Carregando plano de contas...</div>
         ) : filteredContas.length === 0 ? (
           <div className="text-center py-12">
@@ -848,7 +851,7 @@ export default function PlanoContas() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !replacingAll && setShowModeloPopup(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="bg-[#2A2724] px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#071D41] px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen size={18} className="text-white" />
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider">Modelo Padrão Patrimonial</h2>

@@ -143,7 +143,7 @@ export const card = {
 /* ─── Headers de card (barra graphite) ────────────────────────── */
 export const header = {
   /** Header institucional graphite (painéis tipo Clientes / Funcionários) */
-  blueBar: "bg-[#2A2724] px-4 py-2.5 flex items-center justify-between",
+  blueBar: "bg-[#071D41] px-4 py-2.5 flex items-center justify-between",
   blueBarTitle: "text-xs font-bold text-white uppercase tracking-widest",
   blueBarAction: "text-xs font-semibold text-white/70 hover:text-white",
 

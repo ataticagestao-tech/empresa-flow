@@ -264,7 +264,7 @@ export default function CadastrosPendentes() {
                 <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 h-full flex flex-col">
                 {/* ═══ MENU SUPERIOR (header da página) ═══ */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
-                  <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="bg-[#071D41] px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Cadastros Pendentes</h1>
                       <p className="text-[11px] text-white/80 mt-0.5">Solicitações de cadastro recebidas via WhatsApp</p>
@@ -321,7 +321,7 @@ export default function CadastrosPendentes() {
                                         onClick={() => setStatusFilter(f.v)}
                                         className={`text-[11px] px-2 py-0.5 rounded border font-medium ${
                                             ativo
-                                                ? "bg-[#2A2724] text-white border-[#2A2724]"
+                                                ? "bg-[#071D41] text-white border-[#071D41]"
                                                 : "bg-white text-[#555] border-[#ddd] hover:border-[#aaa]"
                                         }`}
                                     >
@@ -341,7 +341,7 @@ export default function CadastrosPendentes() {
                                     onClick={() => setTipoFilter(f.v)}
                                     className={`text-[11px] px-2 py-0.5 rounded border ${
                                         tipoFilter === f.v
-                                            ? "bg-[#2A2724] text-white border-[#2A2724]"
+                                            ? "bg-[#071D41] text-white border-[#071D41]"
                                             : "bg-white text-[#555] border-[#ddd]"
                                     }`}
                                 >

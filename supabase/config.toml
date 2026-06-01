@@ -4,6 +4,11 @@ project_id = "onobornmnzemgsduscug"
 [functions.indicadores-economicos]
 verify_jwt = false
 
+# Radar Legislativo — proposições da Câmara. Dados públicos; coleta via cron
+# (pg_net → service key sb_secret_*), por isso verify_jwt=false.
+[functions.radar-legislativo]
+verify_jwt = false
+
 [functions.import-omie-data]
 verify_jwt = false
 

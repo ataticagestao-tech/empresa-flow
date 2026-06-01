@@ -14,6 +14,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import IndicadoresEconomicos from "@/components/dashboard/IndicadoresEconomicos";
 import VendasPorItemCard from "@/components/dashboard/VendasPorItemCard";
 import NoticiasCard from "@/components/dashboard/NoticiasCard";
+import RadarLegislativo from "@/components/dashboard/RadarLegislativo";
 import BolsaTicker from "@/components/dashboard/BolsaTicker";
 import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -1908,6 +1909,7 @@ export default function CompanyDashboard() {
             {/* ── Coluna lateral: widgets empilhados (240px) ── */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, alignSelf: "flex-start" }}>
                 <IndicadoresEconomicos />
+                <RadarLegislativo />
                 <NoticiasCard />
             </div>
             </div>

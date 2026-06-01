@@ -54,7 +54,7 @@ export default function CRM() {
         <AppLayout title="CRM - Gestão de Oportunidades">
             <div className="h-full py-3 animate-in fade-in">
               <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm h-full flex flex-col overflow-hidden">
-                <div className="bg-[#2A2724] px-4 py-3 flex items-start justify-between gap-3 shrink-0">
+                <div className="bg-[#071D41] px-4 py-3 flex items-start justify-between gap-3 shrink-0">
                   <div className="min-w-0">
                     <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Pipeline de Vendas</h1>
                     <p className="text-[11px] text-white/80 mt-0.5">Gerencie suas negociações e acompanhe o progresso.</p>

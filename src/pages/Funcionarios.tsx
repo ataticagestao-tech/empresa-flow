@@ -769,7 +769,7 @@ export default function Funcionarios() {
         <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 h-full flex flex-col">
         {/* ═══ MENU SUPERIOR (header da página) ═══ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
-          <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
+          <div className="bg-[#071D41] px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Funcionários</h1>
               <p className="text-[11px] text-white/80 mt-0.5">Cadastro de funcionários e dados trabalhistas</p>

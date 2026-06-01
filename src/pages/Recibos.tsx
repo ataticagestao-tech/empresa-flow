@@ -1005,7 +1005,7 @@ export default function Recibos() {
         <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 h-full flex flex-col">
         {/* ═══ MENU SUPERIOR (header da página) ═══ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
-          <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
+          <div className="bg-[#071D41] px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Recibos</h1>
               <p className="text-[11px] text-white/80 mt-0.5">Emissão e envio de recibos de pagamento</p>
@@ -1075,7 +1075,7 @@ export default function Recibos() {
                     title="Filtrar por data"
                     className={`relative flex items-center justify-center w-[34px] h-[34px] rounded border transition-colors ${
                       dataDe || dataAte
-                        ? 'bg-[#2A2724] text-white border-[#2A2724]'
+                        ? 'bg-[#071D41] text-white border-[#071D41]'
                         : 'bg-white text-[#4B5563] border-[#D1D5DB] hover:bg-[#F3F4F6]'
                     }`}
                   >
@@ -1136,7 +1136,7 @@ export default function Recibos() {
                     onClick={() => setFiltroStatus(f.key)}
                     className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider rounded border transition-colors ${
                       filtroStatus === f.key
-                        ? 'bg-[#2A2724] text-white border-[#2A2724]'
+                        ? 'bg-[#071D41] text-white border-[#071D41]'
                         : 'bg-white text-[#4B5563] border-[#D1D5DB] hover:bg-[#F3F4F6]'
                     }`}
                   >
@@ -1224,7 +1224,7 @@ export default function Recibos() {
             {selecionado ? (
               <>
                 {/* Preview header */}
-                <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between shrink-0">
+                <div className="bg-[#071D41] px-4 py-2.5 flex items-center justify-between shrink-0">
                   <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">
                     Recibo #{selecionado.numero}
                   </h3>
@@ -1245,7 +1245,7 @@ export default function Recibos() {
                     </button>
                     <button
                       onClick={() => handleDownloadPDF(selecionado)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded bg-white text-[#2A2724] hover:bg-white/90 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded bg-white text-[#071D41] hover:bg-white/90 transition-colors"
                     >
                       <Download className="w-3 h-3" />
                       Download PDF
@@ -1295,7 +1295,7 @@ export default function Recibos() {
                 onClick={() => { setGerarTab(t.key); setGerarSelecionado(null); setGerarBusca('') }}
                 className={`px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded border transition-colors ${
                   gerarTab === t.key
-                    ? 'bg-[#2A2724] text-white border-[#2A2724]'
+                    ? 'bg-[#071D41] text-white border-[#071D41]'
                     : 'bg-white text-[#4B5563] border-[#D1D5DB] hover:bg-[#F3F4F6]'
                 }`}
               >
@@ -1398,7 +1398,7 @@ export default function Recibos() {
                           ? 'bg-emerald-600 text-white border-emerald-600'
                           : opt.key === 'email'
                           ? 'bg-[#1E3A8A] text-white border-[#1E3A8A]'
-                          : 'bg-[#2A2724] text-white border-[#2A2724]'
+                          : 'bg-[#071D41] text-white border-[#071D41]'
                         : 'bg-white text-[#4B5563] border-[#D1D5DB] hover:bg-[#F3F4F6]'
                     }`}
                   >

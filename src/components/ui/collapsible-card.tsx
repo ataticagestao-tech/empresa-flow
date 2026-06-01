@@ -42,7 +42,7 @@ export function CollapsibleCard({
       className={`bg-white border border-[#EAECF0] rounded-xl overflow-hidden ${className}`}
       style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
     >
-      <div className="flex items-start justify-between gap-3 px-4 py-3 bg-[#2A2724]">
+      <div className="flex items-start justify-between gap-3 px-4 py-3 bg-[#071D41]">
         <div className="min-w-0">
           <div className="text-[16px] font-bold uppercase tracking-[0.5px] text-white truncate">{title}</div>
           {subtitle && <div className="text-[11px] text-white/80 mt-0.5 truncate">{subtitle}</div>}

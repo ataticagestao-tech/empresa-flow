@@ -42,10 +42,14 @@ Tabela nova `interacoes_cadastro`:
 | `metadata` | jsonb (ids das mensagens, etc.) |
 | `created_at` | — |
 
+## Modelo de número (decisão 2026-05-29)
+**Um único número de WhatsApp central pra todas as empresas** (modelo BPO/centralizado). NÃO é um número por empresa — isso pode mudar no futuro, mas não é a intenção agora. (Se um dia virar número-por-empresa, o webhook roteia por `phone_number_id` → empresa, sem mexer no modelo de dados.)
+
 ## Regras de vínculo (número → cadastro)
-1. Ao chegar/sair mensagem, busca o número em `employees.phone`, `suppliers.telefone`, `clients.phone` **dentro da empresa**.
-2. **Número não cadastrado em ninguém** → vai pra uma **Caixa de Entrada ("Não identificados")**, onde dá pra vincular manualmente a um cadastro ou criar um novo. (registro com `alvo_tipo='nao_identificado'`)
-3. **Número em mais de um cadastro** → anexa no de **vínculo mais forte**, nesta ordem: **Funcionário > Sócio > Fornecedor > Cliente**.
+1. Ao chegar/sair mensagem, busca o número em `employees.phone`, `suppliers.telefone`, `clients.phone`.
+2. **Número não cadastrado em ninguém** → **Caixa de Entrada ("Não identificados")**, pra vincular manualmente ou criar cadastro. (`alvo_tipo='nao_identificado'`)
+3. **Número casa em UMA empresa, em mais de um cadastro dela** → anexa no de **vínculo mais forte**: **Funcionário > Sócio > Fornecedor > Cliente**.
+4. **Número casa em MAIS DE UMA empresa** (número central compartilhado) → **NÃO anexa automático** (vazaria conversa entre empresas — isolação multi-tenant). Vai pra **Caixa de Entrada** com os candidatos pra resolução manual. 🔒
 
 ## Fontes das interações (o que vira anotação)
 1. 🟢 **Sistema → pessoa** (cobrança, pedido de cadastro, recibo, aviso) + respostas. O fluxo de cadastro **já guarda** mensagens e arquivos em `cadastro_mensagens` — base pronta.

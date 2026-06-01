@@ -12,6 +12,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { CicloCaixaCard } from "@/components/dashboard/CicloCaixaCard";
+import { LiquidezCard } from "@/components/dashboard/LiquidezCard";
+import { MargensCard } from "@/components/dashboard/MargensCard";
+import { PontoEquilibrioCard } from "@/components/dashboard/PontoEquilibrioCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -584,6 +588,18 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
               </div>
             </CardContent>
           </Card>
+
+          {/* Ciclo de Caixa consolidado do grupo (PMR / PMP / Ciclo) */}
+          <CicloCaixaCard companyIds={companyIds} periodStart={periodStart} periodEnd={periodEnd} />
+
+          {/* Liquidez & Solvência consolidada do grupo */}
+          <LiquidezCard companyIds={companyIds} periodEnd={periodEnd} />
+
+          {/* Margens & Rentabilidade consolidada do grupo */}
+          <MargensCard companyIds={companyIds} periodStart={periodStart} periodEnd={periodEnd} />
+
+          {/* Ponto de Equilíbrio consolidado do grupo */}
+          <PontoEquilibrioCard companyIds={companyIds} periodStart={periodStart} periodEnd={periodEnd} />
 
           {/* Tabela por empresa — padrão de planilha */}
           <Card className="overflow-hidden p-0">

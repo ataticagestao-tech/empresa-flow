@@ -4,7 +4,7 @@ import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud, Search, Briefcase } from "lucide-react";
+import { Building2, MapPin, FileText, User, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud, Search, Briefcase, Target } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { gerarFichaEmpresaPDF, carregarLogoEmpresa } from "@/lib/ficha-empresa/gerar-pdf";
@@ -287,6 +287,7 @@ export default function EmpresaResumo() {
     responsavel_cpf: c.responsavel_cpf || "",
     responsavel_email: c.responsavel_email || "",
     responsavel_telefone: c.responsavel_telefone || "",
+    lucro_minimo_desejado: c.lucro_minimo_desejado != null ? String(c.lucro_minimo_desejado) : "",
   });
 
   // Populate form when entering edit mode
@@ -398,6 +399,13 @@ export default function EmpresaResumo() {
         responsavel_cpf: form.responsavel_cpf || null,
         responsavel_email: form.responsavel_email || null,
         responsavel_telefone: form.responsavel_telefone || null,
+        // Lucro mensal desejado (meta) → Ponto de Equilíbrio Econômico. Aceita "1.234,56" ou "1234.56".
+        lucro_minimo_desejado: (() => {
+          const raw = (form.lucro_minimo_desejado || "").trim();
+          if (!raw) return 0;
+          const n = Number(raw.replace(/\./g, "").replace(",", "."));
+          return Number.isFinite(n) ? n : 0;
+        })(),
       };
 
       const { error } = await db.from("companies").update(payload).eq("id", id);
@@ -763,6 +771,34 @@ export default function EmpresaResumo() {
               ) : (
                 <p className="text-[14px] text-[#98A2B3]">Não configurado</p>
               )}
+            </Section>
+
+            {/* Meta de Resultado */}
+            <Section icon={Target} title="Meta de Resultado" subtitle="Ponto de Equilíbrio Econômico">
+              {editing ? (
+                <FieldGrid>
+                  <EditRow
+                    label="Lucro Mensal Desejado (R$)"
+                    value={form.lucro_minimo_desejado}
+                    onChange={v => set("lucro_minimo_desejado", v)}
+                    type="text"
+                  />
+                </FieldGrid>
+              ) : (
+                <FieldGrid>
+                  <Field
+                    label="Lucro Mensal Desejado"
+                    value={
+                      company.lucro_minimo_desejado != null && Number(company.lucro_minimo_desejado) > 0
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(company.lucro_minimo_desejado))
+                        : null
+                    }
+                  />
+                </FieldGrid>
+              )}
+              <p className="text-[12px] text-[#98A2B3] mt-2">
+                Usado no <strong>Ponto de Equilíbrio Econômico</strong> (Indicadores): o faturamento que cobre todos os custos e ainda entrega este lucro. Deixe em branco ou 0 para igualar ao ponto de equilíbrio contábil.
+              </p>
             </Section>
 
             {/* Dados Bancários */}

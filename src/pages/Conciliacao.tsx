@@ -1380,7 +1380,7 @@ export default function Conciliacao() {
 
                 {/* ═══ MENU SUPERIOR (header da página) ═══ */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
-                    <div className="bg-[#2A2724] px-4 py-3">
+                    <div className="bg-[#071D41] px-4 py-3">
                         <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Conciliação Bancária</h1>
                         <p className="text-[11px] text-white/80 mt-0.5">Importe extratos e concilie com seus lançamentos</p>
                     </div>
