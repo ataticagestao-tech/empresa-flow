@@ -33,7 +33,7 @@ export function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-10 h-16 sm:h-20 border-b border-sidebar-border bg-sidebar shadow-[0_1px_2px_rgba(0,0,0,0.2)]">
+    <header className="sticky top-0 z-10 h-16 sm:h-20 bg-sidebar">
       <div className="h-full flex items-center gap-1.5 sm:gap-3 mx-auto w-full max-w-[1280px] px-4 sm:px-8 lg:px-12">
       <Link
         to="/dashboard"

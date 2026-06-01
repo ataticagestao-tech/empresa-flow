@@ -24,8 +24,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary — #059669 emerald (verde logo) */
-    --primary: 160 84% 31%;
+    /* Primary — #1351B4 azul Gov.br */
+    --primary: 217 81% 39%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary — cinza neutro */
@@ -58,7 +58,7 @@
     /* Borders — hairline padrão do sistema (≈ rgba(0,0,0,0.18) sobre branco) */
     --border: 0 0% 82%;              /* #D1D1D1 — linha fina sutil p/ delimitar */
     --input: 220 13% 84%;            /* #D1D5DB */
-    --ring: 160 84% 31%;
+    --ring: 217 81% 39%;             /* #1351B4 foco azul gov.br */
 
     /* Extra surfaces */
     --surface-2: 220 14% 96%;
@@ -66,16 +66,16 @@
 
     --radius: 0.5rem;
 
-    /* Sidebar + Header — preto */
-    --sidebar-background: 0 0% 0%;            /* #000000 */
-    --sidebar-foreground: 30 14% 92%;         /* #EEEBE6 off-white quente */
-    --sidebar-primary: 145 75% 52%;           /* emerald vivid (active) */
+    /* Sidebar + Header — Navy Gov.br (#071D41 base) */
+    --sidebar-background: 217 82% 5%;         /* #020A17 navy quase preto */
+    --sidebar-foreground: 0 0% 100%;          /* branco */
+    --sidebar-primary: 217 81% 39%;           /* #1351B4 azul gov.br (active) */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;               /* #1F1F1F hover */
-    --sidebar-accent-foreground: 30 14% 96%;  /* #F5F2ED */
-    --sidebar-border: 0 0% 20%;               /* #333333 divisor */
-    --sidebar-ring: 145 75% 52%;
-    --sidebar-muted: 30 8% 60%;               /* #9F9A91 labels */
+    --sidebar-accent: 217 78% 24%;            /* #0C326F navy darken 01 (hover) */
+    --sidebar-accent-foreground: 0 0% 100%;   /* branco */
+    --sidebar-border: 217 70% 22%;            /* divisor navy */
+    --sidebar-ring: 217 81% 39%;              /* #1351B4 */
+    --sidebar-muted: 214 41% 78%;             /* #C5D4EB labels */
   }
 
   .dark {
