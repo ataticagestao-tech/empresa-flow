@@ -97,20 +97,27 @@ export function useAdminUsers() {
         throw new Error("Senha é obrigatória para criar usuário");
       }
 
-      // Usar Supabase Admin API via Edge Function ou criar via signup
-      // Como não temos acesso direto à admin API, vamos usar signUp
-      const { data: signUpData, error: signUpError } =
-        await activeClient.auth.signUp({
-          email: input.email,
-          password: input.password,
-          options: {
-            data: { full_name: input.full_name },
+      // Cria via Admin API (service_role) numa edge function. Isso ignora a trava
+      // "Enable Signups" (desligada por segurança multi-tenant) sem reabrir cadastro
+      // público — diferente de auth.signUp(), que é bloqueado pela trava.
+      const { data, error } = await (activeClient as any).functions.invoke(
+        "admin-create-user",
+        {
+          body: {
+            mode: "password",
+            email: input.email,
+            full_name: input.full_name,
+            password: input.password,
           },
-        });
+        }
+      );
 
-      if (signUpError) throw signUpError;
+      if (error) throw error;
+      if (data && data.ok === false) {
+        throw new Error(data.erro || "Falha ao criar usuário");
+      }
 
-      const newUserId = signUpData.user?.id;
+      const newUserId = data?.userId;
       if (!newUserId) throw new Error("Falha ao criar usuário");
 
       // Criar permissões para as empresas selecionadas
@@ -166,43 +173,58 @@ export function useAdminUsers() {
         return { mode: "existing-user", userId: targetUserId };
       }
 
-      // Armazenar permissões pendentes para aplicar quando o usuário concluir cadastro
-      const pendingRows = input.permissions
-        .map((p) => {
-          const normalized = normalizePermissionFlags(p);
-          return {
-            company_id: p.company_id,
-            ...normalized,
-          };
-        })
-        .filter((p) => p.can_view || p.can_edit || p.can_create || p.can_delete)
-        .map((p) => ({
-          email: normalizedEmail,
-          company_id: p.company_id,
-          can_view: p.can_view,
-          can_edit: p.can_edit,
-          can_create: p.can_create,
-          can_delete: p.can_delete,
-          granted_by: user?.id,
-        }));
-
-      if (pendingRows.length > 0) {
-        const { error: pendingError } = await activeClient
-          .from("pending_user_company_permissions" as any)
-          .upsert(pendingRows, { onConflict: "email,company_id" });
-        if (pendingError) throw pendingError;
-      }
-
-      // Envia convite por email usando Supabase
-      const { data, error } = await activeClient.auth.signInWithOtp({
-        email: normalizedEmail,
-        options: {
-          shouldCreateUser: true,
-          data: { full_name: input.full_name },
-        },
-      });
+      // Envia convite por email via Admin API (service_role) numa edge function.
+      // Isso ignora a trava "Enable Signups" (desligada por segurança multi-tenant)
+      // sem reabrir cadastro público — diferente de signInWithOtp, que é bloqueado.
+      const { data, error } = await (activeClient as any).functions.invoke(
+        "admin-create-user",
+        {
+          body: {
+            mode: "invite",
+            email: normalizedEmail,
+            full_name: input.full_name,
+          },
+        }
+      );
 
       if (error) throw error;
+      if (data && data.ok === false) {
+        throw new Error(data.erro || "Falha ao enviar convite");
+      }
+
+      // O convite via Admin API já cria o usuário: aplica permissões reais na hora.
+      const invitedUserId = data?.userId;
+      if (invitedUserId) {
+        await upsertUserPermissions(invitedUserId, input);
+      } else {
+        // Fallback: guarda permissões pendentes para aplicar quando concluir cadastro
+        const pendingRows = input.permissions
+          .map((p) => {
+            const normalized = normalizePermissionFlags(p);
+            return {
+              company_id: p.company_id,
+              ...normalized,
+            };
+          })
+          .filter((p) => p.can_view || p.can_edit || p.can_create || p.can_delete)
+          .map((p) => ({
+            email: normalizedEmail,
+            company_id: p.company_id,
+            can_view: p.can_view,
+            can_edit: p.can_edit,
+            can_create: p.can_create,
+            can_delete: p.can_delete,
+            granted_by: user?.id,
+          }));
+
+        if (pendingRows.length > 0) {
+          const { error: pendingError } = await activeClient
+            .from("pending_user_company_permissions" as any)
+            .upsert(pendingRows, { onConflict: "email,company_id" });
+          if (pendingError) throw pendingError;
+        }
+      }
+
       return { mode: "email-invite", data };
     },
     onSuccess: (result: any) => {
