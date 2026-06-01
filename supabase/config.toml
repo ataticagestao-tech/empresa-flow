@@ -9,6 +9,10 @@ verify_jwt = false
 [functions.radar-legislativo]
 verify_jwt = false
 
+# Notícias por setor (Google News RSS por query) — dados públicos, sem auth.
+[functions.noticias-setor]
+verify_jwt = false
+
 [functions.import-omie-data]
 verify_jwt = false
 

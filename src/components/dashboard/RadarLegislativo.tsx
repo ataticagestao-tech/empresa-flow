@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Scale, ExternalLink, AlertTriangle, ChevronRight } from "lucide-react";
 import { useRadarLegislativo } from "@/hooks/useRadarLegislativo";
+import { useSetorEmpresa } from "@/hooks/useSetorEmpresa";
 
 /* mesmo vocabulário visual do IndicadoresEconomicos (estilo editorial) */
 const C = {
@@ -16,7 +17,8 @@ const C = {
 };
 
 export default function RadarLegislativo() {
-    const { proposicoes, loading } = useRadarLegislativo({ relevancia: "alta", limit: 5 });
+    const { setor } = useSetorEmpresa();
+    const { proposicoes, loading } = useRadarLegislativo({ temas: setor.temas, limit: 5 });
 
     const wrap: React.CSSProperties = {
         width: 240, flexShrink: 0,
@@ -35,6 +37,7 @@ export default function RadarLegislativo() {
                     Ver todos <ChevronRight size={11} />
                 </Link>
             </div>
+            <p style={{ margin: "0 0 8px", fontSize: 10.5, color: C.muted, textTransform: "uppercase", letterSpacing: ".04em", fontWeight: 600 }}>{setor.label}</p>
 
             {loading ? (
                 <div style={{ height: 160, borderRadius: 8, background: "#F2F4F7" }} className="animate-pulse" />
@@ -56,9 +59,15 @@ export default function RadarLegislativo() {
                             }}
                         >
                             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: C.amber, background: C.amberSoft, padding: "1px 5px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 3 }}>
-                                    <AlertTriangle size={9} /> {p.tipo} {p.numero}/{p.ano}
-                                </span>
+                                {p.relevancia === "alta" ? (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: C.amber, background: C.amberSoft, padding: "1px 5px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                        <AlertTriangle size={9} /> {p.tipo} {p.numero}/{p.ano}
+                                    </span>
+                                ) : (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: C.text2, background: "#F2F4F7", padding: "1px 5px", borderRadius: 4 }}>
+                                        {p.tipo} {p.numero}/{p.ano}
+                                    </span>
+                                )}
                                 {p.tema && <span style={{ fontSize: 9.5, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.tema}</span>}
                             </div>
                             <p style={{

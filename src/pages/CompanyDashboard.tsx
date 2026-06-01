@@ -15,7 +15,9 @@ import IndicadoresEconomicos from "@/components/dashboard/IndicadoresEconomicos"
 import VendasPorItemCard from "@/components/dashboard/VendasPorItemCard";
 import NoticiasCard from "@/components/dashboard/NoticiasCard";
 import RadarLegislativo from "@/components/dashboard/RadarLegislativo";
+import NoticiasSetor from "@/components/dashboard/NoticiasSetor";
 import BolsaTicker from "@/components/dashboard/BolsaTicker";
+import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
@@ -1279,6 +1281,10 @@ export default function CompanyDashboard() {
             <div style={{ marginBottom: 12 }}>
                 <BolsaTicker />
             </div>
+            {/* ── Abas do Dashboard (Visão Geral | Indicadores) ── */}
+            <div style={{ marginBottom: 12 }}>
+                <DashboardTabs active="visao" />
+            </div>
             <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
             <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ flex: 1, minWidth: 320, fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
@@ -1910,6 +1916,7 @@ export default function CompanyDashboard() {
             <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, alignSelf: "flex-start" }}>
                 <IndicadoresEconomicos />
                 <RadarLegislativo />
+                <NoticiasSetor />
                 <NoticiasCard />
             </div>
             </div>

@@ -218,7 +218,11 @@ async function listarProposicoes(body: any) {
         .from("radar_proposicoes")
         .select("id,camara_id,sigla_tipo,numero,ano,ementa,tema_nome,relevancia,keyword_match,url_camara,data_apresentacao,status_sigla_orgao,status_descricao", { count: "exact" });
 
-    if (body.tema) q = q.eq("tema_codigo", Number(body.tema));
+    if (Array.isArray(body.temas) && body.temas.length > 0) {
+        q = q.in("tema_codigo", body.temas.map((t: any) => Number(t)).filter(Number.isFinite));
+    } else if (body.tema) {
+        q = q.eq("tema_codigo", Number(body.tema));
+    }
     if (body.relevancia) q = q.eq("relevancia", body.relevancia);
 
     q = q.order("data_apresentacao", { ascending: false, nullsFirst: false })

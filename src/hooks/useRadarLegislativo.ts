@@ -31,6 +31,7 @@ export interface RadarTema {
 
 interface ListaParams {
     tema?: number;
+    temas?: number[];      // filtro por vários temas (ex.: setor da empresa)
     relevancia?: string;
     limit?: number;
     offset?: number;
