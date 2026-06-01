@@ -879,7 +879,7 @@ export default function Movimentacoes() {
 
         {/* ====== CARD PRINCIPAL ====== */}
         <div className="bg-white border border-[#E5E7EB] rounded-lg overflow-hidden">
-          <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#000000' }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#071D41' }}>
             <h3 className="font-bold text-white m-0 text-[14px] tracking-tight">Movimentações</h3>
             <div className="flex items-center gap-3">
               <span className="text-[12px] text-white/70 font-medium">

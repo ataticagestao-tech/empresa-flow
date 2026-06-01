@@ -429,7 +429,7 @@ export default function OrdensCompra() {
         <Card>
           <CardContent className="p-0">
             {/* Barra de título preta */}
-            <div className="flex items-center justify-between px-4 py-3 rounded-t-lg" style={{ background: '#000000' }}>
+            <div className="flex items-center justify-between px-4 py-3 rounded-t-lg" style={{ background: '#071D41' }}>
               <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
                 Ordens de Compra
               </h3>

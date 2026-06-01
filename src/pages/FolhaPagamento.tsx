@@ -649,7 +649,7 @@ export default function FolhaPagamentoPage() {
         {/* ── Table ── */}
         <div className="rounded-xl border border-gray-100 overflow-hidden flex flex-col">
           {/* Cabecalho do container — titulo */}
-          <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#000000' }}>
+          <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#071D41' }}>
             <h3 className="font-extrabold text-white m-0" style={{ fontSize: 16, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
               Folha
             </h3>

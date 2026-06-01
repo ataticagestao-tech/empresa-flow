@@ -408,7 +408,7 @@ export default function FeriasAfastamentos() {
                   ))}
                 </colgroup>
                 <thead>
-                  <tr className="text-left text-xs text-white uppercase" style={{ backgroundColor: '#000000' }}>
+                  <tr className="text-left text-xs text-white uppercase" style={{ backgroundColor: '#071D41' }}>
                     <th className={`px-4 py-3 relative border-r border-white/10 ${isColVisible('funcionario') ? '' : 'hidden'}`}>
                       Funcionario
                       <span onMouseDown={startResize('funcionario')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />

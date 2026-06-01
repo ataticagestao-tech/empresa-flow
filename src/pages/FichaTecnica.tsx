@@ -251,7 +251,7 @@ export default function FichaTecnica() {
 
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
                     {/* Cabeçalho do container — preto puro */}
-                    <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: "#000000" }}>
+                    <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: "#071D41" }}>
                         <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: "-0.015em", lineHeight: 1.15 }}>
                             Fichas Técnicas
                         </h3>

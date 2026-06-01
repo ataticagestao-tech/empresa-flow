@@ -47,7 +47,7 @@ export function CompanySelector() {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-[110px] sm:w-[160px] md:w-[250px] max-w-full justify-between bg-sidebar-accent/40 border-sidebar-border hover:bg-sidebar-accent hover:border-sidebar-border text-sidebar-foreground text-[12px] font-medium h-8"
+          className="w-[110px] sm:w-[160px] md:w-[250px] max-w-full justify-between bg-sidebar-accent/60 border-sidebar-border hover:bg-sidebar-accent hover:border-sidebar-border text-sidebar-foreground text-[12px] font-medium h-8"
         >
           <div className="flex items-center gap-1.5 truncate">
             <Building2 className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/60" />

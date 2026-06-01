@@ -1731,7 +1731,7 @@ export default function NfseEmissao() {
                   ))}
                 </colgroup>
                 <thead>
-                  <tr style={{ backgroundColor: '#000000' }} className="text-left text-xs text-white uppercase tracking-wider">
+                  <tr style={{ backgroundColor: '#071D41' }} className="text-left text-xs text-white uppercase tracking-wider">
                     {isEmitidasColVisible('numero')  && <th className="px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10">Numero<span onMouseDown={startResizeEmitidas('numero')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}
                     {isEmitidasColVisible('data')    && <th className="px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10">Data<span onMouseDown={startResizeEmitidas('data')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}
                     {isEmitidasColVisible('tomador') && <th className="px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10">Tomador<span onMouseDown={startResizeEmitidas('tomador')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}

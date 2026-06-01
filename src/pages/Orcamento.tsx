@@ -209,7 +209,7 @@ export default function Orcamento() {
                 )}
 
                 <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden" }}>
-                    <div style={{ padding: "16px 20px", background: "#000000", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                    <div style={{ padding: "16px 20px", background: "#071D41", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                         <p style={{ fontWeight: 700, fontSize: 14, color: "#FFFFFF" }}>Detalhamento por Categoria</p>
                         <div className="flex items-center gap-2">
                             <div className="relative self-center">

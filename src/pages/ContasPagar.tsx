@@ -1794,7 +1794,7 @@ export default function ContasPagar() {
 
           {/* Contas a vencer (painel lateral) */}
           <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#071D41]">
               <div>
                 <div className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">
                   {selectedAgendaDate && selectedAgendaDate === format(new Date(), 'yyyy-MM-dd')
@@ -1938,7 +1938,7 @@ export default function ContasPagar() {
         {/* Toolbar */}
         <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           {/* Header */}
-          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#071D41] px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">T&iacute;tulos</h3>
               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold text-white bg-white/15">{filteredContas.length}</span>
@@ -2201,7 +2201,7 @@ export default function ContasPagar() {
                           ))}
                         </colgroup>
                         <thead>
-                          <tr style={{ backgroundColor: '#000000' }}>
+                          <tr style={{ backgroundColor: '#071D41' }}>
                             <th className="py-1.5 px-2.5 text-left relative border-r border-[#EAECF0]">
                               <span onMouseDown={startResize('sel')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
                               <input

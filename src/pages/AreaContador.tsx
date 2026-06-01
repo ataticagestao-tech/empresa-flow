@@ -949,7 +949,7 @@ ${empresaNome}`;
           <Card className="border-[#E5E7EB] overflow-hidden">
             <CardContent className="p-0">
               {/* Barra de título escura */}
-              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[#000000]">
+              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[#071D41]">
                 <h3 className="text-sm font-semibold text-white m-0">
                   Pré-visualização — {monthLabel}
                 </h3>

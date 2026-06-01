@@ -317,7 +317,7 @@ export default function EstoqueProdutos() {
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             {/* Barra de título preta + menu Colunas */}
-            <div className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: '#000000' }}>
+            <div className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: '#071D41' }}>
               <div className="flex items-center gap-3">
                 <h3 className="font-extrabold text-white m-0" style={{ fontSize: 16, letterSpacing: '-0.01em' }}>Produtos</h3>
                 <span className="text-[13px] text-white/70 font-medium">

@@ -196,7 +196,7 @@ export default function MargensDesconto() {
 
                 <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
                     {/* Cabecalho do container — titulo */}
-                    <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#000000' }}>
+                    <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#071D41' }}>
                         <h3 className="font-extrabold text-white m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
                             Margens de Desconto
                         </h3>

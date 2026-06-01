@@ -587,7 +587,7 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
 
           {/* Tabela por empresa — padrão de planilha */}
           <Card className="overflow-hidden p-0">
-            <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: "#000000" }}>
+            <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: "#071D41" }}>
               <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: "-0.015em", lineHeight: 1.15 }}>Empresas do grupo</h3>
               <div className="flex items-center gap-3">
                 <Button size="sm" variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
@@ -981,7 +981,7 @@ function TransferenciasTab({ userId }: { userId?: string }) {
         </CardContent></Card>
       ) : (
         <Card className="overflow-hidden p-0">
-          <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: "#000000" }}>
+          <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: "#071D41" }}>
             <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: "-0.015em", lineHeight: 1.15 }}>Transferências</h3>
             <div className="flex items-center gap-3">
               <span className="text-[13px] text-white/70 font-medium">{transferencias.length} registro{transferencias.length !== 1 ? "s" : ""}</span>

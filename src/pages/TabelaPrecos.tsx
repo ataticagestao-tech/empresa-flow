@@ -264,7 +264,7 @@ export default function TabelaPrecos() {
                     const colLabelsForMenu = Object.entries(COL_LABELS).filter(([k]) => viewList || (k !== 'tabela' && k !== 'diferenca'));
                     return (
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
-                    <div style={{ backgroundColor: "#000000", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                    <div style={{ backgroundColor: "#071D41", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                         <div style={{ position: "relative", maxWidth: 300, flex: "1 1 auto" }}>
                             <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.5)" }} />
                             <Input placeholder="Buscar produto..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}

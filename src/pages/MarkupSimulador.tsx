@@ -293,7 +293,7 @@ export default function MarkupSimulador() {
                 {/* Full table */}
                 <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden">
                     {/* Cabecalho do container — titulo preto + menu de colunas */}
-                    <div className="px-5 py-4 flex items-baseline justify-between" style={{ backgroundColor: '#000000' }}>
+                    <div className="px-5 py-4 flex items-baseline justify-between" style={{ backgroundColor: '#071D41' }}>
                         <h3 className="font-extrabold text-white m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
                             Produtos
                         </h3>

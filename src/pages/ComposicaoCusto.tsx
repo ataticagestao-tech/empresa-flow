@@ -190,7 +190,7 @@ export default function ComposicaoCusto() {
                 )}
 
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
-                    <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#000000' }}>
+                    <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#071D41' }}>
                         <div className="flex items-center gap-3 flex-1">
                             <div style={{ position: "relative", maxWidth: 300, flex: 1 }}>
                                 <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.5)", zIndex: 1 }} />

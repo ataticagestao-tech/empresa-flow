@@ -354,7 +354,7 @@ export default function Inventario() {
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             {/* Barra de título escura + menu Colunas */}
-            <div className="flex items-center justify-between px-4 py-2.5" style={{ background: '#000000' }}>
+            <div className="flex items-center justify-between px-4 py-2.5" style={{ background: '#071D41' }}>
               <h3 className="font-bold text-white m-0 text-[15px]">Inventários</h3>
               <div className="flex items-center gap-3">
                 <span className="text-[13px] text-white/70 font-medium">

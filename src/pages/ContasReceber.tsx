@@ -1095,7 +1095,7 @@ export default function ContasReceber() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Agenda heatmap */}
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#071D41]">
               <div>
                 <div className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Agenda de recebimentos</div>
                 <div className="text-[11px] text-white/80 mt-0.5">
@@ -1190,7 +1190,7 @@ export default function ContasReceber() {
 
           {/* Contas a receber (painel lateral) */}
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#071D41]">
               <div>
                 <div className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Contas a receber</div>
                 <div className="text-[11px] text-white/80 mt-0.5">
@@ -1379,7 +1379,7 @@ export default function ContasReceber() {
 
         {/* ── Table ── */}
         <div className="border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-          <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: '#000000' }}>
+          <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: '#071D41' }}>
             <h3 className="text-[13px] font-bold text-white tracking-tight">
               Títulos · {filtered.length}
             </h3>
@@ -2088,7 +2088,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-xl">
+    <div className="bg-[#071D41] px-5 py-3 flex items-center justify-between rounded-t-xl">
       <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">{title}</h3>
       <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
         <X size={18} />

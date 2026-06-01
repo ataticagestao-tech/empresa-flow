@@ -195,7 +195,7 @@ export default function FluxoCaixaProjetado() {
                 )}
 
                 <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden", padding: 0 }}>
-                    <div className="flex items-center justify-between px-4 py-3" style={{ background: "#000000" }}>
+                    <div className="flex items-center justify-between px-4 py-3" style={{ background: "#071D41" }}>
                         <h3 className="font-extrabold text-white m-0" style={{ fontSize: 16, letterSpacing: "-0.015em", lineHeight: 1.15 }}>
                             Lançamentos Projetados
                         </h3>
