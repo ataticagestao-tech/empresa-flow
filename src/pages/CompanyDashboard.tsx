@@ -15,7 +15,6 @@ import IndicadoresEconomicos from "@/components/dashboard/IndicadoresEconomicos"
 import BolsaTicker from "@/components/dashboard/BolsaTicker";
 import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { CicloCaixaCard } from "@/components/dashboard/CicloCaixaCard";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek,
     subMonths, subWeeks, subDays, addDays, addMonths, format, differenceInDays, differenceInCalendarDays,
@@ -1897,9 +1896,6 @@ export default function CompanyDashboard() {
                         );
                     })()}
                 </ChartCard>
-
-                    {/* Ciclo de Caixa (PMR / PMP / Ciclo Financeiro) */}
-                    <CicloCaixaCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
                 </div>
 
             </div>
