@@ -1660,7 +1660,7 @@ export default function CompanyDashboard() {
                                         .forEach((p, i) => colorByProduto.set(p.descricao, i < 5 ? distPalette[i] : distPalette[distPalette.length - 1]));
                                     const productColumns: SpreadsheetColumn<any>[] = [
                                         {
-                                            id: "produto", header: "Produto", weight: 32, title: (p) => p.descricao,
+                                            id: "produto", header: "Item", weight: 32, title: (p) => p.descricao,
                                             render: (p) => (
                                                 <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                                                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorByProduto.get(p.descricao) || distPalette[distPalette.length - 1], flexShrink: 0 }} />
@@ -1668,9 +1668,8 @@ export default function CompanyDashboard() {
                                                 </span>
                                             ),
                                         },
-                                        { id: "vendas", header: "Vendas", numeric: true, weight: 13, render: (p) => p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR") },
-                                        { id: "faturamento", header: "Faturamento", numeric: true, weight: 18, render: (p) => fmtInt(p.faturamento), cellClassName: "font-bold" },
-                                        { id: "pct", header: "%", numeric: true, weight: 9, render: (p) => `${p.percentual.toFixed(0)}%` },
+                                        { id: "vendas", header: "Quant.", numeric: true, weight: 13, render: (p) => p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR") },
+                                        { id: "faturamento", header: "R$", numeric: true, weight: 18, render: (p) => fmtInt(p.faturamento), cellClassName: "font-bold" },
                                     ];
                                     return (
                                         <>
@@ -1682,9 +1681,9 @@ export default function CompanyDashboard() {
                                                     rowKey={(p, i) => p.descricao + (startIdx + i)}
                                                     resetKey={page}
                                                     minColPx={32}
-                                                    className="text-[11px]"
-                                                    headerClassName="bg-[#F9FAFB] text-[#1D2939] font-bold uppercase tracking-wide px-2 py-1.5"
-                                                    cellClassName="text-[#1D2939] px-2 py-[5px]"
+                                                    className="text-[10px]"
+                                                    headerClassName="bg-[#F9FAFB] text-[#1D2939] font-bold uppercase tracking-wide px-1.5 py-1"
+                                                    cellClassName="text-[#1D2939] px-1.5 py-[3px]"
                                                     rowClassName={(p) => p.semProduto ? "bg-[#FFF0EB] text-muted-foreground italic" : "bg-white"}
                                                 />
                                               </div>
