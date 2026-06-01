@@ -1427,128 +1427,67 @@ export default function Vendas() {
 
     let ok = 0
     let fail = 0
-    const BATCH_SIZE = 200
+    const errosLote: string[] = []
+    const BATCH_SIZE = 300
 
     for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
       const batch = validRows.slice(i, i + BATCH_SIZE)
 
-      // 1. Insert all vendas of this batch at once
-      const vendasPayload = batch.map(row => ({
-        company_id: companyId,
-        cliente_nome: toTitleCase(row.cliente_nome),
-        cliente_cpf_cnpj: row.cliente_cpf_cnpj,
-        tipo: row.tipo,
-        valor_total: Math.max(0, row.valor_total - row.desconto),
-        desconto: row.desconto,
-        data_venda: row.data_venda,
-        forma_pagamento: row.forma_pagamento,
-        status: 'confirmado',
-        observacoes: row.observacoes,
-      }))
-
-      const { data: vendasData, error: vendasErr } = await db
-        .from('vendas')
-        .insert(vendasPayload)
-        .select('id')
-
-      if (vendasErr || !vendasData) {
-        console.error(`[importVenda] Batch ${i}-${i + batch.length}:`, vendasErr)
-        fail += batch.length
-        setImportProgress({ current: ok + fail, total: validRows.length })
-        await new Promise(r => setTimeout(r, 0))
-        continue
-      }
-
-      // 2. Build itens + contas_receber payloads
-      const itensPayload = batch.map((row, idx) => ({
-        venda_id: vendasData[idx].id,
-        descricao: toTitleCase(row.descricao),
-        quantidade: row.quantidade,
-        valor_unitario: row.valor_unitario,
-      }))
-
-      const crsPayload: any[] = []
-      batch.forEach((row, idx) => {
-        const valorLiquido = Math.max(0, row.valor_total - row.desconto)
-        const isParcelado = row.forma_pagamento === 'parcelado'
-        const numParcelas = isParcelado ? row.parcelas : 1
-        const valorParcela = Math.round((valorLiquido / numParcelas) * 100) / 100
-        // Vendas à vista (pix, dinheiro, cartão débito) não parceladas são
-        // quitadas no ato, espelhando o fluxo de salvarVenda() que chama
-        // quitarCR na hora. Sem isso o regime de caixa do Painel Gerencial
-        // fica zerado para tudo que foi importado por planilha.
-        const isImmediatePayment = FORMAS_A_VISTA.includes(row.forma_pagamento) && !isParcelado
-
-        // Tenta casar a descrição da planilha com um produto cadastrado para
-        // pegar a conta contábil correta; cai no default só se não encontrar.
+      // Monta o payload do lote. A conta contábil é resolvida aqui, casando a
+      // descrição da planilha com um produto cadastrado; cai no default se não
+      // encontrar.
+      const rowsPayload = batch.map(row => {
         const prodMatch = produtos.find(p =>
           p.description.trim().toLowerCase() === (row.descricao || '').trim().toLowerCase()
         )
-        const contaCR = prodMatch?.conta_contabil_id ?? defaultReceitaContaId
-
-        for (let p = 0; p < numParcelas; p++) {
-          const vencimento = isParcelado
-            ? format(addMonths(parseISO(row.data_venda), p + 1), 'yyyy-MM-dd')
-            : row.data_venda
-          const valor = p === numParcelas - 1
-            ? valorLiquido - valorParcela * (numParcelas - 1)
-            : valorParcela
-
-          crsPayload.push({
-            company_id: companyId,
-            pagador_nome: toTitleCase(row.cliente_nome),
-            pagador_cpf_cnpj: row.cliente_cpf_cnpj,
-            valor,
-            valor_pago: isImmediatePayment ? valor : 0,
-            data_vencimento: vencimento,
-            data_pagamento: isImmediatePayment ? row.data_venda : null,
-            status: isImmediatePayment ? 'pago' : 'aberto',
-            forma_recebimento: row.forma_pagamento,
-            conta_contabil_id: contaCR,
-            centro_custo_id: importCentroCusto || null,
-            venda_id: vendasData[idx].id,
-          })
+        return {
+          cliente_nome: toTitleCase(row.cliente_nome),
+          cliente_cpf_cnpj: row.cliente_cpf_cnpj,
+          tipo: row.tipo,
+          valor_total: row.valor_total,
+          desconto: row.desconto,
+          data_venda: row.data_venda,
+          forma_pagamento: row.forma_pagamento,
+          parcelas: row.parcelas,
+          observacoes: row.observacoes,
+          descricao: toTitleCase(row.descricao),
+          quantidade: row.quantidade,
+          valor_unitario: row.valor_unitario,
+          conta_contabil_id: prodMatch?.conta_contabil_id ?? defaultReceitaContaId,
         }
       })
 
-      // 3. Insert itens + CRs in parallel (both depend on vendasData, not on each other)
-      const [itensRes, crsRes] = await Promise.all([
-        db.from('vendas_itens').insert(itensPayload),
-        crsPayload.length > 0
-          ? db
-              .from('contas_receber')
-              .insert(crsPayload)
-              .select('id, valor_pago, data_pagamento, status, pagador_nome, conta_contabil_id')
-          : Promise.resolve({ data: [] as any[], error: null }),
-      ])
-      if (itensRes.error) console.error('[importVenda] Itens batch error:', itensRes.error)
-      if ((crsRes as any).error) console.error('[importVenda] CRs batch error:', (crsRes as any).error)
+      // Importação ATÔMICA por linha via RPC: cada venda entra completa
+      // (venda + itens + contas a receber; a movimentação à vista é gerada pela
+      // trigger garantir_mov_ao_quitar_cr) ou a linha inteira é revertida e
+      // contada como falha — nunca sobra venda sem conta a receber. Os erros
+      // voltam em `errors` em vez de serem engolidos num console.error.
+      const { data: res, error: rpcErr } = await db.rpc('importar_vendas_lote', {
+        p_rows: rowsPayload,
+        p_company: companyId,
+        p_conta_bancaria: importContaBancaria,
+        p_centro_custo: importCentroCusto || null,
+      })
 
-      // 4. Para os CRs já quitados no ato (vendas à vista), gerar a movimentação
-      //    bancária de crédito correspondente — mesmo efeito colateral que
-      //    quitarCR() produz no fluxo manual. Sem isso, a Caixa do painel
-      //    fica correta mas o saldo bancário e a conciliação ficam defasados.
-      const crsPagos = (((crsRes as any).data || []) as any[]).filter((cr) => cr.status === 'pago')
-      if (crsPagos.length > 0) {
-        const movsPayload = crsPagos.map((cr) => ({
-          company_id: companyId,
-          conta_bancaria_id: importContaBancaria,
-          conta_contabil_id: cr.conta_contabil_id,
-          tipo: 'credito',
-          valor: cr.valor_pago,
-          data: cr.data_pagamento,
-          descricao: `Recebimento — ${cr.pagador_nome}`,
-          origem: 'conta_receber',
-          conta_receber_id: cr.id,
-        }))
-        const { error: movErr } = await db.from('movimentacoes').insert(movsPayload)
-        if (movErr) console.error('[importVenda] Movimentacoes batch error:', movErr)
+      if (rpcErr) {
+        console.error('[importVenda] RPC importar_vendas_lote:', rpcErr)
+        fail += batch.length
+        errosLote.push(rpcErr.message || 'Erro desconhecido')
+      } else {
+        ok += Number((res as any)?.ok ?? 0)
+        fail += Number((res as any)?.fail ?? 0)
+        const errs = (res as any)?.errors
+        if (Array.isArray(errs)) errosLote.push(...errs)
       }
 
-      ok += batch.length
       setImportProgress({ current: ok + fail, total: validRows.length })
       // Yield to browser so progress bar repaints
       await new Promise(r => setTimeout(r, 0))
+    }
+
+    if (errosLote.length > 0) {
+      const unicos = Array.from(new Set(errosLote)).slice(0, 3)
+      setImportError(`${fail} venda(s) não entraram. Motivo: ${unicos.join(' | ')}`)
     }
 
     setImportResult({ ok, fail })
