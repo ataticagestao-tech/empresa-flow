@@ -22,8 +22,8 @@ import jsPDF from "jspdf";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
-  ResponsiveContainer, Cell, ReferenceLine,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
+  ResponsiveContainer, Cell, ReferenceLine, LabelList,
 } from "recharts";
 import {
   Building2, Plus, Trash2, Edit2, RefreshCw, ArrowRightLeft,
@@ -687,16 +687,11 @@ async function calcGrupoDashboard(
 
 const shortName = (n: string) => (n.length > 16 ? n.slice(0, 15) + "…" : n);
 
-// ── Tokens visuais (modelo do card "Receita vs. Despesas" do CompanyDashboard) ──
-const CREME = "#F6F2EB";
+// ── Tokens visuais ──
 const NAVY = "#071D41";
 const AXIS = "#475569";
 const GRID = "#EEF1F4";
 const TXT2 = "#667085";
-const whitePanel: React.CSSProperties = {
-  background: "#FFFFFF", border: "var(--border-hairline)", borderRadius: 8,
-  padding: 14, boxShadow: "0 4px 14px rgba(15, 23, 42, 0.10)",
-};
 const billoraCard: React.CSSProperties = {
   background: "#FFFFFF", borderRadius: 16, border: "var(--border-hairline)",
   boxShadow: "0 2px 8px rgba(15, 23, 42, 0.06)",
@@ -754,7 +749,7 @@ function KpiTile({
   );
 }
 
-/** Card no padrão "Receita vs. Despesas": creme + header navy + médias + painel branco interno. */
+/** Card no MODELO DE TABELA do sistema: header navy #071D41 + corpo branco flush (igual "Empresas do grupo"). */
 function CompCard({
   title, subtitle, info, caption, stats, legend, headerRight, height = 240, children,
 }: {
@@ -763,43 +758,41 @@ function CompCard({
   height?: number; children: React.ReactNode;
 }) {
   return (
-    <div style={{ background: CREME, borderRadius: 10, border: "var(--border-hairline)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "14px 16px", background: NAVY, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+    <Card className="overflow-hidden p-0">
+      <div className="px-5 py-3.5 flex items-start justify-between gap-3" style={{ backgroundColor: NAVY }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>{title}</span>
-            {info && <span title={info} style={{ display: "inline-flex", cursor: "help" }}><Info size={13} style={{ color: "rgba(255,255,255,0.6)" }} /></span>}
+          <div className="flex items-center gap-2">
+            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 14, letterSpacing: "-0.01em", textTransform: "uppercase" }}>{title}</h3>
+            {info && <span title={info} className="inline-flex cursor-help"><Info size={13} className="text-white/60" /></span>}
           </div>
-          {subtitle && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>{subtitle}</div>}
+          {subtitle && <div className="text-white/65" style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>{subtitle}</div>}
         </div>
         {headerRight}
       </div>
-      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="bg-white px-5 py-4 flex flex-col gap-3">
         {stats && stats.length > 0 && (
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="flex gap-4 pb-3" style={{ borderBottom: "1px solid #F1F3F5" }}>
             {stats.map((s) => (
               <div key={s.label} style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 9.5, color: TXT2, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: s.color || "#111827", fontVariantNumeric: "tabular-nums", lineHeight: 1.15, whiteSpace: "nowrap" }}>{s.value}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: s.color || "#1D2939", fontVariantNumeric: "tabular-nums", lineHeight: 1.15, whiteSpace: "nowrap" }}>{s.value}</div>
               </div>
             ))}
           </div>
         )}
-        <div style={whitePanel}>
-          {legend && legend.length > 0 && (
-            <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 8, fontSize: 12, color: TXT2 }}>
-              {legend.map((l) => (
-                <span key={l.label} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 10, height: 10, background: l.color, borderRadius: 2 }} />{l.label}
-                </span>
-              ))}
-            </div>
-          )}
-          <div style={{ height }}>{children}</div>
-          {caption && <p style={{ marginTop: 8, fontSize: 11.5, color: TXT2, lineHeight: 1.35 }}>{caption}</p>}
-        </div>
+        {legend && legend.length > 0 && (
+          <div className="flex justify-center gap-6" style={{ fontSize: 12, color: TXT2 }}>
+            {legend.map((l) => (
+              <span key={l.label} className="inline-flex items-center gap-1.5">
+                <span style={{ width: 10, height: 10, background: l.color, borderRadius: 2 }} />{l.label}
+              </span>
+            ))}
+          </div>
+        )}
+        <div style={{ height }}>{children}</div>
+        {caption && <p style={{ fontSize: 11.5, color: TXT2, lineHeight: 1.35 }}>{caption}</p>}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -908,20 +901,12 @@ function VendasTempoCard({
   // Limita às 5 maiores (por faturamento) p/ o gráfico não virar espaguete.
   const topIds = useMemo(() => rows.slice(0, 5).map((r) => r.company_id), [rows]);
 
-  const { data, series } = useMemo(() => {
+  const { data, series, monthStarts } = useMemo(() => {
     const bucketKey = (date: string) =>
       gran === "dia" ? date : gran === "semana" ? weekStartISO(date) : date.slice(0, 7);
-    const bucketLabel = (key: string) => {
-      if (gran === "mes") {
-        const [y, m] = key.split("-");
-        return `${m}/${y.slice(2)}`;
-      }
-      const d = parseLocalDate(key);
-      return d ? `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}` : key;
-    };
 
     const top = new Set(topIds);
-    // bucketKey → { companyId → soma }
+    // bucketKey (cru) → { companyId → soma }
     const buckets = new Map<string, Record<string, number>>();
     vendasDiarias.forEach((p) => {
       if (!top.has(p.company_id)) return;
@@ -934,12 +919,20 @@ function VendasTempoCard({
     const sortedKeys = [...buckets.keys()].sort();
     const series = topIds.map((id, i) => ({ id, key: `c_${i}`, nome: shortName(nomeEmpresa(id)), color: COMP_COLORS[i % COMP_COLORS.length] }));
     const data = sortedKeys.map((k) => {
-      const row: Record<string, number | string> = { bucket: bucketLabel(k) };
+      const row: Record<string, number | string> = { bucket: k };
       const vals = buckets.get(k) || {};
-      series.forEach((s) => { row[s.key] = vals[s.id] || 0; });
+      let total = 0;
+      series.forEach((s) => { const v = vals[s.id] || 0; row[s.key] = v; total += v; });
+      row._total = total;
       return row;
     });
-    return { data, series };
+    // No modo Dia, marca a 1ª data de cada mês (p/ destacar o mês no eixo).
+    const monthStarts = new Set<string>();
+    if (gran === "dia") {
+      let prevMonth = "";
+      sortedKeys.forEach((k) => { const m = k.slice(0, 7); if (m !== prevMonth) { monthStarts.add(k); prevMonth = m; } });
+    }
+    return { data, series, monthStarts };
   }, [vendasDiarias, gran, topIds, nomeEmpresa]);
 
   const granBtns: { key: typeof gran; label: string }[] = [
@@ -964,25 +957,101 @@ function VendasTempoCard({
   );
   const legend: CardLegend[] = series.map((s) => ({ label: s.nome, color: s.color }));
 
+  // Rótulo de % dentro de cada segmento (só quando o pedaço cabe, p/ não poluir).
+  const renderPct = (props: { x?: number; y?: number; width?: number; height?: number; value?: number; index?: number }) => {
+    const { x = 0, y = 0, width = 0, height = 0, value = 0, index = 0 } = props;
+    const total = Number((data[index] as { _total?: number } | undefined)?._total) || 0;
+    const v = Number(value) || 0;
+    if (!total || v <= 0 || height < 13) return null;
+    const pct = (v / total) * 100;
+    if (pct < 7) return null;
+    return (
+      <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={700} fill="#fff">
+        {pct.toFixed(0)}%
+      </text>
+    );
+  };
+
+  const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+  // Rótulo do eixo X: Dia = só o número (mês em negrito na virada); Semana = dd/mm; Mês = mm/aa.
+  const renderTimeTick = (props: { x?: number; y?: number; payload?: { value?: string } }) => {
+    const { x = 0, y = 0, payload } = props;
+    const key = String(payload?.value ?? "");
+    let main = key, sub = "";
+    if (gran === "mes") {
+      const [yy, mm] = key.split("-");
+      main = `${mm}/${(yy || "").slice(2)}`;
+    } else {
+      const d = parseLocalDate(key);
+      if (d) {
+        if (gran === "semana") {
+          main = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+        } else {
+          main = String(d.getDate());
+          if (monthStarts.has(key)) sub = `${MESES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+        }
+      }
+    }
+    return (
+      <g transform={`translate(${x},${y + 8})`}>
+        <text x={0} y={0} textAnchor="middle" fontSize={10} fontWeight={500} fill={TXT2}>{main}</text>
+        {sub && <text x={0} y={13} textAnchor="middle" fontSize={9.5} fontWeight={700} fill="#1D2939">{sub}</text>}
+      </g>
+    );
+  };
+
+  // No modo Dia mostra TODOS os dias (1,2,3,4…); só amostra se o período for muito longo (ex.: ano).
+  const dayTicks = useMemo(() => {
+    if (gran !== "dia") return undefined;
+    const keys = data.map((d) => String(d.bucket));
+    if (keys.length <= 70) return keys;
+    const step = Math.ceil(keys.length / 60);
+    return keys.filter((k, i) => monthStarts.has(k) || i % step === 0);
+  }, [gran, data, monthStarts]);
+
+  const labelFmt = (key: string | number) => {
+    const s = String(key);
+    if (gran === "mes") { const [yy, mm] = s.split("-"); return `${MESES[Number(mm) - 1] ?? mm}/${(yy || "").slice(2)}`; }
+    const d = parseLocalDate(s);
+    if (!d) return s;
+    const f = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    return gran === "semana" ? `Semana de ${f}` : f;
+  };
+
+  // Média por período (média das colunas) + total — alimenta a faixa e a linha tracejada.
+  const totalPeriodo = data.reduce((s, d) => s + (Number((d as { _total?: number })._total) || 0), 0);
+  const media = data.length ? totalPeriodo / data.length : 0;
+  const granLabel = gran === "dia" ? "dia" : gran === "semana" ? "semana" : "mês";
+  const stats: CardStat[] = [
+    { label: `Média / ${granLabel}`, value: fmt(media) },
+    { label: "Total no período", value: fmt(totalPeriodo) },
+  ];
+
   return (
     <CompCard
-      title="Vendas no tempo" subtitle="Top 5 lojas · ritmo e tendência"
-      headerRight={headerRight} legend={legend} height={300}
-      caption="Troque Dia/Semana/Mês para enxergar o ritmo (ex.: picos de fim de semana) ou a tendência do período."
+      title="Vendas no tempo" subtitle="Top 5 lojas · contribuição por período"
+      headerRight={headerRight} stats={stats} legend={legend} height={300}
+      caption="Cada coluna = vendas do período; as cores mostram quanto cada loja contribuiu. A linha tracejada é a média por período."
     >
       {data.length === 0 ? (
         <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2 }}>Sem vendas no período</div>
       ) : (
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}>
+          <BarChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 4 }} barCategoryGap="20%">
             <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-            <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} interval="preserveStartEnd" minTickGap={24} tickMargin={8} />
+            <XAxis dataKey="bucket" tick={renderTimeTick} height={gran === "dia" ? 42 : 28} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} interval={gran === "dia" ? 0 : "preserveStartEnd"} ticks={gran === "dia" ? dayTicks : undefined} minTickGap={gran === "dia" ? 0 : 16} tickMargin={8} />
             <YAxis tick={{ fontSize: 9, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} width={40} tickFormatter={yTickFmt} />
-            <ReTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n: string) => [fmt(v), n]} />
-            {series.map((s) => (
-              <Line key={s.key} type="monotone" dataKey={s.key} name={s.nome} stroke={s.color} strokeWidth={2} dot={false} />
+            <ReTooltip contentStyle={TOOLTIP_STYLE} labelFormatter={labelFmt} formatter={(v: number, n: string) => [fmt(v), n]} cursor={{ fill: "rgba(3, 152, 85, 0.06)" }} />
+            {series.map((s, i) => (
+              <Bar key={s.key} dataKey={s.key} name={s.nome} stackId="lojas" fill={s.color} maxBarSize={48} radius={i === series.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}>
+                <LabelList dataKey={s.key} content={renderPct} />
+              </Bar>
             ))}
-          </LineChart>
+            {media > 0 && (
+              <ReferenceLine y={media} stroke="#475569" strokeWidth={1.5} strokeDasharray="5 5" label={{ value: "média", position: "insideTopRight", fill: "#475569", fontSize: 10, fontWeight: 600 }} />
+            )}
+          </BarChart>
         </ResponsiveContainer>
       )}
     </CompCard>
@@ -1111,47 +1180,6 @@ function statusLoja(r: GrupoCompanyRow): { label: string; bg: string; color: str
   return { label: "Vai bem", bg: "#ECFDF3", color: "#039855", rank: 2 };
 }
 
-function RankingCard({ rows }: { rows: GrupoCompanyRow[] }) {
-  const ordered = [...rows]
-    .map((r) => ({ r, s: statusLoja(r) }))
-    .sort((a, b) => a.s.rank - b.s.rank || a.r.resultado - b.r.resultado);
-
-  return (
-    <Card className="overflow-hidden p-0">
-      <div className="px-5 py-3.5 flex items-center gap-2" style={{ backgroundColor: "#071D41" }}>
-        <h3 className="font-extrabold text-white m-0" style={{ fontSize: 14, letterSpacing: "-0.01em", textTransform: "uppercase" }}>Onde olhar primeiro</h3>
-        <span className="text-[12px] text-white/60">(do pior pro melhor)</span>
-      </div>
-      <div className="bg-white overflow-x-auto">
-        <table className="text-sm w-full">
-          <thead>
-            <tr className="text-[12px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
-              <th className="text-left px-3 py-2.5">Loja</th>
-              <th className="text-right px-3 py-2.5">Faturamento</th>
-              <th className="text-right px-3 py-2.5">Resultado</th>
-              <th className="text-right px-3 py-2.5">Caixa gerado</th>
-              <th className="text-center px-3 py-2.5">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ordered.map(({ r, s }) => (
-              <tr key={r.company_id} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
-                <td className="px-3 py-1.5 font-medium text-[#1D2939] truncate" title={r.nome}>{r.nome}</td>
-                <td className="px-3 py-1.5 text-right text-[#1D2939]">{fmt(r.faturamento)}</td>
-                <td className={`px-3 py-1.5 text-right font-semibold ${r.resultado >= 0 ? "text-blue-600" : "text-red-600"}`}>{fmt(r.resultado)}</td>
-                <td className={`px-3 py-1.5 text-right ${r.caixaGerado >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(r.caixaGerado)}</td>
-                <td className="px-3 py-1.5 text-center">
-                  <span className="inline-block px-2 py-0.5 rounded-full text-[12px] font-semibold" style={{ background: s.bg, color: s.color }}>{s.label}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
 function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?: string; onBack: () => void }) {
   const { activeClient } = useAuth();
   const { companies } = useCompany();
@@ -1159,14 +1187,14 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
   const confirm = useConfirm();
   const db = activeClient as any;
 
-  // Padrão de planilha (tabela "Empresas do grupo")
-  const EMP_COL_ORDER = ["empresa", "faturamento", "despesas", "resultado", "caixa", "cr", "cp", "acoes"];
+  // Padrão de planilha (tabela "Empresas do grupo") — unifica o ranking semáforo
+  const EMP_COL_ORDER = ["empresa", "status", "faturamento", "despesas", "resultado", "caixa_gerado", "caixa", "cr", "cp", "acoes"];
   const EMP_COL_LABELS: Record<string, string> = {
-    empresa: "Empresa", faturamento: "Faturamento", despesas: "Despesas", resultado: "Resultado",
-    caixa: "Caixa", cr: "CR aberto", cp: "CP aberto", acoes: "Ações",
+    empresa: "Empresa", status: "Status", faturamento: "Faturamento", despesas: "Despesas", resultado: "Resultado",
+    caixa_gerado: "Caixa gerado", caixa: "Caixa", cr: "CR aberto", cp: "CP aberto", acoes: "Ações",
   };
   const EMP_COL_WIDTHS_DEFAULT: Record<string, number> = {
-    empresa: 220, faturamento: 130, despesas: 130, resultado: 130, caixa: 130, cr: 120, cp: 120, acoes: 80,
+    empresa: 200, status: 100, faturamento: 120, despesas: 120, resultado: 120, caixa_gerado: 120, caixa: 110, cr: 110, cp: 110, acoes: 70,
   };
   const empCols = useColunasAjustaveis(EMP_COL_ORDER, EMP_COL_WIDTHS_DEFAULT, "multiempresa_empresas");
 
@@ -1436,9 +1464,6 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
           {/* Leitura do mês — o que os números dizem, em palavras */}
           <LeituraCard leitura={leitura} periodLabel={periodLabel} />
 
-          {/* Ranking semáforo — onde olhar primeiro */}
-          <RankingCard rows={dashRows} />
-
           {/* Gráficos de apoio (cada um responde uma pergunta) */}
           <div className="flex items-center gap-2 pt-1">
             <h3 className="font-semibold text-[15px]">Gráficos de apoio</h3>
@@ -1457,7 +1482,7 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
           {/* Tabela por empresa — padrão de planilha */}
           <Card className="overflow-hidden p-0">
             <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: "#071D41" }}>
-              <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: "-0.015em", lineHeight: 1.15 }}>Empresas do grupo</h3>
+              <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: "-0.015em", lineHeight: 1.15 }}>Empresas do grupo <span className="font-medium text-white/55" style={{ fontSize: 12 }}>· do pior pro melhor</span></h3>
               <div className="flex items-center gap-3">
                 <Button size="sm" variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
                 <ColunasMenu labels={EMP_COL_LABELS} colMenuOpen={empCols.colMenuOpen} setColMenuOpen={empCols.setColMenuOpen} isColVisible={empCols.isColVisible} toggleColVisible={empCols.toggleColVisible} />
@@ -1475,6 +1500,9 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
                     <th className={`text-left px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("empresa") ? "" : "hidden"}`}>
                       Empresa<span onMouseDown={empCols.startResize("empresa")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                     </th>
+                    <th className={`text-center px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("status") ? "" : "hidden"}`}>
+                      Status<span onMouseDown={empCols.startResize("status")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
                     <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("faturamento") ? "" : "hidden"}`}>
                       Faturamento<span onMouseDown={empCols.startResize("faturamento")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                     </th>
@@ -1483,6 +1511,9 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
                     </th>
                     <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("resultado") ? "" : "hidden"}`}>
                       Resultado<span onMouseDown={empCols.startResize("resultado")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("caixa_gerado") ? "" : "hidden"}`}>
+                      Caixa gerado<span onMouseDown={empCols.startResize("caixa_gerado")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                     </th>
                     <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("caixa") ? "" : "hidden"}`}>
                       Caixa<span onMouseDown={empCols.startResize("caixa")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
@@ -1497,12 +1528,19 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
                   </tr>
                 </thead>
                 <tbody>
-                  {(metrics?.rows || []).map((r) => (
+                  {[...(metrics?.rows || [])]
+                    .map((r) => ({ r, s: statusLoja(r) }))
+                    .sort((a, b) => a.s.rank - b.s.rank || a.r.resultado - b.r.resultado)
+                    .map(({ r, s }) => (
                     <tr key={r.company_id} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
                       <td className={`px-3 py-1 font-medium text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("empresa") ? "" : "hidden"}`} title={r.nome}>{r.nome}</td>
+                      <td className={`px-3 py-1 text-center truncate border-r border-[#F1F3F5] ${empCols.isColVisible("status") ? "" : "hidden"}`}>
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[12px] font-semibold" style={{ background: s.bg, color: s.color }}>{s.label}</span>
+                      </td>
                       <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("faturamento") ? "" : "hidden"}`}>{fmt(r.faturamento)}</td>
                       <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("despesas") ? "" : "hidden"}`}>{fmt(r.despesa)}</td>
                       <td className={`px-3 py-1 text-right font-semibold truncate border-r border-[#F1F3F5] ${r.resultado >= 0 ? "text-blue-600" : "text-orange-600"} ${empCols.isColVisible("resultado") ? "" : "hidden"}`}>{fmt(r.resultado)}</td>
+                      <td className={`px-3 py-1 text-right font-medium truncate border-r border-[#F1F3F5] ${r.caixaGerado >= 0 ? "text-emerald-600" : "text-red-600"} ${empCols.isColVisible("caixa_gerado") ? "" : "hidden"}`}>{fmt(r.caixaGerado)}</td>
                       <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("caixa") ? "" : "hidden"}`}>{fmt(r.caixa)}</td>
                       <td className={`px-3 py-1 text-right text-emerald-600 truncate border-r border-[#F1F3F5] ${empCols.isColVisible("cr") ? "" : "hidden"}`}>{fmt(r.cr_aberto)}</td>
                       <td className={`px-3 py-1 text-right text-amber-600 truncate border-r border-[#F1F3F5] ${empCols.isColVisible("cp") ? "" : "hidden"}`}>{fmt(r.cp_aberto)}</td>
@@ -1516,9 +1554,13 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
                   {metrics && (
                     <tr className="bg-[#F6F2EB] font-semibold border-t border-[#EAECF0]">
                       <td className={`px-3 py-1.5 text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("empresa") ? "" : "hidden"}`}>Total consolidado</td>
+                      <td className={`px-3 py-1.5 border-r border-[#F1F3F5] ${empCols.isColVisible("status") ? "" : "hidden"}`}></td>
                       <td className={`px-3 py-1.5 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("faturamento") ? "" : "hidden"}`}>{fmt(metrics.totals.faturamento)}</td>
                       <td className={`px-3 py-1.5 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("despesas") ? "" : "hidden"}`}>{fmt(metrics.totals.despesa)}</td>
                       <td className={`px-3 py-1.5 text-right truncate border-r border-[#F1F3F5] ${metrics.totals.resultado >= 0 ? "text-blue-600" : "text-orange-600"} ${empCols.isColVisible("resultado") ? "" : "hidden"}`}>{fmt(metrics.totals.resultado)}</td>
+                      {(() => { const tcg = metrics.rows.reduce((s, r) => s + r.caixaGerado, 0); return (
+                        <td className={`px-3 py-1.5 text-right truncate border-r border-[#F1F3F5] ${tcg >= 0 ? "text-emerald-600" : "text-red-600"} ${empCols.isColVisible("caixa_gerado") ? "" : "hidden"}`}>{fmt(tcg)}</td>
+                      ); })()}
                       <td className={`px-3 py-1.5 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("caixa") ? "" : "hidden"}`}>{fmt(metrics.totals.caixa)}</td>
                       <td className={`px-3 py-1.5 text-right text-emerald-600 truncate border-r border-[#F1F3F5] ${empCols.isColVisible("cr") ? "" : "hidden"}`}>{fmt(metrics.totals.cr_aberto)}</td>
                       <td className={`px-3 py-1.5 text-right text-amber-600 truncate border-r border-[#F1F3F5] ${empCols.isColVisible("cp") ? "" : "hidden"}`}>{fmt(metrics.totals.cp_aberto)}</td>
