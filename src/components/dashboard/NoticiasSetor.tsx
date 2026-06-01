@@ -33,12 +33,14 @@ export default function NoticiasSetor() {
         width: 240, flexShrink: 0,
         background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12,
         padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,.05)",
-        alignSelf: "flex-start",
+        // Divide com o Radar o espaço da coluna; rola por dentro se não couber.
+        flex: 1, minHeight: 0,
+        display: "flex", flexDirection: "column",
     };
 
     return (
         <aside style={wrap}>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 2 }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 2, flexShrink: 0 }}>
                 <h3 style={{ margin: 0, fontFamily: C.serif, fontSize: 16, fontWeight: 700, color: C.text1, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
                     <Newspaper size={14} style={{ color: C.green }} /> Notícias do setor
                 </h3>
@@ -46,8 +48,10 @@ export default function NoticiasSetor() {
                     <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
                 </button>
             </div>
-            <p style={{ margin: "0 0 8px", fontSize: 10.5, color: C.muted, textTransform: "uppercase", letterSpacing: ".04em", fontWeight: 600 }}>{setor.label}</p>
+            <p style={{ margin: "0 0 8px", fontSize: 10.5, color: C.muted, textTransform: "uppercase", letterSpacing: ".04em", fontWeight: 600, flexShrink: 0 }}>{setor.label}</p>
 
+            {/* Lista: ocupa o espaço restante e rola internamente (barrinha fina). */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: `${C.border} transparent` }}>
             {loading ? (
                 <div style={{ height: 180, borderRadius: 8, background: "#F2F4F7" }} className="animate-pulse" />
             ) : noticias.length === 0 ? (
@@ -70,8 +74,9 @@ export default function NoticiasSetor() {
                     ))}
                 </div>
             )}
+            </div>
 
-            <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                 <span style={{ fontSize: 10, color: C.muted }}>Fonte: Google Notícias</span>
                 <ExternalLink size={10} style={{ color: C.muted }} />
             </div>

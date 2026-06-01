@@ -1284,7 +1284,7 @@ export default function CompanyDashboard() {
             <div style={{ marginBottom: 12 }}>
                 <DashboardTabs active="visao" />
             </div>
-            <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "stretch", flexWrap: "wrap" }}>
             <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ flex: 1, minWidth: 320, fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ marginBottom: 14 }}>
@@ -1911,8 +1911,11 @@ export default function CompanyDashboard() {
 
             </div>
 
-            {/* ── Coluna lateral: widgets empilhados (240px), altura natural ── */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, alignSelf: "flex-start" }}>
+            {/* ── Coluna lateral: widgets empilhados (240px) ──
+                 Acompanha a altura do quadro branco (align-items: stretch do container).
+                 Indicadores tem altura natural; Notícias e Radar dividem (flex:1) o resto
+                 e rolam internamente — a coluna termina junto com o quadro branco. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, minHeight: 0 }}>
                 <IndicadoresEconomicos />
                 <NoticiasSetor />
                 <RadarLegislativo />
