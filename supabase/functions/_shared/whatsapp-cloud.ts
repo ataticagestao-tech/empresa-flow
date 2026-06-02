@@ -9,7 +9,93 @@
 // Feature flag: USE_WHATSAPP_CLOUD=true ativa Cloud API.
 // ============================================================
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
 const GRAPH_API_VERSION = "v21.0";
+
+/** Contexto opcional pra espelhar o envio no inbox (whatsapp_mensagens).
+ *  Se passado em qualquer send*, a mensagem enviada vira uma bolha no chat. */
+export interface LogContext {
+    autor?: "ia" | "humano" | "sistema";
+    conteudo?: string; // override do texto exibido no chat
+}
+
+/** Descrição legível do que foi enviado num template (pro chat do inbox).
+ *  Modelos conhecidos da Tatica viram frase; o resto cai no fallback nome+params. */
+function templateSummary(name: string, params?: string[]): string {
+    const p = params ?? [];
+    switch (name) {
+        case "solicitar_cadastro_funcionario": // [nome, empresa]
+            return `📋 Pedido de cadastro enviado${p[0] ? ` para ${p[0]}` : ""}${p[1] ? ` (${p[1]})` : ""}`;
+        case "recibo_pagamento": // [nome, num_recibo, valor, data]
+            return `🧾 Recibo${p[1] ? ` nº ${p[1]}` : ""} enviado${p[0] ? ` para ${p[0]}` : ""}${p[2] ? ` — R$ ${p[2]}` : ""}${p[3] ? ` (${p[3]})` : ""}`;
+        case "cobranca_a_vencer": // [nome, empresa, valor, vencimento]
+            return `🔔 Cobrança enviada${p[0] ? ` para ${p[0]}` : ""}${p[1] ? ` (${p[1]})` : ""}${p[2] ? ` — R$ ${p[2]}` : ""}${p[3] ? `, vence ${p[3]}` : ""}`;
+        case "overnight_diario": // [empresa, data]
+            return `📊 Resumo diário (overnight) enviado${p[0] ? ` — ${p[0]}` : ""}${p[1] ? ` ${p[1]}` : ""}`;
+        default:
+            return `📋 ${name}${p.length ? " — " + p.join(", ") : ""}`;
+    }
+}
+
+// Cache do corpo dos templates aprovados (nome → texto com {{n}}). Persiste no isolate.
+const _templateBodyCache: Record<string, string> = {};
+
+/** Busca o TEXTO exato do corpo do template aprovado na Meta (Graph API). */
+async function getTemplateBody(cfg: CloudConfig, name: string): Promise<string | null> {
+    if (name in _templateBodyCache) return _templateBodyCache[name];
+    try {
+        const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${cfg.wabaId}/message_templates`
+            + `?name=${encodeURIComponent(name)}&fields=name,components&limit=10`;
+        const resp = await fetch(url, { headers: { Authorization: `Bearer ${cfg.accessToken}` } });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) return null;
+        const list = (data?.data ?? []) as any[];
+        const tpl = list.find((t) => t.name === name) ?? list[0];
+        const body = (tpl?.components ?? []).find((c: any) => c.type === "BODY");
+        const text = body?.text;
+        if (typeof text === "string" && text.length) {
+            _templateBodyCache[name] = text;
+            return text;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+/** Substitui {{1}},{{2}}... pelo valor correspondente em params. */
+function renderTemplate(body: string, params?: string[]): string {
+    const p = params ?? [];
+    return body.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, n) => p[Number(n) - 1] ?? `{{${n}}}`);
+}
+
+/** Grava a mensagem ENVIADA no inbox (cria/atualiza a conversa). Não quebra o envio. */
+async function logOutboundToInbox(
+    to: string,
+    autor: string,
+    tipo: string,
+    conteudo: string,
+    waMessageId?: string,
+) {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    try {
+        const svc = createClient(url, key, { auth: { persistSession: false } });
+        await svc.rpc("whatsapp_registrar_msg", {
+            p_phone: to,
+            p_direcao: "saida",
+            p_autor: autor,
+            p_conteudo: conteudo,
+            p_wa_message_id: waMessageId ?? null,
+            p_tipo: tipo,
+            p_status: waMessageId ? "sent" : null,
+        });
+    } catch (e) {
+        console.error("[whatsapp-cloud] log inbox falhou:", (e as any)?.message);
+    }
+}
 
 export interface CloudConfig {
     accessToken: string;
@@ -65,6 +151,7 @@ export interface SendTextOptions {
     to: string;
     text: string;
     previewUrl?: boolean;
+    logAs?: LogContext;
 }
 
 export interface SendTemplateOptions {
@@ -75,6 +162,7 @@ export interface SendTemplateOptions {
     /** Forneca link OU mediaId (id retornado por uploadMedia). filename obrigatorio. */
     headerDocument?: { link?: string; mediaId?: string; filename?: string };
     headerImage?: { link?: string; mediaId?: string };
+    logAs?: LogContext;
 }
 
 export interface SendDocumentOptions {
@@ -83,6 +171,7 @@ export interface SendDocumentOptions {
     documentBase64?: string;
     filename: string;
     caption?: string;
+    logAs?: LogContext;
 }
 
 export interface CloudSendResult {
@@ -129,7 +218,11 @@ export async function sendCloudText(
     const resp = await postGraph(`${cfg.phoneNumberId}/messages`, payload, cfg.accessToken);
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) return { ok: false, error: parseError(data, resp.status), rawError: data };
-    return { ok: true, waMessageId: data?.messages?.[0]?.id };
+    const waId = data?.messages?.[0]?.id;
+    if (opts.logAs) {
+        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "texto", opts.logAs.conteudo ?? opts.text, waId);
+    }
+    return { ok: true, waMessageId: waId };
 }
 
 /** Envia template aprovado pela Meta (unico modo fora da janela de 24h) */
@@ -186,7 +279,17 @@ export async function sendCloudTemplate(
     const resp = await postGraph(`${cfg.phoneNumberId}/messages`, payload, cfg.accessToken);
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) return { ok: false, error: parseError(data, resp.status), rawError: data };
-    return { ok: true, waMessageId: data?.messages?.[0]?.id };
+    const waId = data?.messages?.[0]?.id;
+    if (opts.logAs) {
+        let resumo = opts.logAs.conteudo;
+        if (!resumo) {
+            // Texto EXATO do modelo aprovado, renderizado com os dados; fallback = descrição.
+            const body = await getTemplateBody(cfg, opts.templateName);
+            resumo = body ? renderTemplate(body, opts.bodyParams) : templateSummary(opts.templateName, opts.bodyParams);
+        }
+        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "template", resumo, waId);
+    }
+    return { ok: true, waMessageId: waId };
 }
 
 /** Envia documento (PDF/etc) como mensagem de midia. So dentro da janela de 24h. */
@@ -228,7 +331,12 @@ export async function sendCloudDocument(
     const resp = await postGraph(`${cfg.phoneNumberId}/messages`, payload, cfg.accessToken);
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) return { ok: false, error: parseError(data, resp.status), rawError: data };
-    return { ok: true, waMessageId: data?.messages?.[0]?.id };
+    const waId = data?.messages?.[0]?.id;
+    if (opts.logAs) {
+        const resumo = opts.logAs.conteudo ?? (opts.caption || `📎 ${opts.filename}`);
+        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "documento", resumo, waId);
+    }
+    return { ok: true, waMessageId: waId };
 }
 
 /** Upload de midia (PDF/imagem) pra Cloud API; retorna media_id pra usar em sends */

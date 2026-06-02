@@ -160,6 +160,7 @@ async function sendViaCloud(req: WhatsAppRequest): Promise<Response> {
                       mediaId: req.template.headerImageMediaId,
                   }
                 : undefined,
+            logAs: { autor: "sistema" }, // espelha no chat do inbox
         });
         return new Response(
             JSON.stringify({
@@ -183,6 +184,7 @@ async function sendViaCloud(req: WhatsAppRequest): Promise<Response> {
             documentBase64: req.mediaBase64,
             filename: req.fileName ?? "documento.pdf",
             caption: req.caption ?? req.text,
+            logAs: { autor: "sistema" }, // espelha no chat do inbox
         });
         return new Response(
             JSON.stringify({
@@ -201,7 +203,7 @@ async function sendViaCloud(req: WhatsAppRequest): Promise<Response> {
 
     // Texto livre (só dentro da janela 24h)
     if (req.text) {
-        const result = await sendCloudText(cfg, { to: req.phone, text: req.text });
+        const result = await sendCloudText(cfg, { to: req.phone, text: req.text, logAs: { autor: "sistema" } });
         return new Response(
             JSON.stringify({
                 ok: result.ok,

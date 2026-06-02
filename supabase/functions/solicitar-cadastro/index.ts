@@ -176,6 +176,7 @@ async function enviarViaCloud(
         to: telefone,
         templateName,
         bodyParams: [nome, nomeEmpresa],
+        logAs: { autor: "sistema" }, // espelha no chat do inbox
     });
 
     if (!result.ok) {

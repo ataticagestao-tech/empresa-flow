@@ -14,10 +14,15 @@
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+function service() {
+    return createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+}
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -41,6 +46,7 @@ interface CloudMessage {
     button?: any;
     location?: any;
     context?: { from: string; id: string };
+    referral?: Record<string, unknown>; // CTWA: anúncio que originou a conversa
 }
 
 interface CloudContact {
@@ -154,6 +160,84 @@ function toEvolutionPayload(
     };
 }
 
+// ── persistência no inbox ──────────────────────────────────────
+
+/** Extrai conteúdo legível + tipo + mídia de uma mensagem Cloud, pro inbox. */
+function paraInbox(msg: CloudMessage): { tipo: string; conteudo: string; midia: Record<string, unknown> | null } {
+    if (msg.type === "text" && msg.text) {
+        return { tipo: "texto", conteudo: msg.text.body, midia: null };
+    }
+    if (msg.type === "image" && msg.image) {
+        return {
+            tipo: "imagem",
+            conteudo: msg.image.caption || "[imagem]",
+            midia: { mime: msg.image.mime_type, cloudMediaId: msg.image.id },
+        };
+    }
+    if (msg.type === "document" && msg.document) {
+        return {
+            tipo: "documento",
+            conteudo: msg.document.caption || msg.document.filename || "[documento]",
+            midia: { mime: msg.document.mime_type, cloudMediaId: msg.document.id, filename: msg.document.filename },
+        };
+    }
+    if (msg.type === "audio" && msg.audio) {
+        return { tipo: "audio", conteudo: "[áudio]", midia: { mime: msg.audio.mime_type, cloudMediaId: msg.audio.id } };
+    }
+    if (msg.type === "video" && msg.video) {
+        return {
+            tipo: "video",
+            conteudo: msg.video.caption || "[vídeo]",
+            midia: { mime: msg.video.mime_type, cloudMediaId: msg.video.id },
+        };
+    }
+    if (msg.type === "interactive" || msg.type === "button") {
+        const t = msg.interactive?.button_reply?.title
+            || msg.interactive?.list_reply?.title
+            || msg.button?.text
+            || "[resposta]";
+        return { tipo: "interativo", conteudo: t, midia: null };
+    }
+    return { tipo: "texto", conteudo: `[${msg.type}]`, midia: null };
+}
+
+/** Grava a mensagem recebida no inbox (upsert conversa + insert msg). Não pode quebrar o ack. */
+async function registrarInbound(msg: CloudMessage, contact: CloudContact | undefined): Promise<void> {
+    if (!SUPABASE_URL || !SERVICE_KEY) return;
+    try {
+        const { tipo, conteudo, midia } = paraInbox(msg);
+        const { error } = await service().rpc("whatsapp_registrar_msg", {
+            p_phone: msg.from,
+            p_direcao: "entrada",
+            p_autor: "contato",
+            p_conteudo: conteudo,
+            p_wa_message_id: msg.id,
+            p_tipo: tipo,
+            p_nome: contact?.profile?.name ?? null,
+            p_midia: midia,
+            p_referral: msg.referral ?? null,
+            p_status: null,
+        });
+        if (error) console.error("[whatsapp-cloud-webhook] registrarInbound falhou:", error.message);
+    } catch (err) {
+        console.error("[whatsapp-cloud-webhook] exceção registrarInbound:", err);
+    }
+}
+
+/** Atualiza o status de entrega de uma mensagem enviada (sent/delivered/read/failed). */
+async function atualizarStatus(st: CloudStatus): Promise<void> {
+    if (!SUPABASE_URL || !SERVICE_KEY) return;
+    try {
+        const { error } = await service()
+            .from("whatsapp_mensagens")
+            .update({ status: st.status })
+            .eq("wa_message_id", st.id);
+        if (error) console.error("[whatsapp-cloud-webhook] atualizarStatus falhou:", error.message);
+    } catch (err) {
+        console.error("[whatsapp-cloud-webhook] exceção atualizarStatus:", err);
+    }
+}
+
 async function forwardToAgente(evolutionPayload: Record<string, unknown>): Promise<void> {
     if (!SUPABASE_URL || !SERVICE_KEY) {
         console.error("[whatsapp-cloud-webhook] SUPABASE_URL/SERVICE_KEY ausentes; nao consigo encaminhar");
@@ -205,25 +289,29 @@ async function handlePost(req: Request): Promise<Response> {
         for (const change of entry.changes ?? []) {
             const value = change.value as CloudValue;
 
-            // mensagens recebidas → encaminha pro agente
+            // mensagens recebidas → grava no inbox E encaminha pro agente
             if (change.field === "messages" && value?.messages?.length) {
                 const phoneNumberId = value.metadata?.phone_number_id ?? "";
                 for (const msg of value.messages) {
                     const contact = value.contacts?.find((c) => c.wa_id === msg.from);
                     const evolutionLike = toEvolutionPayload(msg, contact, phoneNumberId);
-                    // Nao bloqueia o ack do webhook, mas registra a tarefa pra
+                    // 1) Grava a mensagem recebida no inbox (conversa + mensagem).
+                    // 2) Encaminha pro agente-orquestrador (IA responde).
+                    // Nao bloqueia o ack do webhook, mas registra as tarefas pra
                     // manter o isolate vivo via EdgeRuntime.waitUntil (senao o
                     // runtime do Supabase mata o forward antes de chegar no agente).
+                    tasks.push(registrarInbound(msg, contact));
                     tasks.push(forwardToAgente(evolutionLike));
                 }
             }
 
-            // statuses → por ora apenas log; refinar depois (TODO: atualizar cadastro_mensagens)
+            // statuses → atualiza status de entrega da mensagem enviada
             if (change.field === "messages" && value?.statuses?.length) {
                 for (const st of value.statuses) {
                     console.log(
                         `[whatsapp-cloud-webhook] status: msgId=${st.id} status=${st.status} to=${st.recipient_id}`,
                     );
+                    tasks.push(atualizarStatus(st));
                 }
             }
 

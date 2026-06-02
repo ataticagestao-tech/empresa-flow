@@ -28,6 +28,13 @@ const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY")!;
 const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_INSTANCE") ?? "financeiro";
 const MAX_TOOL_ITERATIONS = 6;
 const HISTORICO_LIMITE = 10;
+// Liga o atendimento de leads (números desconhecidos) pela IA de vendas.
+// Default true; setar IA_ATENDE_LEADS=false volta ao "não te reconheço".
+const IA_ATENDE_LEADS = (Deno.env.get("IA_ATENDE_LEADS") ?? "true").toLowerCase() !== "false";
+// Integração com o meutatico.site (tatica-gestap): cada lead novo vira uma
+// ATIVIDADE (Task) no Kanban da gestão. Sem as 2 envs, o disparo é no-op.
+const TATICA_GESTAP_URL = Deno.env.get("TATICA_GESTAP_URL") ?? "";
+const MEUTATICO_WEBHOOK_SECRET = Deno.env.get("EMPRESA_FLOW_WEBHOOK_SECRET") ?? "";
 
 // ── SYSTEM PROMPT ────────────────────────────────────────────
 // Versão compacta. A versão completa fica em CHATBOT-CONTEXTO/AGENTE-SYSTEM-PROMPT.md
@@ -139,6 +146,28 @@ IMPORTANTE:
 - Se ele já passou todas as infos numa única mensagem ("lança CP 500 luz Equatorial CNPJ 12.345.678/0001-90 vence amanhã"), pule perguntas e confirme tudo de uma vez
 
 Use ferramentas quando precisar de dados reais ou para executar ações. Quando empresário só conversar ("oi", "tudo bem"), responda sem ferramenta.`;
+
+// ── SYSTEM PROMPT (LEAD/VENDAS) ──────────────────────────────
+// Usado quando um número DESCONHECIDO escreve (lead de anúncio Click-to-WhatsApp).
+// Não tem acesso a ferramentas nem a dados de nenhuma empresa — é só venda consultiva.
+const LEAD_SYSTEM_PROMPT = `Você é o atendente comercial da Tática Gestão, empresa de gestão financeira para pequenos e médios negócios. Está atendendo no WhatsApp oficial uma pessoa que provavelmente veio de um anúncio e ainda NÃO é cliente.
+
+O QUE A TÁTICA VENDE:
+- *Sistema de gestão financeira* completo: contas a pagar/receber, fluxo de caixa, DRE, conciliação bancária (importa extrato/OFX), vendas, emissão de NFS-e, dashboards e relatórios.
+- *BPO Financeiro* (terceirização): a equipe da Tática cuida do financeiro do cliente — lançamentos, conciliação, cobrança, relatórios mensais — pra ele focar no negócio.
+- Diferencial: um *Assistente por WhatsApp* que lança contas, consulta saldo/faturamento e manda o resumo diário do caixa (overnight).
+
+SEU PAPEL:
+- Atender com simpatia, em PT-BR coloquial e direto. Mensagens curtas (é WhatsApp), *negrito* com um asterisco de cada lado, sem listas com ## ou markdown pesado.
+- Entender o momento da pessoa: que negócio tem, qual a dor (não sabe quanto sobra, atrasa conta, sem controle, contador só no fim do mês...).
+- Mostrar como o Sistema e/ou o BPO resolvem aquilo. UMA pergunta por vez, nada de enxurrada.
+- Objetivo: qualificar e agendar uma conversa/demonstração com a equipe. Peça nome e o tipo/tamanho do negócio quando fizer sentido.
+
+LIMITES (importante):
+- Você NÃO tem acesso a nenhum sistema, conta ou dado financeiro aqui. NÃO prometa consultar saldo, lançar conta nem nada operacional — isso é só pra clientes já ativos dentro do sistema.
+- Não invente preço fechado; se perguntarem valores, diga que depende do porte e que a equipe passa uma proposta na conversa.
+- Se a pessoa disser que já é cliente ou pedir suporte, peça pra ela confirmar com a Izabel pra liberar o acesso dela aqui no WhatsApp (cadastro do número), porque você só está vendo isto como um contato novo.
+- Nunca diga que é uma IA "burra" nem peça código de verificação — isso é outro fluxo.`;
 
 // ── TOOLS DEFINITIONS (resumo — schema completo em TOOLS-SCHEMA.json) ──
 const TOOLS = [
@@ -536,6 +565,16 @@ function normalizePhone(raw: string): string | null {
     return d;
 }
 
+// Mesma normalização do RPC whatsapp_registrar_msg (remove o 9 extra de celular):
+// garante que os lookups no inbox batam com conversa.phone (12 dígitos).
+function inboxPhone(raw: string): string {
+    let d = (raw || "").replace(/\D/g, "");
+    if (d.startsWith("0")) d = d.slice(1);
+    if (!d.startsWith("55") && (d.length === 10 || d.length === 11)) d = "55" + d;
+    if (d.length === 13 && d[4] === "9") d = d.slice(0, 4) + d.slice(5);
+    return d;
+}
+
 interface ParsedMsg {
     phone: string;
     text: string;          // texto livre ou caption da mídia
@@ -641,6 +680,8 @@ async function enviarResposta(phone: string, text: string) {
             console.error("[orquestrador] enviar (cloud) falhou:", res.error);
         } else {
             console.log("[orquestrador] enviada (cloud) pra", phone, "—", text.slice(0, 50));
+            // Espelha a resposta da IA no inbox (não bloqueia o fluxo se falhar).
+            await registrarSaidaInbox(phone, text, res.waMessageId);
         }
         return;
     }
@@ -809,6 +850,180 @@ async function chamarClaude(messages: any[], tokensCacheable: boolean) {
     return await resp.json();
 }
 
+// ── INBOX: helpers de espelhamento e atendimento de lead ──────
+
+/** Espelha uma mensagem enviada pela IA no inbox (whatsapp_mensagens via RPC). */
+async function registrarSaidaInbox(phone: string, text: string, waMessageId?: string) {
+    try {
+        const svc = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+        const { error } = await svc.rpc("whatsapp_registrar_msg", {
+            p_phone: phone,
+            p_direcao: "saida",
+            p_autor: "ia",
+            p_conteudo: text,
+            p_wa_message_id: waMessageId ?? null,
+            p_tipo: "texto",
+            p_status: waMessageId ? "sent" : null,
+        });
+        if (error) console.error("[orquestrador] registrarSaidaInbox falhou:", error.message);
+    } catch (e: any) {
+        console.error("[orquestrador] exceção registrarSaidaInbox:", e?.message);
+    }
+}
+
+/** Lê ia_ativa da conversa (se humano assumiu, a IA fica em silêncio). default true. */
+async function leadIaAtiva(service: ReturnType<typeof createClient>, phone: string): Promise<boolean> {
+    try {
+        const { data } = await service
+            .from("whatsapp_conversas")
+            .select("ia_ativa")
+            .eq("phone", inboxPhone(phone))
+            .maybeSingle();
+        if (data && (data as any).ia_ativa === false) return false;
+        return true;
+    } catch {
+        return true;
+    }
+}
+
+/** Histórico da conversa do lead (vem do inbox, não de agente_conversas). */
+async function carregarHistoricoLead(
+    service: ReturnType<typeof createClient>,
+    phone: string,
+    excluirWaId: string | null,
+): Promise<any[]> {
+    let q = service
+        .from("whatsapp_mensagens")
+        .select("autor, conteudo, created_at, wa_message_id")
+        .eq("phone", inboxPhone(phone))
+        .order("created_at", { ascending: false })
+        .limit(HISTORICO_LIMITE * 2);
+    // Exclui a mensagem que acabou de chegar (já vamos anexá-la como turn atual);
+    // mantém linhas com wa_message_id nulo (saídas antigas).
+    if (excluirWaId) q = q.or(`wa_message_id.is.null,wa_message_id.neq.${excluirWaId}`);
+    const { data } = await q;
+    if (!data) return [];
+    return (data as any[])
+        .reverse()
+        .filter((r) => typeof r.conteudo === "string" && r.conteudo.trim().length > 0)
+        .map((r) => ({
+            role: r.autor === "contato" ? "user" : "assistant",
+            content: r.conteudo,
+        }));
+}
+
+/** Chama Claude com a persona de vendas (sem tools). */
+async function chamarClaudeLead(messages: any[]) {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+            model: ANTHROPIC_MODEL,
+            max_tokens: 700,
+            system: [{ type: "text", text: LEAD_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+            messages,
+        }),
+    });
+    if (!resp.ok) {
+        const errBody = await resp.text();
+        throw new Error(`Claude API ${resp.status}: ${errBody}`);
+    }
+    return await resp.json();
+}
+
+/** Cria uma ATIVIDADE (Task) do lead no meutatico.site (tatica-gestap), via webhook.
+ * Dedup é feito do lado de lá (1 tarefa aberta por telefone). No-op se não configurado. */
+async function criarAtividadeMeutatico(
+    service: ReturnType<typeof createClient>,
+    phoneNorm: string,
+    texto: string,
+): Promise<void> {
+    if (!TATICA_GESTAP_URL || !MEUTATICO_WEBHOOK_SECRET) return; // integração não configurada
+    try {
+        // Pega nome + anúncio (referral) que o webhook já gravou na conversa.
+        let nome: string | null = null;
+        let referral: unknown = null;
+        try {
+            const { data } = await service
+                .from("whatsapp_conversas")
+                .select("nome, referral")
+                .eq("phone", inboxPhone(phoneNorm))
+                .maybeSingle();
+            if (data) {
+                nome = (data as any).nome ?? null;
+                referral = (data as any).referral ?? null;
+            }
+        } catch { /* segue sem nome/referral */ }
+
+        const resp = await fetch(
+            `${TATICA_GESTAP_URL.replace(/\/$/, "")}/api/v1/webhooks/empresa-flow/whatsapp-lead`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Webhook-Secret": MEUTATICO_WEBHOOK_SECRET,
+                },
+                body: JSON.stringify({ phone: phoneNorm, nome, mensagem: texto, referral }),
+                // Nunca segura o atendimento: corta em 8s se o meutatico demorar/cair.
+                signal: AbortSignal.timeout(8000),
+            },
+        );
+        if (!resp.ok) {
+            console.error("[orquestrador] criarAtividadeMeutatico falhou:", resp.status, (await resp.text()).slice(0, 200));
+        } else {
+            console.log("[orquestrador] atividade meutatico ok pra", phoneNorm);
+        }
+    } catch (e: any) {
+        console.error("[orquestrador] erro criarAtividadeMeutatico:", e?.message);
+    }
+}
+
+/** Fluxo de atendimento de lead (número desconhecido) pela IA de vendas. */
+async function atenderLead(
+    service: ReturnType<typeof createClient>,
+    phoneNorm: string,
+    texto: string,
+    msgId: string | null,
+): Promise<void> {
+    const historico = await carregarHistoricoLead(service, phoneNorm, msgId);
+    const userText = (texto || "").trim() || "(o lead enviou uma mídia sem texto)";
+    // Mescla turns consecutivos do mesmo papel — a API do Claude exige alternância.
+    const messages: any[] = [];
+    for (const m of [...historico, { role: "user", content: userText }]) {
+        const last = messages[messages.length - 1];
+        if (last && last.role === m.role) {
+            last.content = `${last.content}\n${m.content}`;
+        } else {
+            messages.push({ ...m });
+        }
+    }
+    // A API exige que a 1ª mensagem seja do usuário.
+    while (messages.length && messages[0].role !== "user") messages.shift();
+    if (messages.length === 0) messages.push({ role: "user", content: userText });
+    let respostaFinal = "";
+    try {
+        const claudeResp = await chamarClaudeLead(messages);
+        respostaFinal = (claudeResp.content || [])
+            .filter((b: any) => b.type === "text")
+            .map((b: any) => b.text)
+            .join("\n")
+            .trim();
+    } catch (e: any) {
+        console.error("[orquestrador] erro Claude (lead):", e?.message);
+    }
+    if (!respostaFinal) {
+        respostaFinal = "Oi! Aqui é o atendimento da *Tática Gestão*. Me conta rapidinho: que tipo de negócio você tem e o que tá te incomodando hoje no financeiro?";
+    }
+    await enviarResposta(phoneNorm, respostaFinal);
+
+    // Gera a atividade do lead na gestão (meutatico.site). Dedup do lado de lá.
+    await criarAtividadeMeutatico(service, phoneNorm, texto);
+}
+
 // ── handler principal ────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -867,6 +1082,14 @@ serve(async (req: Request) => {
     }
 
     const service = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+    // 0a. HUMANO ASSUMIU A CONVERSA (inbox): se ia_ativa=false, a IA fica em silêncio.
+    // A mensagem recebida já foi gravada no inbox pelo whatsapp-cloud-webhook, então
+    // não se perde nada — a Izabel responde manualmente pela tela.
+    if (!(await leadIaAtiva(service, phoneNorm))) {
+        console.log("[orquestrador] ia_ativa=false (humano assumiu), não respondo:", phoneNorm);
+        return jsonResp({ ok: true, status: "ia_pausada_humano_assumiu" });
+    }
 
     // 0. ROTEAMENTO CADASTRO AUTOMATIZADO
     // Se esse telefone tem uma solicitacao de cadastro ATIVA, encaminha pro
@@ -961,6 +1184,12 @@ serve(async (req: Request) => {
     const acessosArr = (acessos || []) as Array<any>;
 
     if (acessosArr.length === 0) {
+        // Número desconhecido = lead (provavelmente veio de anúncio Click-to-WhatsApp).
+        // A IA de vendas atende; a conversa fica no inbox pra Izabel ver/assumir.
+        if (IA_ATENDE_LEADS) {
+            await atenderLead(service, phoneNorm, msg.text, msgId ?? null);
+            return jsonResp({ ok: true, status: "lead_atendido" });
+        }
         await enviarResposta(
             phoneNorm,
             "Olá! Não te reconheço aqui ainda. Pra usar o Assistente Tatica, peça pra Izabel autorizar seu WhatsApp no sistema. Ela vai te mandar um código de 6 dígitos por aqui — quando chegar, é só responder o código pra ativar.",
