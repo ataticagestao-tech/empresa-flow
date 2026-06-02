@@ -18,6 +18,7 @@ const GRAPH_API_VERSION = "v21.0";
 export interface LogContext {
     autor?: "ia" | "humano" | "sistema";
     conteudo?: string; // override do texto exibido no chat
+    companyId?: string | null; // carimba a conversa nesta empresa (quem envia)
 }
 
 /** Descrição legível do que foi enviado num template (pro chat do inbox).
@@ -77,6 +78,7 @@ async function logOutboundToInbox(
     tipo: string,
     conteudo: string,
     waMessageId?: string,
+    companyId?: string | null,
 ) {
     const url = Deno.env.get("SUPABASE_URL");
     const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -91,6 +93,7 @@ async function logOutboundToInbox(
             p_wa_message_id: waMessageId ?? null,
             p_tipo: tipo,
             p_status: waMessageId ? "sent" : null,
+            p_company_id: companyId ?? null,
         });
     } catch (e) {
         console.error("[whatsapp-cloud] log inbox falhou:", (e as any)?.message);
@@ -220,7 +223,7 @@ export async function sendCloudText(
     if (!resp.ok) return { ok: false, error: parseError(data, resp.status), rawError: data };
     const waId = data?.messages?.[0]?.id;
     if (opts.logAs) {
-        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "texto", opts.logAs.conteudo ?? opts.text, waId);
+        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "texto", opts.logAs.conteudo ?? opts.text, waId, opts.logAs.companyId);
     }
     return { ok: true, waMessageId: waId };
 }
@@ -287,7 +290,7 @@ export async function sendCloudTemplate(
             const body = await getTemplateBody(cfg, opts.templateName);
             resumo = body ? renderTemplate(body, opts.bodyParams) : templateSummary(opts.templateName, opts.bodyParams);
         }
-        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "template", resumo, waId);
+        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "template", resumo, waId, opts.logAs.companyId);
     }
     return { ok: true, waMessageId: waId };
 }
@@ -334,7 +337,7 @@ export async function sendCloudDocument(
     const waId = data?.messages?.[0]?.id;
     if (opts.logAs) {
         const resumo = opts.logAs.conteudo ?? (opts.caption || `📎 ${opts.filename}`);
-        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "documento", resumo, waId);
+        await logOutboundToInbox(to, opts.logAs.autor ?? "sistema", "documento", resumo, waId, opts.logAs.companyId);
     }
     return { ok: true, waMessageId: waId };
 }

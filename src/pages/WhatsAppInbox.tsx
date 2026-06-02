@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,7 @@ const AUTOR_LABEL: Record<string, string> = {
 
 export default function WhatsAppInbox() {
   const { session } = useAuth();
+  const { selectedCompany } = useCompany();
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [selecionadaId, setSelecionadaId] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
@@ -80,7 +82,8 @@ export default function WhatsAppInbox() {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-inbox`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action, ...payload }),
+        // company_id = empresa ativa: admin ignora (vê tudo); usuário comum é escopado a ela.
+        body: JSON.stringify({ action, company_id: selectedCompany?.id, ...payload }),
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || data.ok === false) {
@@ -88,7 +91,7 @@ export default function WhatsAppInbox() {
       }
       return data;
     },
-    [session?.access_token],
+    [session?.access_token, selectedCompany?.id],
   );
 
   const carregarConversas = useCallback(async () => {

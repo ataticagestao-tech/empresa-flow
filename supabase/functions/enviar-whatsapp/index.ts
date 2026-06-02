@@ -54,6 +54,7 @@ interface WhatsAppRequest {
     mimeType?: string;
     caption?: string;
     template?: TemplateSpec;
+    company_id?: string; // carimba a conversa no inbox na empresa de quem dispara
 }
 
 /** Normaliza telefone para Evolution: 12 ou 13 digitos, com 9 extra se cel BR */
@@ -160,7 +161,7 @@ async function sendViaCloud(req: WhatsAppRequest): Promise<Response> {
                       mediaId: req.template.headerImageMediaId,
                   }
                 : undefined,
-            logAs: { autor: "sistema" }, // espelha no chat do inbox
+            logAs: { autor: "sistema", companyId: req.company_id ?? null }, // espelha no chat do inbox (carimba empresa)
         });
         return new Response(
             JSON.stringify({
@@ -184,7 +185,7 @@ async function sendViaCloud(req: WhatsAppRequest): Promise<Response> {
             documentBase64: req.mediaBase64,
             filename: req.fileName ?? "documento.pdf",
             caption: req.caption ?? req.text,
-            logAs: { autor: "sistema" }, // espelha no chat do inbox
+            logAs: { autor: "sistema", companyId: req.company_id ?? null }, // espelha no chat do inbox (carimba empresa)
         });
         return new Response(
             JSON.stringify({
@@ -203,7 +204,7 @@ async function sendViaCloud(req: WhatsAppRequest): Promise<Response> {
 
     // Texto livre (só dentro da janela 24h)
     if (req.text) {
-        const result = await sendCloudText(cfg, { to: req.phone, text: req.text, logAs: { autor: "sistema" } });
+        const result = await sendCloudText(cfg, { to: req.phone, text: req.text, logAs: { autor: "sistema", companyId: req.company_id ?? null } });
         return new Response(
             JSON.stringify({
                 ok: result.ok,

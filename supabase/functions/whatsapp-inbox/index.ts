@@ -60,19 +60,23 @@ serve(async (req: Request) => {
 
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-        // Auth modo 1 — servidor-a-servidor (ex: meutatico.site chamando pra montar o chat):
-        // header X-Inbox-Secret igual ao INBOX_SERVICE_SECRET pula o gate de login/admin.
+        const body = await req.json().catch(() => ({}));
+        const action = String(body.action || "");
+
+        // ── Autorização + escopo de empresa ──────────────────────
+        // - X-Inbox-Secret (meutatico) e dono/admin → veem TUDO (scopeCompanyIds = null).
+        // - Usuário comum → escopado às empresas dele (não vê leads nem outras empresas).
         const INBOX_SERVICE_SECRET = Deno.env.get("INBOX_SERVICE_SECRET") || "";
         const inboxSecret = req.headers.get("X-Inbox-Secret") || "";
         const isServiceCall = !!INBOX_SERVICE_SECRET && inboxSecret === INBOX_SERVICE_SECRET;
 
-        // Auth modo 2 — chamada do browser com JWT de dono/admin (gate original).
+        let scopeCompanyIds: string[] | null = null; // null = acesso total (admin/serviço)
+
         if (!isServiceCall) {
             const authHeader = req.headers.get("Authorization") || "";
             if (!authHeader.startsWith("Bearer ")) {
                 return jsonResponse({ ok: false, erro: "Não autenticado" }, 401);
             }
-            // Identifica quem está pedindo (JWT do chamador)
             const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
                 global: { headers: { Authorization: authHeader } },
             });
@@ -82,7 +86,6 @@ serve(async (req: Request) => {
             }
             const caller = callerData.user;
 
-            // Gate: dono/admin (whitelist de email OU admin_users.is_super_admin)
             let isSuperAdmin = isSuperAdminEmail(caller.email);
             if (!isSuperAdmin) {
                 const { data: adminRow } = await admin
@@ -92,21 +95,47 @@ serve(async (req: Request) => {
                     .single();
                 isSuperAdmin = Boolean(adminRow?.is_super_admin);
             }
+
             if (!isSuperAdmin) {
-                return jsonResponse({ ok: false, erro: "Permissão negada" }, 403);
+                // Usuário comum: escopa às empresas dele (user_companies).
+                const { data: ucs } = await admin
+                    .from("user_companies")
+                    .select("company_id")
+                    .eq("user_id", caller.id);
+                const ids = (ucs || []).map((r: any) => r.company_id).filter(Boolean);
+                if (!ids.length) {
+                    return jsonResponse({ ok: false, erro: "Sem empresa vinculada" }, 403);
+                }
+                // empresa ativa mandada pelo front (valida que é dele); senão usa todas as dele
+                const active = body.company_id ? String(body.company_id) : null;
+                if (active && !ids.includes(active)) {
+                    return jsonResponse({ ok: false, erro: "Empresa não permitida" }, 403);
+                }
+                scopeCompanyIds = active ? [active] : ids;
             }
         }
 
-        const body = await req.json().catch(() => ({}));
-        const action = String(body.action || "");
+        // Garante que a conversa pertence ao escopo do usuário (null = sem restrição = admin/serviço).
+        const conversaNoEscopo = async (conversaId: string): Promise<boolean> => {
+            if (!scopeCompanyIds) return true;
+            const { data } = await admin
+                .from("whatsapp_conversas")
+                .select("company_id")
+                .eq("id", conversaId)
+                .single();
+            const cid = (data as any)?.company_id;
+            return !!cid && scopeCompanyIds.includes(cid);
+        };
 
         // ── lista de conversas ──────────────────────────────────
         if (action === "conversas") {
-            const { data, error } = await admin
+            let q = admin
                 .from("whatsapp_conversas")
                 .select("id, phone, nome, company_id, is_lead, ia_ativa, unread_count, referral, last_message_at, last_message_preview, last_message_autor, status, created_at")
                 .order("last_message_at", { ascending: false, nullsFirst: false })
                 .limit(300);
+            if (scopeCompanyIds) q = q.in("company_id", scopeCompanyIds); // usuário comum: só a(s) empresa(s) dele
+            const { data, error } = await q;
             if (error) return jsonResponse({ ok: false, erro: error.message }, 400);
             return jsonResponse({ ok: true, conversas: data || [] });
         }
@@ -115,6 +144,7 @@ serve(async (req: Request) => {
         if (action === "mensagens") {
             const conversaId = String(body.conversa_id || "");
             if (!conversaId) return jsonResponse({ ok: false, erro: "conversa_id obrigatório" }, 400);
+            if (!(await conversaNoEscopo(conversaId))) return jsonResponse({ ok: false, erro: "Conversa fora do seu acesso" }, 403);
             const { data, error } = await admin
                 .from("whatsapp_mensagens")
                 .select("id, direcao, autor, tipo, conteudo, midia, status, wa_message_id, created_at")
@@ -131,6 +161,7 @@ serve(async (req: Request) => {
             const texto = String(body.texto || "").trim();
             if (!conversaId) return jsonResponse({ ok: false, erro: "conversa_id obrigatório" }, 400);
             if (!texto) return jsonResponse({ ok: false, erro: "texto obrigatório" }, 400);
+            if (!(await conversaNoEscopo(conversaId))) return jsonResponse({ ok: false, erro: "Conversa fora do seu acesso" }, 403);
 
             const { data: conv, error: convErr } = await admin
                 .from("whatsapp_conversas")
@@ -174,6 +205,7 @@ serve(async (req: Request) => {
         if (action === "marcar_lida") {
             const conversaId = String(body.conversa_id || "");
             if (!conversaId) return jsonResponse({ ok: false, erro: "conversa_id obrigatório" }, 400);
+            if (!(await conversaNoEscopo(conversaId))) return jsonResponse({ ok: false, erro: "Conversa fora do seu acesso" }, 403);
             const { error } = await admin
                 .from("whatsapp_conversas")
                 .update({ unread_count: 0 })
@@ -187,6 +219,7 @@ serve(async (req: Request) => {
             const conversaId = String(body.conversa_id || "");
             const ativa = Boolean(body.ia_ativa);
             if (!conversaId) return jsonResponse({ ok: false, erro: "conversa_id obrigatório" }, 400);
+            if (!(await conversaNoEscopo(conversaId))) return jsonResponse({ ok: false, erro: "Conversa fora do seu acesso" }, 403);
             const { error } = await admin
                 .from("whatsapp_conversas")
                 .update({ ia_ativa: ativa })
