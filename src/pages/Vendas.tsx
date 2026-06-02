@@ -18,7 +18,8 @@ import {
   Loader2, AlertCircle, Check, Package,
   Briefcase, FileText, RefreshCw, CreditCard, Banknote,
   QrCode, Receipt, Calendar, UserPlus, ChevronDown,
-  Upload, Download, CheckCircle2, XCircle, ShoppingCart, FileSpreadsheet
+  Upload, Download, CheckCircle2, XCircle, ShoppingCart, FileSpreadsheet,
+  ImageDown
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { gerarRelatorioListaPDF, downloadListaPDF } from '@/lib/cadastros-pdf/gerar-lista-pdf'
@@ -359,6 +360,10 @@ export default function Vendas() {
   // ─── Exportação (Excel / PDF) ────────────────────────────────
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  // ─── Baixar "print" das vendas (imagem PNG p/ enviar ao cliente) ─
+  const printRef = useRef<HTMLDivElement>(null)
+  const [gerandoImagem, setGerandoImagem] = useState(false)
 
   // ─── Banner customizado por empresa (salvo em localStorage) ──
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
@@ -1363,6 +1368,99 @@ export default function Vendas() {
     downloadListaPDF(blob, exportBaseName())
   }
 
+  // ─── Baixar imagem ("print") das vendas p/ enviar ao cliente ─
+  // Captura o painel (KPIs + gráfico + tabela) e monta um PNG com
+  // cabeçalho da empresa + período. Pronto pra mandar no WhatsApp.
+  async function baixarImagemVendas() {
+    const el = printRef.current
+    if (!el || gerandoImagem) return
+    setGerandoImagem(true)
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const scale = 2
+      const conteudo = await html2canvas(el, {
+        scale,
+        backgroundColor: '#F6F2EB',
+        useCORS: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        onclone: (doc) => {
+          // lineHeight:1 + overflow-hidden (truncate) corta os valores grandes
+          // na renderização do html2canvas. Damos respiro vertical só no clone.
+          doc.querySelectorAll<HTMLElement>('[data-print-kpi]').forEach((node) => {
+            node.style.lineHeight = '1.35'
+            node.style.overflow = 'visible'
+            node.style.paddingBottom = '2px'
+          })
+        },
+      })
+
+      const periodo = `${dateFrom.split('-').reverse().join('/')} a ${dateTo.split('-').reverse().join('/')}`
+      const empresa = selectedCompany?.nome_fantasia || selectedCompany?.razao_social || 'Empresa'
+      const agora = new Date()
+      const carimbo = `Gerado em ${agora.toLocaleDateString('pt-BR')} às ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+
+      // Compõe um canvas final: cabeçalho navy + conteúdo + rodapé
+      const pad = 24 * scale
+      const headerH = 96 * scale
+      const footerH = 44 * scale
+      const W = conteudo.width + pad * 2
+      const H = headerH + conteudo.height + footerH
+
+      const canvas = document.createElement('canvas')
+      canvas.width = W
+      canvas.height = H
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('canvas')
+
+      // Fundo creme
+      ctx.fillStyle = '#F6F2EB'
+      ctx.fillRect(0, 0, W, H)
+
+      // Cabeçalho navy
+      ctx.fillStyle = '#071D41'
+      ctx.fillRect(0, 0, W, headerH)
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#FFFFFF'
+      ctx.font = `700 ${30 * scale}px Inter, system-ui, -apple-system, "Segoe UI", sans-serif`
+      ctx.fillText(empresa, pad, headerH * 0.4)
+      ctx.fillStyle = 'rgba(255,255,255,0.78)'
+      ctx.font = `500 ${17 * scale}px Inter, system-ui, -apple-system, "Segoe UI", sans-serif`
+      ctx.fillText(`Relatório de Vendas · ${periodo}`, pad, headerH * 0.72)
+
+      // Conteúdo capturado
+      ctx.drawImage(conteudo, pad, headerH)
+
+      // Rodapé
+      ctx.fillStyle = '#98A2B3'
+      ctx.font = `400 ${13 * scale}px Inter, system-ui, -apple-system, "Segoe UI", sans-serif`
+      ctx.fillText(carimbo, pad, headerH + conteudo.height + footerH * 0.5)
+      const marca = 'Tática Gestão'
+      const mw = ctx.measureText(marca).width
+      ctx.fillStyle = '#667085'
+      ctx.fillText(marca, W - pad - mw, headerH + conteudo.height + footerH * 0.5)
+
+      const safe = exportBaseName().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase()
+      canvas.toBlob((blob) => {
+        if (!blob) { setGerandoImagem(false); return }
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${safe}.png`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+        setGerandoImagem(false)
+      }, 'image/png')
+    } catch (e) {
+      console.error('Erro ao gerar imagem das vendas:', e)
+      alert('Não consegui gerar a imagem. Tente novamente.')
+      setGerandoImagem(false)
+    }
+  }
+
   // ─── Salvar novo cliente ───────────────────────────────────
   async function salvarNovoCliente() {
     if (!companyId || !novoClienteNome.trim()) return
@@ -2234,6 +2332,17 @@ export default function Vendas() {
               </div>
             )}
           </div>
+          {/* Baixar imagem ("print") — gera PNG do painel p/ enviar ao cliente */}
+          <button
+            onClick={baixarImagemVendas}
+            disabled={gerandoImagem}
+            className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] transition-colors disabled:opacity-50 disabled:cursor-wait"
+            title="Baixar imagem das vendas para enviar ao cliente"
+          >
+            {gerandoImagem
+              ? <><Loader2 size={11} className="animate-spin" /> Gerando…</>
+              : <><ImageDown size={11} /> Imagem</>}
+          </button>
           <button
             onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
             className="flex items-center gap-2 px-5 h-10 text-[13.5px] font-bold text-white bg-[#039855] rounded-md hover:bg-[#027A47] active:scale-[0.98] transition-all shadow-md hover:shadow-lg"
@@ -2250,7 +2359,8 @@ export default function Vendas() {
         </div>
 
         {/* ─── KPIs (esquerda) + Tabela (direita - alinhada a A vista..A prazo) ─ */}
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] lg:grid-rows-4 gap-3">
+        {/* printRef: região capturada ao "Baixar imagem" (KPIs + gráfico + tabela) */}
+        <div ref={printRef} className="grid grid-cols-1 lg:grid-cols-[260px_1fr] lg:grid-rows-4 gap-3">
           {[
             {
               label: 'Faturamento',
@@ -2292,6 +2402,7 @@ export default function Vendas() {
                 {k.label}
               </p>
               <p
+                data-print-kpi
                 className="font-extrabold truncate"
                 style={{ fontSize: 34, color: k.valueColor, letterSpacing: '-0.03em', lineHeight: 1 }}
               >
