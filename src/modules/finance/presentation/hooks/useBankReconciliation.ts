@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { parseBankStatementPdf } from "@/lib/parsers/bankStatementPdf";
 import { parseCreditCardPdf } from "@/lib/parsers/creditCardPdf";
 import { parseBankStatementExcel } from "@/lib/parsers/bankStatementExcel";
+import { recordStatementBalance } from "@/modules/finance/application/statementBalance";
 import { checkStatement, type StatementSource, type NormalizedTx, type StatementSecurityReport } from "../../application/statementSecurity";
 
 // Interface unificada para transações do sistema (Pagar e Receber)
@@ -251,6 +252,10 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 inserted += data?.length || 0;
             }
 
+            // Fase 1 PLANO_SALDO_CONCILIACAO: registra o saldo de fechamento do banco (LEDGERBAL)
+            // pra depois mostrar a divergência banco × sistema. Não-fatal.
+            await recordStatementBalance(activeClient, { companyId, bankAccountId, summary });
+
             // Se nenhuma nova, buscar status das existentes para informar o usuário
             let existingBreakdown = { reconciled: 0, pending: 0, ignored: 0 };
             if (inserted === 0) {
@@ -313,6 +318,11 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 toast({ title: "Sucesso", description: `${inserted} transações importadas.` });
             }
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
+            // Quadro Banco × Sistema: o extrato acabou de gravar o saldo do banco e novos
+            // lançamentos a conciliar — sem isto, o painel fica congelado no estado anterior.
+            queryClient.invalidateQueries({ queryKey: ['saldo_banco_vs_sistema'] });
+            queryClient.invalidateQueries({ queryKey: ['contas_saldo'] });
+            queryClient.invalidateQueries({ queryKey: ['import_history'] });
         },
         onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" })
     });
@@ -555,6 +565,12 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             queryClient.refetchQueries({ queryKey: ['conciliation_rules'] });
             queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
             queryClient.invalidateQueries({ queryKey: ['ultima_conciliacao_por_conta'] });
+            // Quadro Banco × Sistema + selo "conciliado": ao baixar um lançamento, cai o
+            // "a conciliar" e muda o saldo do sistema → o painel precisa refletir na hora.
+            queryClient.invalidateQueries({ queryKey: ['saldo_banco_vs_sistema'] });
+            queryClient.invalidateQueries({ queryKey: ['contas_saldo'] });
+            queryClient.invalidateQueries({ queryKey: ['conciliadas_ids'] });
+            queryClient.invalidateQueries({ queryKey: ['mov_conciliadas_ids'] });
             // Refresh MVs para alimentar DRE, Fluxo de Caixa, Multiempresas
             (activeClient as any).rpc('refresh_mvs_financeiras').then(() => {
                 queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });

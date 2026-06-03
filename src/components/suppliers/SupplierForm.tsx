@@ -69,6 +69,8 @@ const supplierFormSchema = z.object({
     dados_bancarios_pix: z.string().optional(),
     dados_bancarios_titular_cpf_cnpj: z.string().optional(),
     dados_bancarios_titular_nome: z.string().optional(),
+    conta_contabil_padrao_id: z.string().optional(),
+    centro_custo_padrao_id: z.string().optional(),
 });
 
 type SupplierFormValues = z.infer<typeof supplierFormSchema>;
@@ -127,8 +129,28 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
             dados_bancarios_pix: "",
             dados_bancarios_titular_cpf_cnpj: "",
             dados_bancarios_titular_nome: "",
+            conta_contabil_padrao_id: "",
+            centro_custo_padrao_id: "",
         },
     });
+
+    // Categorias contábeis + centros de custo para os campos de padrão do fornecedor
+    const [chartAccounts, setChartAccounts] = useState<Array<{ id: string; code: string; name: string; type: string | null }>>([]);
+    const [centrosCusto, setCentrosCusto] = useState<Array<{ id: string; codigo: string; descricao: string }>>([]);
+    useEffect(() => {
+        if (!selectedCompany) { setChartAccounts([]); setCentrosCusto([]); return; }
+        let cancelled = false;
+        (async () => {
+            const [chartRes, ccRes] = await Promise.all([
+                (activeClient as any).from("chart_of_accounts").select("id, code, name, type").eq("company_id", selectedCompany.id).order("code"),
+                (activeClient as any).from("centros_custo").select("id, codigo, descricao").eq("company_id", selectedCompany.id).eq("ativo", true).order("codigo"),
+            ]);
+            if (cancelled) return;
+            setChartAccounts(((chartRes.data || []) as any[]).filter((c) => c.type !== "receita"));
+            setCentrosCusto((ccRes.data || []) as any[]);
+        })();
+        return () => { cancelled = true; };
+    }, [selectedCompany, activeClient]);
 
     useEffect(() => {
         if (initialData) {
@@ -144,6 +166,8 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                 celular: maskPhone(initialData.celular || ""),
                 fax: maskPhone(initialData.fax || ""),
                 dados_bancarios_titular_cpf_cnpj: initialData.dados_bancarios_titular_cpf_cnpj?.length > 11 ? maskCNPJ(initialData.dados_bancarios_titular_cpf_cnpj) : maskCPF(initialData.dados_bancarios_titular_cpf_cnpj || ""),
+                conta_contabil_padrao_id: initialData.conta_contabil_padrao_id || "",
+                centro_custo_padrao_id: initialData.centro_custo_padrao_id || "",
             });
             setCnaeDescricao("");
             setCnaeOpcoes([]);
@@ -220,6 +244,8 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                 contato_nome: values.contato_nome ? toTitleCase(values.contato_nome) : values.contato_nome,
                 dados_bancarios_titular_nome: values.dados_bancarios_titular_nome ? toTitleCase(values.dados_bancarios_titular_nome) : values.dados_bancarios_titular_nome,
                 company_id: selectedCompany.id,
+                conta_contabil_padrao_id: values.conta_contabil_padrao_id || null,
+                centro_custo_padrao_id: values.centro_custo_padrao_id || null,
                 endereco_cep: unmask(cep || ""),
                 cpf_cnpj: unmask(values.cpf_cnpj || ""),
                 telefone: unmask(values.telefone || ""),
@@ -859,6 +885,62 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     </FormItem>
                                 )}
                             />
+                            <div className="md:col-span-2">
+                                <FormField
+                                    control={form.control}
+                                    name="conta_contabil_padrao_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Categoria contábil padrão (contas a pagar)</FormLabel>
+                                            <Select
+                                                onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                                                value={field.value || "__none__"}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger className="h-9 border-[#EAECF0]">
+                                                        <SelectValue placeholder="Nenhuma" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent className="max-h-72">
+                                                    <SelectItem value="__none__">Nenhuma</SelectItem>
+                                                    {chartAccounts.map((c) => (
+                                                        <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <div className="text-[12px] text-muted-foreground mt-1">Ao lançar uma conta a pagar deste fornecedor, esta categoria já vem preenchida automaticamente.</div>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <FormField
+                                    control={form.control}
+                                    name="centro_custo_padrao_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Centro de custo padrão (contas a pagar)</FormLabel>
+                                            <Select
+                                                onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                                                value={field.value || "__none__"}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger className="h-9 border-[#EAECF0]">
+                                                        <SelectValue placeholder="Nenhum" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent className="max-h-72">
+                                                    <SelectItem value="__none__">Nenhum</SelectItem>
+                                                    {centrosCusto.map((cc) => (
+                                                        <SelectItem key={cc.id} value={cc.id}>{cc.codigo} - {cc.descricao}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <div className="text-[12px] text-muted-foreground mt-1">Opcional. Também é preenchido automaticamente pelo histórico do fornecedor.</div>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
                             <div className="flex flex-col gap-2 pt-4">
                                 <FormField
                                     control={form.control}

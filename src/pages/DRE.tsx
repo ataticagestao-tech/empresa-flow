@@ -39,8 +39,8 @@ export default function DRE() {
   const db = activeClient as any;
 
   const hoje = new Date();
-  const [dateFrom, setDateFrom] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM-dd"));
-  const [dateTo, setDateTo] = useState(format(endOfMonth(hoje), "yyyy-MM-dd"));
+  const [dateFrom, setDateFrom] = useState(format(startOfMonth(subMonths(hoje, 1)), "yyyy-MM-dd"));
+  const [dateTo, setDateTo] = useState(format(endOfMonth(subMonths(hoje, 1)), "yyyy-MM-dd"));
   // Derivados para comparacao de competencia (yyyy-MM)
   const mesInicio = dateFrom.slice(0, 7);
   const mesFim = dateTo.slice(0, 7);

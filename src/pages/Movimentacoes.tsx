@@ -52,6 +52,8 @@ interface Movimentacao {
   descricao: string | null
   origem: 'cr' | 'cp' | 'conta_receber' | 'conta_pagar' | 'venda' | 'manual' | 'conciliacao'
   origem_id: string | null
+  conta_receber_id: string | null
+  conta_pagar_id: string | null
   created_at: string
   conta_bancaria: { id: string; name: string } | null
   conta_contabil: { code: string; name: string } | null
@@ -97,14 +99,17 @@ interface DayGroup {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
+// IMPORTANTE: a origem indica DE ONDE a movimentação nasceu (venda paga, CR/CP quitado,
+// lançamento manual, ou conciliação bancária). "conta_receber/conta_pagar" = CR/CP foi pago
+// no sistema — NÃO é "conciliado com o extrato do banco" (isso é só origem 'conciliacao').
 const ORIGEM_LABELS: Record<string, string> = {
-  cr: 'CR quitado',
-  cp: 'CP quitado',
-  conta_receber: 'Receita conciliada',
-  conta_pagar: 'Despesa conciliada',
+  cr: 'Recebimento (CR)',
+  cp: 'Pagamento (CP)',
+  conta_receber: 'Recebimento (CR)',
+  conta_pagar: 'Pagamento (CP)',
   venda: 'Venda',
   manual: 'Manual',
-  conciliacao: 'Conciliação',
+  conciliacao: 'Conciliação bancária',
 }
 
 type TipoFilter = 'todos' | 'entradas' | 'saidas' | 'transferencias'
@@ -304,6 +309,37 @@ export default function Movimentacoes() {
   const movimentacoes = movimentacoesData ?? []
   // isLoading = só quando não há dado em cache; revisitar a tela mostra o cache na hora.
   const loading = isLoading
+
+  // CR/CP que estão REALMENTE conciliados com o extrato (linkados a uma bank_transaction).
+  // É a verdade do "conciliado" — a origem 'conta_receber/conta_pagar' só diz que o título foi pago.
+  const { data: conciliadasData } = useQuery({
+    queryKey: ['mov_conciliadas_ids', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const client = activeClient ?? supabase
+      const { data } = await (client as any)
+        .from('bank_transactions')
+        .select('reconciled_receivable_id, reconciled_payable_id')
+        .eq('company_id', companyId)
+        .or('reconciled_receivable_id.not.is.null,reconciled_payable_id.not.is.null')
+        .limit(100000)
+      const crIds: string[] = []
+      const cpIds: string[] = []
+      for (const r of (data || []) as any[]) {
+        if (r.reconciled_receivable_id) crIds.push(r.reconciled_receivable_id)
+        if (r.reconciled_payable_id) cpIds.push(r.reconciled_payable_id)
+      }
+      return { crIds, cpIds }
+    },
+  })
+  const conciliadasSets = useMemo(() => ({
+    cr: new Set(conciliadasData?.crIds || []),
+    cp: new Set(conciliadasData?.cpIds || []),
+  }), [conciliadasData])
+  const isConciliado = useCallback((m: Movimentacao) =>
+    !!((m.conta_receber_id && conciliadasSets.cr.has(m.conta_receber_id)) ||
+       (m.conta_pagar_id && conciliadasSets.cp.has(m.conta_pagar_id))),
+    [conciliadasSets])
 
   // ---- Derived data ----
   const afterBankFilter = useMemo(() => {
@@ -964,6 +1000,7 @@ export default function Movimentacoes() {
                         bankRunningBalances={bankRunningBalances}
                         TypeIcon={TypeIcon}
                         isColVisible={isColVisible}
+                        isConciliado={isConciliado}
                       />
                     ))}
                   </tbody>
@@ -1223,12 +1260,14 @@ function DiaMovimentacoes({
   bankRunningBalances,
   TypeIcon,
   isColVisible,
+  isConciliado,
 }: {
   group: DayGroup
   bankNameMap: Map<string, string>
   bankRunningBalances: Map<string, number>
   TypeIcon: (props: { tipo: string }) => JSX.Element
   isColVisible: (k: string) => boolean
+  isConciliado: (m: Movimentacao) => boolean
 }) {
   // colSpan da célula de rótulo do dia = nº de colunas visíveis antes de "valor"
   const labelSpan = ['icone', 'descricao', 'categoria', 'conta'].filter(isColVisible).length || 1
@@ -1258,7 +1297,7 @@ function DiaMovimentacoes({
               <div className="text-[12px] font-medium text-[#0F172A] truncate" title={row.descricao || '(sem descrição)'}>
                 {row.descricao || '(sem descrição)'}
               </div>
-              <div className="mt-0.5">
+              <div className="mt-0.5 flex items-center gap-1 flex-wrap">
                 <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-bold ${
                   row.origem === 'cr' || row.origem === 'conta_receber' ? 'bg-[#ECFDF3] text-[#039855]' :
                   row.origem === 'cp' || row.origem === 'conta_pagar' ? 'bg-[#FEE2E2] text-[#E53E3E]' :
@@ -1267,6 +1306,11 @@ function DiaMovimentacoes({
                 }`}>
                   {(ORIGEM_LABELS[row.origem] || row.origem)}
                 </span>
+                {(row.conta_receber_id || row.conta_pagar_id) && (
+                  isConciliado(row)
+                    ? <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-bold bg-[#ECFDF3] text-[#027A48]" title="Conciliado com o extrato do banco">✓ conciliado</span>
+                    : <span className="inline-block text-[11px] grayscale" title="Ainda não conciliado com o extrato">⏳</span>
+                )}
               </div>
             </td>
             <td className={`px-4 py-1 align-middle text-[12px] text-[#4B5563] truncate border-r border-[#F1F3F5] ${isColVisible('categoria') ? '' : 'hidden'}`}

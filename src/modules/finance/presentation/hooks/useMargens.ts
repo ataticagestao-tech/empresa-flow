@@ -28,6 +28,8 @@ import { useAuth } from "@/contexts/AuthContext";
 /** Componentes brutos (somáveis entre empresas). */
 export interface MargensRaw {
   receita: number;
+  /** Taxa de cartão (MDR + antecipação) da agenda — dedução da receita bruta. */
+  taxaCartao: number;
   custo: number;
   despesaOperacional: number;
   outras: number;
@@ -35,6 +37,9 @@ export interface MargensRaw {
 
 export interface MargensData {
   receita: number;
+  taxaCartao: number;
+  /** receita − taxaCartao. */
+  receitaLiquida: number;
   custo: number;
   despesaOperacional: number;
   outras: number;
@@ -62,6 +67,7 @@ export interface UseMargensConsolidadoParams {
 
 const EMPTY_RAW: MargensRaw = {
   receita: 0,
+  taxaCartao: 0,
   custo: 0,
   despesaOperacional: 0,
   outras: 0,
@@ -69,6 +75,7 @@ const EMPTY_RAW: MargensRaw = {
 
 const EMPTY: MargensData = {
   ...EMPTY_RAW,
+  receitaLiquida: 0,
   lucroBruto: 0,
   resultadoOperacional: 0,
   resultadoLiquido: 0,
@@ -160,7 +167,12 @@ interface CpRow {
   competencia: string | null;
   data_vencimento: string | null;
   conta_contabil_id: string | null;
-  chart_of_accounts: { account_type: string | null; dre_group: string | null } | null;
+  chart_of_accounts: { account_type: string | null; dre_group: string | null; name: string | null } | null;
+}
+
+/** Categoria de TAXA DE MAQUININHA (MDR/adquirência) — NÃO confundir com "Cartão de Crédito" (fatura da empresa). */
+function isTaxaMaquininha(name: string | null | undefined): boolean {
+  return /maquinin|adquir|\bmdr\b/.test(normalize(name));
 }
 
 /**
@@ -191,13 +203,28 @@ export async function fetchMargensRaw(
   const { data: cpData, error: cpErr } = await db
     .from("contas_pagar")
     .select(
-      "valor, competencia, data_vencimento, conta_contabil_id, chart_of_accounts:conta_contabil_id ( account_type, dre_group )",
+      "valor, competencia, data_vencimento, conta_contabil_id, chart_of_accounts:conta_contabil_id ( account_type, dre_group, name )",
     )
     .eq("company_id", companyId)
     .is("deleted_at", null)
     .limit(50000);
   if (cpErr) throw cpErr;
   const cps = (cpData || []) as CpRow[];
+
+  // --- Taxa de cartão (MDR + antecipação) da AGENDA Stone, como DEDUÇÃO da receita bruta ---
+  // Atribuída ao período pela DATA DA VENDA (mesmo regime da receita). A agenda é a fonte da
+  // verdade da taxa; quando ela tem dado, ignoramos os CP manuais de "maquininha" (evita duplicar).
+  const { data: agendaData } = await db
+    .from("card_receivables")
+    .select("desconto_mdr, desconto_antecipacao")
+    .eq("company_id", companyId)
+    .gte("data_venda", periodStart)
+    .lte("data_venda", periodEnd)
+    .limit(100000);
+  let taxaCartao = 0;
+  for (const a of (agendaData || []) as Array<{ desconto_mdr: number | null; desconto_antecipacao: number | null }>) {
+    taxaCartao += Math.abs(Number(a.desconto_mdr) || 0) + Math.abs(Number(a.desconto_antecipacao) || 0);
+  }
 
   let custo = 0;
   let despesaOperacional = 0;
@@ -208,6 +235,10 @@ export async function fetchMargensRaw(
     const valor = Number(cp.valor) || 0;
     if (valor === 0) continue;
 
+    // Se a agenda já traz a taxa, não conta o CP manual de maquininha (não duplica).
+    // (Não mexe em "Cartão de Crédito" / fatura da empresa — essa é despesa real e separada.)
+    if (taxaCartao > 0 && isTaxaMaquininha(cp.chart_of_accounts?.name)) continue;
+
     const classe = classificaCp(cp.chart_of_accounts?.account_type, cp.chart_of_accounts?.dre_group);
     if (classe === "excluir") continue;
     if (classe === "custo") custo += valor;
@@ -215,19 +246,23 @@ export async function fetchMargensRaw(
     else despesaOperacional += valor; // operacional (inclui CP sem conta)
   }
 
-  return { receita, custo, despesaOperacional, outras };
+  // Taxa de cartão é DEDUÇÃO da receita bruta (campo próprio); reduz o resultado sem virar despesa operacional.
+  return { receita, taxaCartao, custo, despesaOperacional, outras };
 }
 
 /** Converte os componentes brutos (somados) na cascata de resultado e nas 3 margens. */
 export function buildMargensData(raw: MargensRaw): MargensData {
-  const { receita, custo, despesaOperacional, outras } = raw;
-  const lucroBruto = receita - custo;
+  const { receita, taxaCartao, custo, despesaOperacional, outras } = raw;
+  const receitaLiquida = receita - taxaCartao; // faturamento bruto − dedução (taxa de cartão)
+  const lucroBruto = receitaLiquida - custo;
   const resultadoOperacional = lucroBruto - despesaOperacional;
   const resultadoLiquido = resultadoOperacional - outras;
 
   const temReceita = receita > 0;
   return {
     receita,
+    taxaCartao,
+    receitaLiquida,
     custo,
     despesaOperacional,
     outras,
@@ -277,6 +312,7 @@ export function useMargensConsolidado({ companyIds, periodStart, periodEnd }: Us
       const total: MargensRaw = { ...EMPTY_RAW };
       for (const p of parts) {
         total.receita += p.receita;
+        total.taxaCartao += p.taxaCartao;
         total.custo += p.custo;
         total.despesaOperacional += p.despesaOperacional;
         total.outras += p.outras;

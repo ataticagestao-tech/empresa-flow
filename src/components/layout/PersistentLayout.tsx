@@ -8,9 +8,12 @@ import { AgenteBanner } from "@/components/AgenteBanner";
 import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { StartHereButton } from "@/components/onboarding/StartHereButton";
 import { NovaVendaFab } from "@/components/NovaVendaFab";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AssistenteFab } from "@/components/assistente/AssistenteFab";
 import { PageTitleProvider, usePageTitle } from "@/contexts/PageTitleContext";
-import { menuGroups } from "@/config/menuConfig";
+import { menuGroups, findModuleForPath } from "@/config/menuConfig";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { ModuleLocked } from "@/components/ModuleLocked";
 import { Home, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -59,6 +62,11 @@ function PageBreadcrumb({ title }: { title: string }) {
 function LayoutMain() {
   const { title } = usePageTitle();
   const location = useLocation();
+  const { hasModule } = useEntitlements();
+
+  // Guard de rota da modularização: módulo da rota atual não liberado pelo plano.
+  const routeModule = findModuleForPath(location.pathname);
+  const moduleLocked = routeModule ? !hasModule(routeModule) : false;
 
   // Layout persiste entre navegações: reseta o scroll ao trocar de rota
   // (antes o remount fazia isso sozinho).
@@ -76,15 +84,21 @@ function LayoutMain() {
         {title && <PageBreadcrumb title={title} />}
         {/* Suspense aqui (e não em volta do app inteiro): o menu do topo fica
             fixo e só o miolo mostra o "carregando" ao abrir uma tela sob demanda. */}
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center py-24 text-[#667085]">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </div>
-          }
-        >
-          <Outlet />
-        </Suspense>
+        <ErrorBoundary resetKey={location.pathname}>
+          {moduleLocked ? (
+            <ModuleLocked module={routeModule!} />
+          ) : (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center py-24 text-[#667085]">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          )}
+        </ErrorBoundary>
       </div>
     </main>
   );

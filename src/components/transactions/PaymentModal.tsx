@@ -6,11 +6,9 @@ import * as z from "zod";
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
-    DialogHeader,
-    DialogTitle,
 } from "@/components/ui/dialog";
+import { ModalHeader } from "@/components/ui/modal-header";
 import { Button } from "@/components/ui/button";
 import {
     Form,
@@ -132,16 +130,15 @@ export function PaymentModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>{type === 'payable' ? 'Pagar Conta' : 'Receber Conta'}</DialogTitle>
-                    <DialogDescription>
-                        {description}
-                    </DialogDescription>
-                </DialogHeader>
+            <DialogContent hideClose className="sm:max-w-[440px] p-0 gap-0 overflow-hidden rounded-[14px]">
+                <ModalHeader
+                    title={type === 'payable' ? 'Pagar conta' : 'Receber conta'}
+                    subtitle={description}
+                    onClose={onClose}
+                />
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="p-5 space-y-4">
 
                         <FormField
                             control={form.control}
@@ -198,10 +195,10 @@ export function PaymentModal({
                             />
                         </div>
 
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-                            <Button type="submit" disabled={isProcessing}>
-                                {isProcessing ? "Processando..." : "Confirmar Baixa"}
+                        <DialogFooter className="-mx-5 px-5 pt-4 mt-2" style={{ borderTop: '1px solid #475467' }}>
+                            <Button type="button" variant="outline" onClick={onClose} className="border-[#475467] text-[#344054]">Cancelar</Button>
+                            <Button type="submit" disabled={isProcessing} className="bg-[#059669] hover:bg-[#047857] text-white">
+                                {isProcessing ? "Processando..." : "Confirmar baixa"}
                             </Button>
                         </DialogFooter>
                     </form>

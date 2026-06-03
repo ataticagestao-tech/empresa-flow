@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchMargensRaw } from "@/modules/finance/presentation/hooks/useMargens";
@@ -34,6 +34,10 @@ export interface ContextoSeriePonto {
 
 export interface ContextoComposicao {
   receita: number;
+  /** Taxa de cartão (dedução da receita bruta). */
+  taxaCartao: number;
+  /** receita − taxaCartao. */
+  receitaLiquida: number;
   custo: number;
   despesaOperacional: number;
   outras: number;
@@ -56,6 +60,8 @@ export interface UseContextoIndicadoresParams {
 
 const EMPTY_COMPOSICAO: ContextoComposicao = {
   receita: 0,
+  taxaCartao: 0,
+  receitaLiquida: 0,
   custo: 0,
   despesaOperacional: 0,
   outras: 0,
@@ -106,10 +112,12 @@ export function useContextoIndicadores({
 
       // ── Composição do período atual ──
       const raw = await fetchMargensRaw(db, companyId, periodStart, periodEnd);
-      const despesaTotal = raw.custo + raw.despesaOperacional + raw.outras;
+      const despesaTotal = raw.taxaCartao + raw.custo + raw.despesaOperacional + raw.outras;
       const resultado = raw.receita - despesaTotal;
       const composicao: ContextoComposicao = {
         receita: raw.receita,
+        taxaCartao: raw.taxaCartao,
+        receitaLiquida: raw.receita - raw.taxaCartao,
         custo: raw.custo,
         despesaOperacional: raw.despesaOperacional,
         outras: raw.outras,
@@ -117,10 +125,13 @@ export function useContextoIndicadores({
         resultado,
       };
 
-      // ── Série mensal (últimos `meses`, do mais antigo ao corrente) ──
+      // ── Série mensal: janela de `meses` TERMINANDO no mês do filtro (sem passar de hoje) ──
+      // Acompanha o filtro do topo da tela: a tendência encerra no período selecionado.
       const hoje = new Date();
+      const fimPeriodo = parseISO(periodEnd);
+      const ancora = fimPeriodo > hoje ? hoje : fimPeriodo;
       const mesesDates: Date[] = [];
-      for (let i = meses - 1; i >= 0; i--) mesesDates.push(subMonths(hoje, i));
+      for (let i = meses - 1; i >= 0; i--) mesesDates.push(subMonths(ancora, i));
 
       // Série + acumulado de todo o histórico até o fim do período, em paralelo.
       const [serie, rawAcum] = await Promise.all([
@@ -130,7 +141,7 @@ export function useContextoIndicadores({
             const per = mesPeriodo(d);
             if (!per) return { mes: label, faturamento: 0, despesa: 0, resultado: 0 };
             const r = await fetchMargensRaw(db, companyId, per.start, per.end);
-            const desp = r.custo + r.despesaOperacional + r.outras;
+            const desp = r.taxaCartao + r.custo + r.despesaOperacional + r.outras;
             return { mes: label, faturamento: r.receita, despesa: desp, resultado: r.receita - desp };
           }),
         ),
@@ -139,7 +150,7 @@ export function useContextoIndicadores({
 
       // ── Geração de caixa = resultado acumulado (o que restou no período + saldo dos meses anteriores) ──
       const geracaoCaixa =
-        rawAcum.receita - (rawAcum.custo + rawAcum.despesaOperacional + rawAcum.outras);
+        rawAcum.receita - (rawAcum.taxaCartao + rawAcum.custo + rawAcum.despesaOperacional + rawAcum.outras);
 
       const kpis: ContextoKpis = {
         faturamento: composicao.receita,

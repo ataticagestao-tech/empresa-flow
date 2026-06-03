@@ -5,6 +5,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib/format'
+import { ProdutoCatalogoDialog } from '@/components/products/ProdutoCatalogoDialog'
 import { useQuery } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
@@ -3744,92 +3745,13 @@ export default function Vendas() {
         </div>
       )}
 
-      {/* ================================================================
-         MODAL SELEÇÃO DE PRODUTO/SERVIÇO DO CATÁLOGO
-         ================================================================ */}
-      {modalProdutoIdx !== null && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
-            {/* Header */}
-            <div className="bg-[#071D41] px-5 py-3 flex items-center justify-between rounded-t-lg">
-              <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                <Package size={16} /> Catálogo de Produtos e Serviços
-              </h2>
-              <button onClick={() => setModalProdutoIdx(null)} className="text-white/70 hover:text-white">
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="p-4 border-b border-[#eee]">
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
-                <input
-                  type="text"
-                  autoFocus
-                  value={produtoSearchTerm}
-                  onChange={e => setProdutoSearchTerm(e.target.value)}
-                  placeholder="Buscar por nome ou código..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] placeholder-[#999] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
-                />
-              </div>
-              <p className="text-[11px] text-[#999] mt-1.5">{produtosFiltrados.length} produto{produtosFiltrados.length !== 1 ? 's' : ''} encontrado{produtosFiltrados.length !== 1 ? 's' : ''}</p>
-            </div>
-
-            {/* Product list */}
-            <div className="flex-1 overflow-y-auto">
-              {loadingProdutos ? (
-                <div className="flex items-center justify-center py-8 gap-2 text-[#999] text-sm">
-                  <Loader2 size={16} className="animate-spin" /> Carregando catálogo...
-                </div>
-              ) : produtosFiltrados.length === 0 ? (
-                <div className="text-center py-8 text-[#999] text-sm">
-                  Nenhum produto encontrado
-                </div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead className="bg-[#F6F2EB] sticky top-0">
-                    <tr>
-                      <th className="text-left px-4 py-2 text-[11px] font-bold text-[#555] uppercase">Nome</th>
-                      <th className="text-right px-4 py-2 text-[11px] font-bold text-[#555] uppercase">Preço</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#eee]">
-                    {produtosFiltrados.map(p => (
-                      <tr
-                        key={p.id}
-                        onClick={() => {
-                          selectProduto(modalProdutoIdx, p)
-                          setModalProdutoIdx(null)
-                        }}
-                        className="cursor-pointer hover:bg-[#ECFDF4] transition-colors"
-                      >
-                        <td className="px-4 py-3 font-medium text-[#1D2939]">
-                          {p.description}
-                          {p.code && <span className="ml-2 text-[11px] text-[#999]">{p.code}</span>}
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold text-[#039855] whitespace-nowrap">
-                          {p.price != null && p.price > 0 ? formatBRL(p.price) : <span className="text-[#ccc]">—</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="border-t border-[#eee] px-5 py-3 flex justify-end bg-[#F6F2EB] rounded-b-lg">
-              <button
-                onClick={() => setModalProdutoIdx(null)}
-                className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Catálogo de produtos/serviços — componente compartilhado (mesmo da conciliação) */}
+      <ProdutoCatalogoDialog
+        open={modalProdutoIdx !== null}
+        onClose={() => setModalProdutoIdx(null)}
+        companyId={companyId}
+        onPick={(p) => { if (modalProdutoIdx !== null) selectProduto(modalProdutoIdx, p as any) }}
+      />
 
       {/* ================================================================
          MODAL IMPORTAÇÃO DE PLANILHA

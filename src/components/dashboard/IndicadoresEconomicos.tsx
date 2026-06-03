@@ -1,7 +1,27 @@
 import { useState } from "react";
 import { useIndicadores, useHistoricoIndicador } from "@/hooks/useIndicadores";
+import { useSetorEmpresa } from "@/hooks/useSetorEmpresa";
 import { RefreshCw } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+
+/* Perfil de setor (resolveSetor) → indicador setorial do painel. Os perfis não
+ * mapeados (indústria, construção, geral) ficam sem linha setorial específica. */
+type SetorialKey = "ipca_saude" | "ipca_educacao" | "pmc_varejo" | "pms_servicos";
+const SETOR_INDICADOR: Record<string, SetorialKey | undefined> = {
+    medicina: "ipca_saude", odontologia: "ipca_saude", saude_prof: "ipca_saude",
+    laboratorio: "ipca_saude", veterinaria: "ipca_saude", farmacia: "ipca_saude",
+    educacao: "ipca_educacao",
+    varejo: "pmc_varejo",
+    beleza: "pms_servicos", alimentacao: "pms_servicos", servicos: "pms_servicos",
+    tecnologia: "pms_servicos", transporte: "pms_servicos",
+};
+
+/* mês PT-BR → abreviação para o eixo X dos gráficos setoriais (IBGE SIDRA) */
+const MES_ABBR: Record<string, string> = {
+    janeiro: "jan", fevereiro: "fev", "março": "mar", marco: "mar", abril: "abr",
+    maio: "mai", junho: "jun", julho: "jul", agosto: "ago", setembro: "set",
+    outubro: "out", novembro: "nov", dezembro: "dez",
+};
 
 /* ── Painel lateral de indicadores — estilo editorial (Valor) ── */
 const C = {
@@ -19,13 +39,23 @@ const fmt = (v: number | null | undefined, d = 2) =>
     v == null ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 /* casas decimais por indicador */
-const CASAS: Record<string, number> = { dolar: 4, euro: 4, cdi: 4, selic: 2, ipca: 2, ipca_12m: 2, igpm: 2, inpc: 2 };
+const CASAS: Record<string, number> = {
+    dolar: 4, euro: 4, cdi: 4, selic: 2, ipca: 2, ipca_12m: 2, igpm: 2, inpc: 2,
+    inadimplencia_pf: 2, salario_minimo: 2, credito_familias: 1,
+    desemprego: 1, ipca_saude: 1, ipca_educacao: 1, pmc_varejo: 1, pms_servicos: 1,
+};
 
-/* yyyy-MM-dd → dd/MM ; dd/MM/yyyy → dd/MM */
+/* yyyy-MM-dd → dd/MM ; dd/MM/yyyy → dd/MM ; "abril 2026"/"fev-mar-abr 2026" → abr/26 */
 const eixoData = (s: string) => {
     if (!s) return "";
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) { const p = s.split("-"); return `${p[2]}/${p[1]}`; }
     if (s.includes("/")) { const p = s.split("/"); return `${p[0]}/${p[1]}`; }
+    const m = s.match(/^(.+?)\s+(\d{4})$/); // período do SIDRA: "<mês(es)> <ano>"
+    if (m) {
+        const ano = m[2].slice(2);
+        const mes = m[1].includes("-") ? m[1].split("-").pop()! : m[1]; // trimestre → último mês
+        return `${MES_ABBR[mes.toLowerCase()] ?? mes.slice(0, 3)}/${ano}`;
+    }
     return s;
 };
 
@@ -132,6 +162,7 @@ function Titulo({ children }: { children: React.ReactNode }) {
 
 export default function IndicadoresEconomicos() {
     const { indicadores, loading, error, lastUpdate, refetch } = useIndicadores();
+    const { setor } = useSetorEmpresa();
     const [sel, setSel] = useState<string>("dolar");
 
     const wrap: React.CSSProperties = {
@@ -157,7 +188,11 @@ export default function IndicadoresEconomicos() {
         );
     }
 
-    const { cambio, juros, inflacao } = indicadores;
+    const { cambio, juros, inflacao, economia, setorial } = indicadores;
+
+    // Indicador do setor da empresa (auto pelo CNAE via resolveSetor).
+    const setorialKey = SETOR_INDICADOR[setor.key];
+    const meuSetor = setorialKey && setorial ? setorial[setorialKey] : null;
 
     return (
         <aside style={wrap}>
@@ -190,9 +225,26 @@ export default function IndicadoresEconomicos() {
                 <Linha id="inpc" nome="INPC" a={`${fmt(inflacao.inpc?.valor)}%`} sel={sel === "inpc"} onSelect={() => setSel("inpc")} />
             </div>
 
+            {/* Economia real (inadimplência, salário mínimo, crédito ao consumidor) */}
+            {economia && (
+                <div style={{ marginTop: 16 }}>
+                    <Titulo>Economia</Titulo>
+                    <div style={{ height: 4 }} />
+                    <Linha id="inadimplencia_pf" nome="Inadimplência PF" a={`${fmt(economia.inadimplencia_pf?.valor)}%`} sel={sel === "inadimplencia_pf"} onSelect={() => setSel("inadimplencia_pf")} />
+                    <Linha id="salario_minimo" nome="Salário mínimo" a={`R$ ${fmt(economia.salario_minimo?.valor)}`} sel={sel === "salario_minimo"} onSelect={() => setSel("salario_minimo")} />
+                    <Linha id="credito_familias" nome="Crédito famílias 12m" a={economia.credito_familias_12m?.valor == null ? "—" : `${fmt(economia.credito_familias_12m.valor, 1)}%`} sel={sel === "credito_familias"} onSelect={() => setSel("credito_familias")} />
+                    {setorial?.desemprego?.valor != null && (
+                        <Linha id="desemprego" nome="Desemprego" a={`${fmt(setorial.desemprego.valor, 1)}%`} sel={sel === "desemprego"} onSelect={() => setSel("desemprego")} />
+                    )}
+                    {meuSetor?.valor != null && setorialKey && (
+                        <Linha id={setorialKey} nome={meuSetor.nome} a={`${fmt(meuSetor.valor, 1)}%`} sel={sel === setorialKey} onSelect={() => setSel(setorialKey)} />
+                    )}
+                </div>
+            )}
+
             {/* Rodapé */}
             <div style={{ marginTop: 14, paddingTop: 10, borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 10, color: C.muted }}>Fonte: BCB · clique p/ ver no gráfico</span>
+                <span style={{ fontSize: 10, color: C.muted }}>Fonte: BCB · IBGE · clique p/ ver no gráfico</span>
                 {lastUpdate && (
                     <span style={{ fontSize: 10, color: C.muted }}>
                         {lastUpdate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}

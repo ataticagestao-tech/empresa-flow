@@ -41,6 +41,18 @@ export interface IndicadoresData {
         igpm: IndicadorSGS;
         inpc: IndicadorSGS;
     };
+    economia?: {
+        inadimplencia_pf: IndicadorSGS;
+        salario_minimo: IndicadorSGS;
+        credito_familias_12m: IndicadorSGS;
+    };
+    setorial?: {
+        desemprego: IndicadorSGS;
+        ipca_saude: IndicadorSGS;
+        ipca_educacao: IndicadorSGS;
+        pmc_varejo: IndicadorSGS;
+        pms_servicos: IndicadorSGS;
+    };
     bolsa: AtivoBolsa[];
     noticias: Noticia[];
 }

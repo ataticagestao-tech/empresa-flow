@@ -160,7 +160,7 @@ export default function VendasPorItemCard({ companyId, periodStart, periodEnd }:
                                     gridTemplateColumns: "minmax(88px, 140px) 1fr 116px",
                                     gap: 12,
                                     alignItems: "center",
-                                    padding: "7px 0",
+                                    padding: "3px 0",
                                     borderTop: idx === 0 ? "none" : `1px solid ${C.divider}`,
                                 }}
                             >

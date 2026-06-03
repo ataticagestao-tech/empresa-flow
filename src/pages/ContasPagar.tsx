@@ -7,14 +7,15 @@ import JsBarcode from 'jsbarcode'
 import { linhaDigitavelToBarcode } from '@/utils/boleto-barcode'
 import { format, addDays, addMonths, startOfMonth, endOfMonth, isToday, isBefore, isAfter, parseISO } from 'date-fns'
 import {
-  DollarSign, CalendarClock, CalendarDays, CheckCircle2, Plus, X,
+  DollarSign, CalendarDays, CheckCircle2, Plus, X,
   MoreHorizontal, Search, ChevronDown, ChevronUp, Eye,
-  AlertTriangle, Loader2, FileText, Trash2, SplitSquareVertical,
-  RefreshCw, Download, Paperclip, Archive, Pencil, ScanLine, Copy
+  AlertTriangle, Loader2, FileText, Trash2,
+  RefreshCw, Download, Paperclip, Pencil, ScanLine, Copy, Sparkles
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { useConciliadasIds, SeloConciliado } from '@/modules/finance/presentation/hooks/useConciliadasIds'
 import { formatBRL, formatData, toTitleCase } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -27,6 +28,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { PeriodFilter } from '@/components/ui/period-filter'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
+import { useCategorySuggestion, ExternalSuggestion } from '@/modules/finance/presentation/hooks/useCategorySuggestion'
+import { ModalHeader } from '@/components/ui/modal-header'
 import { RoleGate } from '@/components/auth/RoleGate'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import { computeDropdownCoords, dropdownPositionStyle, type DropdownCoords } from '@/lib/dropdownPosition'
@@ -61,6 +64,8 @@ interface Supplier {
   razao_social: string
   cpf_cnpj: string | null
   dados_bancarios_pix: string | null
+  conta_contabil_padrao_id: string | null
+  centro_custo_padrao_id: string | null
 }
 
 interface Employee {
@@ -144,6 +149,7 @@ export default function ContasPagar() {
   const { selectedCompany } = useCompany()
   const { activeClient } = useAuth()
   const confirm = useConfirm()
+  const { isCPConciliada } = useConciliadasIds(selectedCompany?.id)
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Data (React Query: cacheia entre navegações — reabrir a tela aparece na hora)
@@ -159,7 +165,7 @@ export default function ContasPagar() {
         db.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', cid).order('code'),
         db.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', cid).eq('ativo', true),
         db.from('products').select('id, description, code').eq('company_id', cid).eq('is_active', true).order('description'),
-        db.from('suppliers').select('id, razao_social, cpf_cnpj, dados_bancarios_pix').eq('company_id', cid).order('razao_social'),
+        db.from('suppliers').select('id, razao_social, cpf_cnpj, dados_bancarios_pix, conta_contabil_padrao_id, centro_custo_padrao_id').eq('company_id', cid).order('razao_social'),
         db.from('employees').select('id, nome_completo, name, cpf, chave_pix_folha').eq('company_id', cid),
         db.from('clients').select('id, razao_social').eq('company_id', cid).eq('is_active', true).order('razao_social'),
       ])
@@ -290,6 +296,13 @@ export default function ContasPagar() {
   const [contaContabilOpen, setContaContabilOpen] = useState(false)
   const contaContabilRef = useRef<HTMLDivElement>(null)
 
+  // Auto-categorização: controla preenchimento automático da categoria contábil
+  const [catTouched, setCatTouched] = useState(false)          // usuário mexeu na categoria manualmente
+  const [catAutoReason, setCatAutoReason] = useState<string | null>(null) // motivo do preenchimento automático
+  const [centroTouched, setCentroTouched] = useState(false)    // usuário mexeu no centro de custo manualmente
+  const [fixarCatFornecedor, setFixarCatFornecedor] = useState(false)     // salvar categoria/centro como padrão do fornecedor
+  const [showMaisOpcoes, setShowMaisOpcoes] = useState(false)  // seção avançada do modal de Nova conta
+
   // Sincroniza texto exibido quando contaContabilId muda externamente (ex.: edição)
   useEffect(() => {
     if (!newForm.contaContabilId) {
@@ -335,13 +348,13 @@ export default function ContasPagar() {
   // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
   // Compartilhado por TODAS as tabelas de grupo (colunas iguais).
   // 'sel' (checkbox de seleção) NÃO é ocultável.
-  const CP_COL_ORDER = ['sel', 'venc', 'descricao', 'valor', 'categoria', 'contabil', 'status', 'acoes']
+  const CP_COL_ORDER = ['sel', 'venc', 'descricao', 'valor', 'contabil', 'status', 'acoes']
   const CP_COL_LABELS: Record<string, string> = {
     venc: 'Vencimento', descricao: 'Descrição', valor: 'Valor',
-    categoria: 'Categoria', contabil: 'Categoria contábil', status: 'Status', acoes: 'Ações',
+    contabil: 'Categoria contábil', status: 'Status', acoes: 'Ações',
   }
   const CP_COL_WIDTHS_DEFAULT: Record<string, number> = {
-    sel: 44, venc: 110, descricao: 280, valor: 130, categoria: 140, contabil: 200, status: 120, acoes: 130,
+    sel: 44, venc: 110, descricao: 280, valor: 130, contabil: 200, status: 120, acoes: 130,
   }
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
     try {
@@ -631,6 +644,128 @@ export default function ContasPagar() {
   const onlyDigits = (v: string | null | undefined) => (v || '').replace(/\D/g, '')
   const normalizeName = (v: string | null | undefined) =>
     (v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
+
+  // ─── Auto-categorização (histórico + padrão do fornecedor + palavras-chave) ───
+  // Mapa: credor (por CPF/CNPJ e por nome) -> contagem de cada categoria contábil usada
+  const historicoCategoriaPorCredor = useMemo(() => {
+    const byCpf = new Map<string, Map<string, number>>()
+    const byName = new Map<string, Map<string, number>>()
+    const bump = (map: Map<string, Map<string, number>>, key: string, contaId: string) => {
+      if (!map.has(key)) map.set(key, new Map())
+      const inner = map.get(key)!
+      inner.set(contaId, (inner.get(contaId) || 0) + 1)
+    }
+    for (const cp of contas) {
+      if (!cp.conta_contabil_id) continue
+      const cpf = onlyDigits(cp.credor_cpf_cnpj)
+      const nome = normalizeName(cp.credor_nome)
+      if (cpf) bump(byCpf, cpf, cp.conta_contabil_id)
+      if (nome) bump(byName, nome, cp.conta_contabil_id)
+    }
+    return { byCpf, byName }
+  }, [contas])
+
+  const topFromCounts = (m: Map<string, number> | undefined): string | null => {
+    if (!m || m.size === 0) return null
+    let bestId: string | null = null
+    let best = 0
+    for (const [id, n] of m) { if (n > best) { best = n; bestId = id } }
+    return bestId
+  }
+
+  // Candidatas p/ sugestão por palavra-chave (exclui receitas; type costuma ser NULL)
+  const categoriasParaSugestao = useMemo(
+    () => chartAccounts.filter(c => c.type !== 'receita'),
+    [chartAccounts]
+  )
+
+  // Sugestões "externas" (prioridade máxima): padrão do fornecedor + histórico do credor
+  const externalSuggestions = useMemo<ExternalSuggestion[]>(() => {
+    if (!showNewModal) return []
+    const result: ExternalSuggestion[] = []
+    const add = (accountId: string | null | undefined, reason: string, score: number) => {
+      if (!accountId) return
+      if (result.some(r => r.accountId === accountId)) return
+      if (!chartAccounts.some(c => c.id === accountId)) return
+      result.push({ accountId, reason, score })
+    }
+    let cpfDigits = ''
+    // 1. Categoria padrão fixada no cadastro do fornecedor
+    if (newForm.credorTipo === 'fornecedor' && newForm.credorId) {
+      const sup = suppliers.find(s => s.id === newForm.credorId)
+      if (sup) {
+        cpfDigits = onlyDigits(sup.cpf_cnpj)
+        add(sup.conta_contabil_padrao_id, 'padrão do fornecedor', 30)
+      }
+    }
+    // 2. Histórico do credor (por CPF/CNPJ, senão por nome)
+    const nome = normalizeName(newForm.credorNome)
+    let histMap: Map<string, number> | undefined
+    if (cpfDigits) histMap = historicoCategoriaPorCredor.byCpf.get(cpfDigits)
+    if (!histMap && nome) histMap = historicoCategoriaPorCredor.byName.get(nome)
+    add(topFromCounts(histMap), 'você já lançou assim antes', 20)
+    return result
+  }, [showNewModal, newForm.credorTipo, newForm.credorId, newForm.credorNome, suppliers, chartAccounts, historicoCategoriaPorCredor])
+
+  // Cérebro de palavras-chave: nome do credor + descrição (ex.: "Vivo" -> Telefone)
+  const suggestionText = [newForm.credorNome, newForm.descricao].filter(Boolean).join(' ')
+  const { suggestions: catSuggestions } = useCategorySuggestion(
+    suggestionText, categoriasParaSugestao, undefined, externalSuggestions
+  )
+
+  // Auto-preenche a categoria vazia com a melhor sugestão (não sobrescreve edição/escolha manual)
+  useEffect(() => {
+    if (!showNewModal || editingCpId || catTouched) return
+    if (newForm.contaContabilId) return
+    const best = catSuggestions[0]
+    if (best) {
+      setNewForm(prev => ({ ...prev, contaContabilId: best.account.id }))
+      setCatAutoReason(best.reason || 'sugestão automática')
+    }
+  }, [showNewModal, editingCpId, catTouched, newForm.contaContabilId, catSuggestions])
+
+  // ─── Centro de custo: memoriza pelo histórico do credor + padrão do fornecedor ───
+  const historicoCentroCustoPorCredor = useMemo(() => {
+    const byCpf = new Map<string, Map<string, number>>()
+    const byName = new Map<string, Map<string, number>>()
+    const bump = (map: Map<string, Map<string, number>>, key: string, ccId: string) => {
+      if (!map.has(key)) map.set(key, new Map())
+      const inner = map.get(key)!
+      inner.set(ccId, (inner.get(ccId) || 0) + 1)
+    }
+    for (const cp of contas) {
+      if (!cp.centro_custo_id) continue
+      const cpf = onlyDigits(cp.credor_cpf_cnpj)
+      const nome = normalizeName(cp.credor_nome)
+      if (cpf) bump(byCpf, cpf, cp.centro_custo_id)
+      if (nome) bump(byName, nome, cp.centro_custo_id)
+    }
+    return { byCpf, byName }
+  }, [contas])
+
+  const centroCustoSugerido = useMemo<string | null>(() => {
+    if (!showNewModal) return null
+    let cpfDigits = ''
+    let supDefault: string | null = null
+    if (newForm.credorTipo === 'fornecedor' && newForm.credorId) {
+      const sup = suppliers.find(s => s.id === newForm.credorId)
+      if (sup) { cpfDigits = onlyDigits(sup.cpf_cnpj); supDefault = sup.centro_custo_padrao_id }
+    }
+    if (supDefault && centrosCusto.some(c => c.id === supDefault)) return supDefault
+    const nome = normalizeName(newForm.credorNome)
+    let histMap: Map<string, number> | undefined
+    if (cpfDigits) histMap = historicoCentroCustoPorCredor.byCpf.get(cpfDigits)
+    if (!histMap && nome) histMap = historicoCentroCustoPorCredor.byName.get(nome)
+    const top = topFromCounts(histMap)
+    return (top && centrosCusto.some(c => c.id === top)) ? top : null
+  }, [showNewModal, newForm.credorTipo, newForm.credorId, newForm.credorNome, suppliers, centrosCusto, historicoCentroCustoPorCredor])
+
+  // Auto-preenche o centro de custo vazio (não sobrescreve edição/escolha manual)
+  useEffect(() => {
+    if (!showNewModal || editingCpId || centroTouched) return
+    if (newForm.centroCustoId) return
+    if (centroCustoSugerido) setNewForm(prev => ({ ...prev, centroCustoId: centroCustoSugerido }))
+  }, [showNewModal, editingCpId, centroTouched, newForm.centroCustoId, centroCustoSugerido])
 
   const identifyCredor = (cp: ContaPagar): { tipo: 'funcionario' | 'fornecedor' | null; pix: string | null } => {
     const cpfDigits = onlyDigits(cp.credor_cpf_cnpj)
@@ -932,7 +1067,8 @@ export default function ContasPagar() {
   const resetNewForm = () => ({
     credorNome: '',
     descricao: '',
-    supplierId: '',
+    credorTipo: 'fornecedor' as CredorTipo,
+    credorId: '',
     valor: 0,
     dataVencimento: format(new Date(), 'yyyy-MM-dd'),
     competencia: '',
@@ -948,6 +1084,11 @@ export default function ContasPagar() {
   const openNewModal = () => {
     setNewForm(resetNewForm())
     setEditingCpId(null)
+    setCatTouched(false)
+    setCatAutoReason(null)
+    setCentroTouched(false)
+    setFixarCatFornecedor(false)
+    setShowMaisOpcoes(true)
     setShowNewModal(true)
   }
 
@@ -1001,6 +1142,11 @@ export default function ContasPagar() {
     })
     setEditingCpId(cp.id)
     setDropdownOpen(null)
+    setCatTouched(true)        // edição: não auto-preenche por cima da categoria salva
+    setCatAutoReason(null)
+    setCentroTouched(true)     // edição: idem para centro de custo
+    setFixarCatFornecedor(false)
+    setShowMaisOpcoes(true)    // edição: mostra tudo
     setShowNewModal(true)
   }
 
@@ -1090,8 +1236,23 @@ export default function ContasPagar() {
     }
   }
 
+  // Salva categoria/centro de custo escolhidos como padrão do fornecedor (quando o usuário marca a opção)
+  const persistFornecedorCategoriaPadrao = async (db: any) => {
+    if (!fixarCatFornecedor) return
+    if (newForm.credorTipo !== 'fornecedor' || !newForm.credorId) return
+    const patch: Record<string, any> = {}
+    if (newForm.contaContabilId) patch.conta_contabil_padrao_id = newForm.contaContabilId
+    if (newForm.centroCustoId) patch.centro_custo_padrao_id = newForm.centroCustoId
+    if (Object.keys(patch).length === 0) return
+    try {
+      await db.from('suppliers').update(patch).eq('id', newForm.credorId)
+    } catch (err) {
+      console.error('[persistFornecedorCategoriaPadrao]', err)
+    }
+  }
+
   const handleCreateCP = async () => {
-    if (!selectedCompany || !newForm.descricao || !newForm.valor || !newForm.dataVencimento) return
+    if (!selectedCompany || !newForm.valor || !newForm.dataVencimento || (!newForm.descricao && !newForm.credorNome)) return
 
     if (newForm.codigoBarras && newForm.codigoBarras.trim()) {
       const result = linhaDigitavelToBarcode(newForm.codigoBarras)
@@ -1181,6 +1342,7 @@ export default function ContasPagar() {
           alert('Erro ao editar: ' + error.message)
         }
       } else {
+        await persistFornecedorCategoriaPadrao(db)
         setShowNewModal(false)
         setEditingCpId(null)
         await loadData()
@@ -1215,6 +1377,7 @@ export default function ContasPagar() {
           alert('Erro ao criar: ' + error.message)
         }
       } else {
+        await persistFornecedorCategoriaPadrao(db)
         setShowNewModal(false)
         await loadData()
       }
@@ -1388,19 +1551,6 @@ export default function ContasPagar() {
         {c.label}
       </span>
     )
-  }
-
-  // ─── Categoria badge (inferred from conta_contabil name) ──────────
-  const inferCategoria = (cp: ContaPagar): string => {
-    if (!cp.conta_contabil_id) return 'Outros'
-    const name = (contaContabilMap[cp.conta_contabil_id] || '').toLowerCase()
-    if (name.includes('fornec')) return 'Fornecedor'
-    if (name.includes('alugu') || name.includes('ocupa')) return 'Ocupacao'
-    if (name.includes('imposto') || name.includes('fiscal') || name.includes('tribut')) return 'Fiscal'
-    if (name.includes('salari') || name.includes('pessoal') || name.includes('folha')) return 'Pessoal'
-    if (name.includes('tecno') || name.includes('software') || name.includes('licen')) return 'Tecnologia'
-    if (name.includes('admin')) return 'Administrativo'
-    return 'Outros'
   }
 
   // ─── PDF: Relatório Mensal de Contas Previstas ───────────────────
@@ -2139,7 +2289,7 @@ export default function ContasPagar() {
                 title="Nenhuma conta a pagar encontrada"
                 description="Cadastre uma nova conta ou ajuste os filtros para ver resultados."
                 actionLabel="Nova conta a pagar"
-                onAction={() => setShowNewModal(true)}
+                onAction={openNewModal}
               />
             )}
 
@@ -2237,10 +2387,6 @@ export default function ContasPagar() {
                               <span onMouseDown={startResize('valor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
                               Valor
                             </th>
-                            <th className={`py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider relative border-r border-[#EAECF0] ${isColVisible('categoria') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
-                              <span onMouseDown={startResize('categoria')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
-                              Categoria
-                            </th>
                             <th className={`py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider relative border-r border-[#EAECF0] ${isColVisible('contabil') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
                               <span onMouseDown={startResize('contabil')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
                               Categoria contábil
@@ -2255,7 +2401,6 @@ export default function ContasPagar() {
                         <tbody>
                           {items.map((cp) => {
                             const isHoje = isToday(parseISO(cp.data_vencimento))
-                            const categoria = inferCategoria(cp)
                             const contaContabilLabel = cp.conta_contabil_id
                               ? (contaContabilMap[cp.conta_contabil_id] || '\u2014')
                               : '\u2014'
@@ -2310,12 +2455,6 @@ export default function ContasPagar() {
                                     </div>
                                   )}
                                 </td>
-                                {/* Categoria (badge) */}
-                                <td className={`py-1 px-2.5 truncate border-r border-[#F1F3F5] ${isColVisible('categoria') ? '' : 'hidden'}`} title={categoria}>
-                                  <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#1D2939', border: '1px solid rgba(26,46,74,0.08)' }}>
-                                    {categoria}
-                                  </span>
-                                </td>
                                 {/* Categoria cont\u00e1bil (plano de contas) */}
                                 <td className={`py-1 px-2.5 truncate border-r border-[#F1F3F5] ${isColVisible('contabil') ? '' : 'hidden'}`} style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)' }} title={contaContabilLabel}>
                                   <div className="truncate">{contaContabilLabel}</div>
@@ -2339,6 +2478,11 @@ export default function ContasPagar() {
                                       </span>
                                     )
                                   })()}
+                                  {(cp.status === 'pago' || cp.status === 'parcial') && (
+                                    <div className="mt-0.5">
+                                      <SeloConciliado conciliado={isCPConciliada(cp.id)} />
+                                    </div>
+                                  )}
                                 </td>
                                 <td className={`py-1 px-2.5 text-right ${isColVisible('acoes') ? '' : 'hidden'}`}>
                                   <div className="flex items-center justify-end gap-1">
@@ -2388,62 +2532,6 @@ export default function ContasPagar() {
                                           >
                                             <Pencil size={14} /> Editar
                                           </button>
-                                          <button
-                                            onClick={() => handleArquivar(cp)}
-                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
-                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
-                                          >
-                                            <Archive size={14} /> Arquivar boleto
-                                          </button>
-                                          <button
-                                            onClick={() => handleRenegociar(cp)}
-                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
-                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
-                                          >
-                                            <CalendarClock size={14} /> Renegociar
-                                          </button>
-                                          <button
-                                            onClick={() => handleCancelar(cp)}
-                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
-                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
-                                          >
-                                            <Trash2 size={14} /> {(cp.status === 'pago' || cp.status === 'parcial') ? 'Cancelar pagamento' : 'Cancelar'}
-                                          </button>
-                                          <button
-                                            onClick={() => handleDividir(cp)}
-                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
-                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
-                                          >
-                                            <SplitSquareVertical size={14} /> Dividir lancamento
-                                          </button>
-                                          <button
-                                            onClick={() => { setDropdownOpen(null); abrirComprovanteWhatsApp(cp) }}
-                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(16,185,129,0.08)' }}
-                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
-                                          >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
-                                            {(cp.status === 'pago' || cp.status === 'parcial') ? 'Enviar comprovante WhatsApp' : 'Enviar info WhatsApp'}
-                                          </button>
-                                          <button
-                                            onClick={() => { setDropdownOpen(null); abrirComprovanteEmail(cp) }}
-                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(30,58,138,0.08)' }}
-                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
-                                          >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
-                                            {(cp.status === 'pago' || cp.status === 'parcial') ? 'Enviar comprovante E-mail' : 'Enviar info E-mail'}
-                                          </button>
                                           <RoleGate minRole="owner">
                                             <button
                                               onClick={async () => {
@@ -2474,7 +2562,7 @@ export default function ContasPagar() {
                                               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(139,0,0,0.05)' }}
                                               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                             >
-                                              <Trash2 size={14} /> Excluir lancamento
+                                              <Trash2 size={14} /> Excluir
                                             </button>
                                           </RoleGate>
                                         </div>,
@@ -2525,17 +2613,9 @@ export default function ContasPagar() {
 
         {/* ─── Modal: Pagar CP ──────────────────────────────────────── */}
         {showPayModal && payingCp && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => setShowPayModal(false)}>
-            <div className="w-full max-w-md mx-4" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
-                <div>
-                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>Pagar Conta</h3>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>Registrar pagamento</p>
-                </div>
-                <button onClick={() => setShowPayModal(false)} className="text-white/50 hover:text-white transition">
-                  <X size={18} />
-                </button>
-              </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => setShowPayModal(false)}>
+            <div className="w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#ffffff', borderRadius: 14, boxShadow: '0 12px 40px rgba(15,30,51,0.22)' }} onClick={(e) => e.stopPropagation()}>
+              <ModalHeader title="Pagar conta" subtitle="Registrar pagamento" onClose={() => setShowPayModal(false)} />
               <div className="p-5 space-y-4">
                 <div className="rounded-[8px] p-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
                   <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>{payingCp.credor_nome}</p>
@@ -2859,51 +2939,84 @@ export default function ContasPagar() {
 
         {/* ─── Modal: Nova / Editar CP ──────────────────────────────── */}
         {showNewModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => { setShowNewModal(false); setEditingCpId(null) }}>
-            <div className="w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-10" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => { setShowNewModal(false); setEditingCpId(null) }}>
+            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#FFFFFF', borderRadius: 14, boxShadow: '0 12px 40px rgba(15,30,51,0.22)' }} onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-20" style={{ backgroundColor: '#071D41', borderRadius: '14px 14px 0 0' }}>
                 <div>
-                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>
-                    {editingCpId ? 'Editar Conta a Pagar' : 'Nova Conta a Pagar'}
+                  <h3 className="uppercase" style={{ fontSize: 17, fontWeight: 800, letterSpacing: '0.07em', color: '#FFFFFF', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>
+                    {editingCpId ? 'Editar conta a pagar' : 'Nova conta a pagar'}
                   </h3>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>
+                  <p style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.72)', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>
                     {editingCpId ? 'Alterar dados da conta' : 'Cadastrar nova despesa'}
                   </p>
                 </div>
-                <button onClick={() => { setShowNewModal(false); setEditingCpId(null) }} className="text-white/50 hover:text-white transition">
+                <button onClick={() => { setShowNewModal(false); setEditingCpId(null) }} className="text-white/55 hover:text-white transition">
                   <X size={18} />
                 </button>
               </div>
               <div className="p-5 space-y-4">
-                {/* Descrição */}
+                {/* Atalho: ler boleto com IA / anexar (topo) */}
                 <div>
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Descricao *</label>
+                  <input type="file" className="hidden" id="file-upload-cp" accept="image/*,application/pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file) }} disabled={isUploading || isReadingBoleto} />
+                  <input type="file" className="hidden" id="file-upload-cp-auto" accept="image/*,application/pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file, true) }} disabled={isUploading || isReadingBoleto} />
+                  {!newForm.fileUrl ? (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('file-upload-cp-auto')?.click()}
+                        disabled={isUploading || isReadingBoleto}
+                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 hover:opacity-90 transition disabled:opacity-50"
+                        style={{ backgroundColor: '#F5D58A', color: '#7A4A00', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
+                      >
+                        {isReadingBoleto ? (<><Loader2 size={13} className="animate-spin" /> Lendo boleto...</>)
+                          : isUploading ? (<><Loader2 size={13} className="animate-spin" /> Enviando...</>)
+                          : (<><ScanLine size={13} /> Ler boleto com IA</>)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('file-upload-cp')?.click()}
+                        disabled={isUploading || isReadingBoleto}
+                        className="inline-flex items-center justify-center gap-1.5 text-xs rounded-lg px-3 py-1.5 transition disabled:opacity-50"
+                        style={{ color: '#475467', border: '1px solid #E4E7EC' }}
+                      >
+                        <Paperclip size={13} /> Anexar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ border: '1px solid #E4E7EC' }}>
+                      <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                      <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-[13px] hover:underline flex-1 truncate" style={{ color: '#059669' }}>Arquivo anexado</a>
+                      <button type="button" onClick={() => document.getElementById('file-upload-cp-auto')?.click()} disabled={isUploading || isReadingBoleto} className="text-xs font-semibold px-2 py-1 rounded-md transition disabled:opacity-50" style={{ color: '#059669' }} title="Trocar e ler">
+                        {isReadingBoleto ? <Loader2 size={13} className="animate-spin" /> : <ScanLine size={13} />}
+                      </button>
+                      <button type="button" onClick={() => setNewForm({ ...newForm, fileUrl: '' })} className="text-xs px-1.5 py-1 rounded-md transition" style={{ color: '#E53E3E' }}><X size={14} /></button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Descrição (opcional) */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Descrição <span style={{ textTransform: 'none', fontWeight: 400, color: '#98A2B3' }}>(opcional)</span></label>
                   <input
                     type="text"
                     value={newForm.descricao}
                     onChange={(e) => setNewForm({ ...newForm, descricao: e.target.value })}
-                    placeholder="Ex: Aluguel janeiro, Material escritorio..."
-                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
+                    placeholder="Ex: Aluguel janeiro, Material escritório..."
+                    className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
+                    style={{ color: '#1D2939', height: 38 }}
                   />
                 </div>
 
-                {/* Fornecedor / Funcionário / Cliente */}
+                {/* Credor */}
                 <div>
                   <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-                    <label className="block" style={{ fontSize: 14, color: '#000', fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Credor</label>
+                    <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Credor <span style={{ color: '#E5484D' }}>*</span></label>
                     {newForm.credorTipo === 'fornecedor' && (
-                      <button
-                        type="button"
-                        onClick={() => setIsSupplierSheetOpen(true)}
-                        className="flex items-center gap-1 font-semibold transition"
-                        style={{ fontSize: 11, color: '#039855' }}
-                      >
+                      <button type="button" onClick={() => setIsSupplierSheetOpen(true)} className="flex items-center gap-1 font-semibold transition" style={{ fontSize: 11, color: '#039855' }}>
                         <Plus size={12} /> Novo fornecedor
                       </button>
                     )}
                   </div>
-                  {/* Tipo de credor */}
                   <div className="flex gap-1.5 mb-2">
                     {([
                       { key: 'fornecedor' as CredorTipo, label: 'Fornecedores' },
@@ -2913,377 +3026,226 @@ export default function ContasPagar() {
                       <button
                         key={tipo.key}
                         type="button"
-                        onClick={() => setNewForm({ ...newForm, credorTipo: tipo.key, credorId: '', credorNome: '' })}
+                        onClick={() => setNewForm({ ...newForm, credorTipo: tipo.key, credorId: '', credorNome: '', ...(catTouched ? {} : { contaContabilId: '' }), ...(centroTouched ? {} : { centroCustoId: '' }) })}
                         className="text-xs font-medium px-3 py-1.5 rounded-full transition"
-                        style={
-                          newForm.credorTipo === tipo.key
-                            ? { backgroundColor: '#059669', color: '#ffffff' }
-                            : { backgroundColor: 'transparent', color: '#667085', border: '1px solid rgba(26,46,74,0.18)' }
-                        }
+                        style={newForm.credorTipo === tipo.key ? { backgroundColor: '#059669', color: '#ffffff' } : { backgroundColor: 'transparent', color: '#667085', border: '1px solid #E4E7EC' }}
                       >
                         {tipo.label}
                       </button>
                     ))}
                   </div>
-                  {/* Lista de nomes */}
                   <select
                     value={newForm.credorId}
                     onChange={(e) => {
                       const id = e.target.value
                       let nome = ''
-                      if (newForm.credorTipo === 'fornecedor') {
-                        nome = suppliers.find(s => s.id === id)?.razao_social || ''
-                      } else if (newForm.credorTipo === 'funcionario') {
-                        const emp = employees.find(e => e.id === id)
-                        nome = emp?.nome_completo || emp?.name || ''
-                      } else if (newForm.credorTipo === 'cliente') {
-                        nome = clients.find(c => c.id === id)?.razao_social || ''
-                      }
-                      setNewForm({ ...newForm, credorId: id, credorNome: nome })
+                      if (newForm.credorTipo === 'fornecedor') { nome = suppliers.find(s => s.id === id)?.razao_social || '' }
+                      else if (newForm.credorTipo === 'funcionario') { const emp = employees.find(e => e.id === id); nome = emp?.nome_completo || emp?.name || '' }
+                      else if (newForm.credorTipo === 'cliente') { nome = clients.find(c => c.id === id)?.razao_social || '' }
+                      // troca de credor: re-sugere categoria/centro e preenche descrição se vazia
+                      setNewForm({ ...newForm, credorId: id, credorNome: nome, ...(catTouched ? {} : { contaContabilId: '' }), ...(centroTouched ? {} : { centroCustoId: '' }), ...((nome && !newForm.descricao.trim()) ? { descricao: nome } : {}) })
                     }}
-                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
+                    className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
+                    style={{ color: '#1D2939', height: 38 }}
                   >
                     <option value="">
-                      {newForm.credorTipo === 'fornecedor' ? 'Selecione um fornecedor...' :
-                       newForm.credorTipo === 'funcionario' ? 'Selecione um funcionário...' :
-                       'Selecione um cliente...'}
+                      {newForm.credorTipo === 'fornecedor' ? 'Selecione um fornecedor...' : newForm.credorTipo === 'funcionario' ? 'Selecione um funcionário...' : 'Selecione um cliente...'}
                     </option>
-                    {newForm.credorTipo === 'fornecedor' && suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.razao_social}</option>
-                    ))}
-                    {newForm.credorTipo === 'funcionario' && employees.map((e) => (
-                      <option key={e.id} value={e.id}>{e.nome_completo || e.name}</option>
-                    ))}
-                    {newForm.credorTipo === 'cliente' && clients.map((c) => (
-                      <option key={c.id} value={c.id}>{c.razao_social}</option>
-                    ))}
+                    {newForm.credorTipo === 'fornecedor' && suppliers.map((s) => (<option key={s.id} value={s.id}>{s.razao_social}</option>))}
+                    {newForm.credorTipo === 'funcionario' && employees.map((e) => (<option key={e.id} value={e.id}>{e.nome_completo || e.name}</option>))}
+                    {newForm.credorTipo === 'cliente' && clients.map((c) => (<option key={c.id} value={c.id}>{c.razao_social}</option>))}
                   </select>
                 </div>
 
                 {/* Valor + Vencimento */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Valor (R$) *</label>
+                    <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Valor (R$) <span style={{ color: '#E5484D' }}>*</span></label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={newForm.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, '')
-                        const valor = digits ? parseInt(digits, 10) / 100 : 0
-                        setNewForm({ ...newForm, valor })
-                      }}
+                      onChange={(e) => { const digits = e.target.value.replace(/\D/g, ''); const valor = digits ? parseInt(digits, 10) / 100 : 0; setNewForm({ ...newForm, valor }) }}
                       placeholder="0,00"
-                      className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
+                      className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
+                      style={{ color: '#1D2939', height: 38, fontWeight: 600 }}
                     />
                   </div>
                   <div>
-                    <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Vencimento *</label>
+                    <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Vencimento <span style={{ color: '#E5484D' }}>*</span></label>
                     <input
                       type="date"
                       value={newForm.dataVencimento}
                       onChange={(e) => setNewForm({ ...newForm, dataVencimento: e.target.value })}
-                      className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
+                      className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
+                      style={{ color: '#1D2939', height: 38 }}
                     />
                   </div>
                 </div>
 
-                {/* Competência */}
-                <div className="relative">
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Competencia (mes/ano)</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowCompetenciaPicker(!showCompetenciaPicker)}
-                    className="w-full px-3 text-[13px] text-left rounded-[8px] focus:outline-none bg-white flex items-center justify-between"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                  >
-                    <span style={{ color: newForm.competencia ? '#059669' : '#98A2B3' }}>
-                      {newForm.competencia || 'Selecione mes/ano'}
-                    </span>
-                    <CalendarDays size={14} style={{ color: '#98A2B3' }} />
-                  </button>
-                  {showCompetenciaPicker && (
-                    <div className="absolute z-20 mt-1 p-3 w-[280px]" style={{ backgroundColor: '#ffffff', border: '1px solid rgba(26,46,74,0.10)', borderRadius: 8, boxShadow: '0 4px 16px rgba(26,46,74,0.10)' }}>
-                      <div className="flex items-center justify-between mb-3">
-                        <button type="button" onClick={() => setCompetenciaYear(y => y - 1)} className="text-xs px-2 py-1 rounded-[6px] transition" style={{ color: '#667085' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.05)' }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}>&lt;</button>
-                        <span className="text-sm font-semibold" style={{ color: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>{competenciaYear}</span>
-                        <button type="button" onClick={() => setCompetenciaYear(y => y + 1)} className="text-xs px-2 py-1 rounded-[6px] transition" style={{ color: '#667085' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.05)' }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}>&gt;</button>
+                {/* Categoria contábil + Centro de custo (preenchem automático) */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div ref={contaContabilRef} className="relative">
+                    <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Categoria contábil</label>
+                    <input
+                      type="text"
+                      value={contaContabilSearch}
+                      onChange={(e) => { setCatTouched(true); setCatAutoReason(null); setContaContabilSearch(e.target.value); setContaContabilOpen(true); if (!e.target.value.trim()) setNewForm({ ...newForm, contaContabilId: '' }) }}
+                      onFocus={() => setContaContabilOpen(true)}
+                      placeholder="✨ auto · digite p/ trocar"
+                      autoComplete="off"
+                      className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
+                      style={{ color: '#1D2939', height: 38 }}
+                    />
+                    {contaContabilOpen && (
+                      <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#E4E7EC] rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <button type="button" onClick={() => { setCatTouched(true); setCatAutoReason(null); setNewForm({ ...newForm, contaContabilId: '' }); setContaContabilSearch(''); setContaContabilOpen(false) }} className="w-full text-left px-3 py-2 text-[13px] text-[#999] hover:bg-[#F6F2EB] border-b border-[#eee]">Nenhuma</button>
+                        {chartAccountsFiltrados.map((c) => (
+                          <button key={c.id} type="button" onClick={() => { setCatTouched(true); setCatAutoReason(null); setNewForm({ ...newForm, contaContabilId: c.id }); setContaContabilSearch(`${c.code} - ${c.name}`); setContaContabilOpen(false) }} className="w-full text-left px-3 py-2 hover:bg-[#ECFDF4] border-b border-[#eee] last:border-0">
+                            <div className="text-[13px] text-[#1D2939]"><span className="font-semibold">{c.code}</span> - {c.name}</div>
+                          </button>
+                        ))}
+                        {chartAccountsFiltrados.length === 0 && (<div className="px-3 py-2 text-[12px] text-[#999]">Nenhuma conta encontrada</div>)}
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {MONTHS.map((month, idx) => {
-                          const val = `${String(idx + 1).padStart(2, '0')}/${competenciaYear}`
-                          const isSelected = newForm.competencia === val
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => {
-                                setNewForm({ ...newForm, competencia: val })
-                                setShowCompetenciaPicker(false)
-                              }}
-                              className="text-xs px-2 py-1.5 rounded-[6px] transition"
-                              style={
-                                isSelected
-                                  ? { backgroundColor: '#059669', color: '#ffffff' }
-                                  : { backgroundColor: '#ffffff', color: '#667085', border: '1px solid rgba(26,46,74,0.12)' }
-                              }
-                            >
-                              {month.slice(0, 3)}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Centro de custo</label>
+                    <select
+                      value={newForm.centroCustoId}
+                      onChange={(e) => { setCentroTouched(true); setNewForm({ ...newForm, centroCustoId: e.target.value }) }}
+                      className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
+                      style={{ color: '#1D2939', height: 38 }}
+                    >
+                      <option value="">Nenhum</option>
+                      {centrosCusto.map((cc) => (<option key={cc.id} value={cc.id}>{cc.codigo} - {cc.descricao}</option>))}
+                    </select>
+                  </div>
                 </div>
 
-                {/* Conta contábil (digitável + dropdown) */}
-                <div ref={contaContabilRef} className="relative">
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Conta contabil</label>
-                  <input
-                    type="text"
-                    value={contaContabilSearch}
-                    onChange={(e) => {
-                      setContaContabilSearch(e.target.value)
-                      setContaContabilOpen(true)
-                      if (!e.target.value.trim()) setNewForm({ ...newForm, contaContabilId: '' })
-                    }}
-                    onFocus={() => setContaContabilOpen(true)}
-                    placeholder="Digite codigo ou nome..."
-                    autoComplete="off"
-                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                  />
-                  {contaContabilOpen && (
-                    <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {/* Helpers de auto-categorização (largura total) */}
+                {(catAutoReason || catSuggestions.length > 0 || (newForm.centroCustoId && centroCustoSugerido === newForm.centroCustoId && !centroTouched)) && (
+                  <div className="flex flex-wrap items-center gap-1.5" style={{ marginTop: -8 }}>
+                    {catAutoReason && newForm.contaContabilId && !catTouched && (
+                      <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: '#059669' }}><Sparkles size={12} /> Categoria automática ({catAutoReason})</span>
+                    )}
+                    {(catTouched || !catAutoReason) && catSuggestions.slice(0, 3).map((s) => (
                       <button
+                        key={s.account.id}
                         type="button"
-                        onClick={() => {
-                          setNewForm({ ...newForm, contaContabilId: '' })
-                          setContaContabilSearch('')
-                          setContaContabilOpen(false)
-                        }}
-                        className="w-full text-left px-3 py-2 text-[13px] text-[#999] hover:bg-[#F6F2EB] border-b border-[#eee]"
+                        onClick={() => { setCatTouched(true); setCatAutoReason(null); setNewForm({ ...newForm, contaContabilId: s.account.id }); setContaContabilSearch(`${s.account.code} - ${s.account.name}`) }}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition"
+                        style={{ backgroundColor: newForm.contaContabilId === s.account.id ? '#059669' : 'rgba(5,150,105,0.08)', color: newForm.contaContabilId === s.account.id ? '#fff' : '#059669', border: '1px solid rgba(5,150,105,0.25)' }}
+                        title={s.reason ? `Sugerido: ${s.reason}` : 'Sugestão'}
                       >
-                        Nenhuma
+                        <Sparkles size={11} /> {s.account.code} - {s.account.name}
                       </button>
-                      {chartAccountsFiltrados.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            setNewForm({ ...newForm, contaContabilId: c.id })
-                            setContaContabilSearch(`${c.code} - ${c.name}`)
-                            setContaContabilOpen(false)
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-[#ECFDF4] border-b border-[#eee] last:border-0"
-                        >
-                          <div className="text-[13px] text-[#1D2939]">
-                            <span className="font-semibold">{c.code}</span> - {c.name}
-                          </div>
-                        </button>
-                      ))}
-                      {chartAccountsFiltrados.length === 0 && (
-                        <div className="px-3 py-2 text-[12px] text-[#999]">Nenhuma conta encontrada</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Centro de custo */}
-                <div>
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Centro de custo</label>
-                  <select
-                    value={newForm.centroCustoId}
-                    onChange={(e) => setNewForm({ ...newForm, centroCustoId: e.target.value })}
-                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                  >
-                    <option value="">Nenhum</option>
-                    {centrosCusto.map((cc) => (
-                      <option key={cc.id} value={cc.id}>{cc.codigo} - {cc.descricao}</option>
                     ))}
-                  </select>
-                </div>
-
-                {/* Recorrência */}
-                {!editingCpId && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Recorrencia</label>
-                      <select
-                        value={newForm.recorrencia}
-                        onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })}
-                        className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                        style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                      >
-                        <option value="sem">Sem recorrência</option>
-                        <option value="mensal">Mensal</option>
-                        <option value="trimestral">Trimestral</option>
-                        <option value="anual">Anual</option>
-                      </select>
-                    </div>
-                    {newForm.recorrencia !== 'sem' && (
-                      <div>
-                        <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Num. parcelas</label>
-                        <input
-                          type="number"
-                          min={2}
-                          max={60}
-                          value={newForm.numParcelas}
-                          onChange={(e) => setNewForm({ ...newForm, numParcelas: parseInt(e.target.value) || 2 })}
-                          className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                          style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                        />
-                      </div>
+                    {!centroTouched && newForm.centroCustoId && centroCustoSugerido === newForm.centroCustoId && (
+                      <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: '#059669' }}><Sparkles size={12} /> Centro automático</span>
                     )}
                   </div>
                 )}
 
-                {!editingCpId && newForm.recorrencia !== 'sem' && (
-                  <div className="rounded-[8px] p-3" style={{ backgroundColor: '#FFF0EB', border: '1px solid rgba(186,117,23,0.25)' }}>
-                    <p style={{ fontSize: 12, color: '#EA580C', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
-                      Serão geradas <strong>{newForm.numParcelas}</strong> parcelas de{' '}
-                      <strong>{formatBRL(newForm.valor)}</strong> com vencimento{' '}
-                      {newForm.recorrencia === 'mensal' ? 'mensal' : newForm.recorrencia === 'trimestral' ? 'trimestral' : 'anual'}.
-                    </p>
+                {/* Fixar categoria/centro como padrão deste fornecedor */}
+                {newForm.credorTipo === 'fornecedor' && newForm.credorId && (newForm.contaContabilId || newForm.centroCustoId) && (
+                  <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 12, color: '#475467', marginTop: -4 }}>
+                    <input type="checkbox" checked={fixarCatFornecedor} onChange={(e) => setFixarCatFornecedor(e.target.checked)} style={{ accentColor: '#059669' }} />
+                    Usar sempre esta categoria e centro de custo para este fornecedor
+                  </label>
+                )}
+
+                {/* Mais opções (avançado) */}
+                <div className="pt-2" style={{ borderTop: '1px solid #EAECF0' }}>
+                  <button type="button" onClick={() => setShowMaisOpcoes(v => !v)} className="w-full flex items-center justify-between text-[12px] font-bold uppercase transition" style={{ color: '#7A7264', letterSpacing: '0.04em' }}>
+                    <span>Mais opções <span style={{ textTransform: 'none', fontWeight: 400, color: '#9A9486' }}>· competência, recorrência, despesa fixa</span></span>
+                    {showMaisOpcoes ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  </button>
+                </div>
+
+                {showMaisOpcoes && (
+                  <div className="space-y-4">
+                    {/* Competência */}
+                    <div className="relative">
+                      <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Competência (mês/ano)</label>
+                      <button type="button" onClick={() => setShowCompetenciaPicker(!showCompetenciaPicker)} className="w-full px-3 text-[13px] text-left rounded-lg bg-white flex items-center justify-between border border-[#E4E7EC] focus:border-[#10B981] outline-none transition" style={{ height: 38 }}>
+                        <span style={{ color: newForm.competencia ? '#1D2939' : '#98A2B3' }}>{newForm.competencia || 'Selecione mês/ano'}</span>
+                        <CalendarDays size={14} style={{ color: '#98A2B3' }} />
+                      </button>
+                      {showCompetenciaPicker && (
+                        <div className="absolute z-20 mt-1 p-3 w-[280px]" style={{ backgroundColor: '#ffffff', border: '1px solid rgba(26,46,74,0.10)', borderRadius: 8, boxShadow: '0 4px 16px rgba(26,46,74,0.10)' }}>
+                          <div className="flex items-center justify-between mb-3">
+                            <button type="button" onClick={() => setCompetenciaYear(y => y - 1)} className="text-xs px-2 py-1 rounded-[6px] transition" style={{ color: '#667085' }}>&lt;</button>
+                            <span className="text-sm font-semibold" style={{ color: '#1D2939', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>{competenciaYear}</span>
+                            <button type="button" onClick={() => setCompetenciaYear(y => y + 1)} className="text-xs px-2 py-1 rounded-[6px] transition" style={{ color: '#667085' }}>&gt;</button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {MONTHS.map((month, idx) => {
+                              const val = `${String(idx + 1).padStart(2, '0')}/${competenciaYear}`
+                              const isSelected = newForm.competencia === val
+                              return (
+                                <button key={idx} type="button" onClick={() => { setNewForm({ ...newForm, competencia: val }); setShowCompetenciaPicker(false) }} className="text-xs px-2 py-1.5 rounded-[6px] transition" style={isSelected ? { backgroundColor: '#059669', color: '#ffffff' } : { backgroundColor: '#ffffff', color: '#667085', border: '1px solid rgba(26,46,74,0.12)' }}>{month.slice(0, 3)}</button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recorrência */}
+                    {!editingCpId && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Recorrência</label>
+                          <select value={newForm.recorrencia} onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })} className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition" style={{ color: '#1D2939', height: 38 }}>
+                            <option value="sem">Sem recorrência</option>
+                            <option value="mensal">Mensal</option>
+                            <option value="trimestral">Trimestral</option>
+                            <option value="anual">Anual</option>
+                          </select>
+                        </div>
+                        {newForm.recorrencia !== 'sem' && (
+                          <div>
+                            <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Nº parcelas</label>
+                            <input type="number" min={2} max={60} value={newForm.numParcelas} onChange={(e) => setNewForm({ ...newForm, numParcelas: parseInt(e.target.value) || 2 })} className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition" style={{ color: '#1D2939', height: 38 }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!editingCpId && newForm.recorrencia !== 'sem' && (
+                      <div className="rounded-[8px] p-3" style={{ backgroundColor: '#FFF0EB', border: '1px solid rgba(186,117,23,0.25)' }}>
+                        <p style={{ fontSize: 12, color: '#EA580C', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Serão geradas <strong>{newForm.numParcelas}</strong> parcelas de <strong>{formatBRL(newForm.valor)}</strong> com vencimento {newForm.recorrencia === 'mensal' ? 'mensal' : newForm.recorrencia === 'trimestral' ? 'trimestral' : 'anual'}.</p>
+                      </div>
+                    )}
+
+                    {/* Código de Barras */}
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Código de barras</label>
+                      <input type="text" value={newForm.codigoBarras} onChange={(e) => setNewForm({ ...newForm, codigoBarras: e.target.value })} placeholder="Linha digitável do boleto" className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition" style={{ color: '#1D2939', height: 38 }} />
+                    </div>
+
+                    {/* Despesa fixa */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
+                      <input type="checkbox" checked={!!newForm.isFixedCost} onChange={(e) => setNewForm({ ...newForm, isFixedCost: e.target.checked })} style={{ accentColor: '#059669', width: 16, height: 16 }} />
+                      <span>Despesa fixa <span style={{ color: '#667085', fontSize: 12 }}>(aluguel, internet, salários — aparece em /contas-fixas)</span></span>
+                    </label>
                   </div>
                 )}
 
-                {/* Despesa fixa */}
-                <label className="flex items-center gap-2 cursor-pointer select-none" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!newForm.isFixedCost}
-                    onChange={(e) => setNewForm({ ...newForm, isFixedCost: e.target.checked })}
-                    style={{ accentColor: '#059669', width: 16, height: 16 }}
-                  />
-                  <span>Despesa fixa <span style={{ color: '#667085', fontSize: 12 }}>(aluguel, internet, salarios, etc — aparece em /contas-fixas)</span></span>
-                </label>
-
-                {/* Código de Barras */}
-                <div>
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Codigo de Barras</label>
-                  <input
-                    type="text"
-                    value={newForm.codigoBarras}
-                    onChange={(e) => setNewForm({ ...newForm, codigoBarras: e.target.value })}
-                    placeholder="Linha digitavel do boleto"
-                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                  />
-                </div>
-
-                {/* Anexar arquivo + Leitura automática */}
-                <div className="rounded-[8px] p-4 space-y-3" style={{ border: '1px dashed rgba(26,46,74,0.18)' }}>
-                  <input
-                    type="file"
-                    className="hidden"
-                    id="file-upload-cp"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleFileUpload(file)
-                    }}
-                    disabled={isUploading || isReadingBoleto}
-                  />
-                  <input
-                    type="file"
-                    className="hidden"
-                    id="file-upload-cp-auto"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleFileUpload(file, true)
-                    }}
-                    disabled={isUploading || isReadingBoleto}
-                  />
-                  {!newForm.fileUrl ? (
-                    <div className="space-y-2">
-                      {/* Botão principal: Ler boleto automaticamente */}
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('file-upload-cp-auto')?.click()}
-                        disabled={isUploading || isReadingBoleto}
-                        className="w-full flex items-center justify-center gap-2 text-[13px] font-semibold text-white rounded-[8px] px-3 py-2.5 hover:opacity-90 transition disabled:opacity-50"
-                        style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
-                      >
-                        {isReadingBoleto ? (
-                          <><Loader2 size={14} className="animate-spin" /> Lendo boleto com IA...</>
-                        ) : isUploading ? (
-                          <><Loader2 size={14} className="animate-spin" /> Enviando...</>
-                        ) : (
-                          <><ScanLine size={14} /> Ler Boleto Automaticamente</>
-                        )}
-                      </button>
-                      {/* Botão secundário: Apenas anexar */}
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('file-upload-cp')?.click()}
-                        disabled={isUploading || isReadingBoleto}
-                        className="w-full flex items-center justify-center gap-2 text-xs rounded-[8px] px-3 py-2 transition disabled:opacity-50"
-                        style={{ color: '#667085', border: '1px solid rgba(26,46,74,0.18)' }}
-                      >
-                        <Paperclip size={12} /> Apenas anexar (sem leitura)
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-                        <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-[13px] hover:underline flex-1 truncate" style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
-                          Arquivo anexado — clique para visualizar
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => setNewForm({ ...newForm, fileUrl: '' })}
-                          className="text-xs px-2 py-1.5 rounded-[6px] transition"
-                          style={{ color: '#E53E3E' }}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('file-upload-cp-auto')?.click()}
-                          disabled={isUploading || isReadingBoleto}
-                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold rounded-[6px] px-2 py-1.5 hover:opacity-80 transition disabled:opacity-50"
-                          style={{ color: '#059669', border: '1px solid #059669' }}
-                        >
-                          {isReadingBoleto ? <Loader2 size={12} className="animate-spin" /> : <ScanLine size={12} />}
-                          {isReadingBoleto ? 'Lendo...' : 'Trocar e ler'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('file-upload-cp')?.click()}
-                          disabled={isUploading}
-                          className="flex-1 flex items-center justify-center gap-1.5 text-xs rounded-[6px] px-2 py-1.5 transition"
-                          style={{ color: '#667085', border: '1px solid rgba(26,46,74,0.18)' }}
-                        >
-                          <Paperclip size={12} /> Trocar arquivo
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* Botões */}
-                <div className="flex items-center justify-end pt-2" style={{ borderTop: '1px solid rgba(26,46,74,0.10)', gap: 8, paddingTop: 16 }}>
+                <div className="flex items-center justify-end sticky bottom-0" style={{ backgroundColor: '#FFFFFF', borderTop: '1px solid #475467', gap: 8, paddingTop: 16, marginTop: 12 }}>
                   <button
                     onClick={() => { setShowNewModal(false); setEditingCpId(null) }}
-                    className="px-4 py-2 rounded-[8px] text-[13px] font-medium transition"
-                    style={{ color: '#667085', border: '1px solid rgba(26,46,74,0.18)' }}
+                    className="px-4 py-2 rounded-lg text-[13px] font-medium transition"
+                    style={{ color: '#344054', border: '1px solid #475467' }}
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleCreateCP}
-                    disabled={submitting || !newForm.descricao || !newForm.valor || !newForm.dataVencimento}
-                    className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    disabled={submitting || !newForm.valor || !newForm.dataVencimento || (!newForm.descricao && !newForm.credorNome)}
+                    className="px-4 py-2 text-white rounded-lg text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}

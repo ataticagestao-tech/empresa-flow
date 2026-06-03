@@ -10,6 +10,7 @@ import { sendEmail } from '@/lib/email/send-email'
 import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
+import { useConciliadasIds, SeloConciliado } from '@/modules/finance/presentation/hooks/useConciliadasIds'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
@@ -229,6 +230,7 @@ export default function ContasReceber() {
   const [submitting, setSubmitting] = useState(false)
 
   const companyId = selectedCompany?.id
+  const { isCRConciliada } = useConciliadasIds(companyId)
 
   // ── Fetch items ──
   // Contas a receber (React Query: cacheia entre navegações — reabrir a tela
@@ -1626,6 +1628,11 @@ export default function ContasReceber() {
                           >
                             {st.label}
                           </span>
+                          {(cr._status === 'pago' || cr._status === 'parcial') && (
+                            <div className="mt-0.5">
+                              <SeloConciliado conciliado={isCRConciliada(cr.id)} />
+                            </div>
+                          )}
                         </td>
                         {/* Acoes */}
                         <td className={`px-3 py-1 align-middle text-right ${isColVisible('acoes') ? '' : 'hidden'}`}>

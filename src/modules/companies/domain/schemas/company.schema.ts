@@ -72,6 +72,9 @@ export const CompanySchema = z.object({
     enable_nfce: z.boolean().default(false),
     enable_nfse: z.boolean().default(false),
 
+    // Modularização por pacote (plano comercial Tática). null = acesso total (legado).
+    plano: z.enum(["assistente", "controller", "gestor"]).nullable().optional(),
+
     // Sub-objetos (para facilitar o formulário unificado)
     nfse_settings: CompanyNfseSettingsSchema.optional(),
 

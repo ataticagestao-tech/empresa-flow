@@ -394,3 +394,116 @@ export async function apurarImpostoCompetencia({
     return { sucesso: false, erro: e.message }
   }
 }
+
+// =====================================================================
+// Cálculo SIMPLES por alíquota manual.
+// Para lojas com alíquota fixa do contador: imposto = alíquota × faturamento
+// (vendas) do mês — sem Fator R, anexo ou mix. Grava na MESMA linha
+// apuracao_impostos da competência e na MESMA CP "DAS ... - competência"
+// (atualiza o valor se já existir), pra não duplicar com a apuração por regime.
+// =====================================================================
+export async function apurarImpostoManual({
+  client,
+  companyId,
+  competencia,
+  aliquotaPct,
+}: {
+  client: SupabaseClient
+  companyId: string
+  competencia: string
+  aliquotaPct: number // em %, ex.: 6 = 6%
+}): Promise<ApurarResult> {
+  const db = client as any
+  try {
+    if (!(aliquotaPct > 0)) return { sucesso: false, erro: 'Informe uma alíquota maior que zero.' }
+
+    const [ano, mes] = competencia.split('-').map(Number)
+    const inicioMes = `${competencia}-01`
+    const fimMes = `${competencia}-31`
+
+    const { data: comp } = await db
+      .from('companies').select('regime_tributario').eq('id', companyId).maybeSingle()
+    const regime = normalizarRegime(comp?.regime_tributario)
+    // apuracao_impostos.regime_tributario é NOT NULL. Empresas-quiosque que usam a alíquota
+    // manual costumam estar sem regime no cadastro → assume Simples pra não quebrar o insert.
+    const regimeStr = regime || 'simples'
+
+    const { data: vendas } = await db.from('vendas').select('valor_total')
+      .eq('company_id', companyId).is('deleted_at', null)
+      .gte('data_venda', inicioMes).lte('data_venda', fimMes)
+    const receitaBruta = (vendas || []).reduce((s: number, v: any) => s + (Number(v.valor_total) || 0), 0)
+    if (receitaBruta <= 0) return { sucesso: false, semReceita: true, erro: 'Nenhuma venda nesta competência para calcular.' }
+
+    const total = Math.round(receitaBruta * (aliquotaPct / 100) * 100) / 100
+    const dataVenc = format(new Date(ano, mes, 20), 'yyyy-MM-dd') // dia 20 do mês seguinte
+
+    const resultado: ApuracaoResultado = {
+      regime, receitaBruta, faturamento12m: 0, folha12m: 0,
+      despesas: null, lucroEstimado: null,
+      fatorR: null, anexo: null, faixaSimples: 'Alíquota manual',
+      aliquotaNominal: aliquotaPct / 100, aliquotaEfetiva: aliquotaPct / 100,
+      valorDas: total, valorIrpj: 0, valorCsll: 0, valorPis: 0, valorCofins: 0, valorIss: 0,
+      darfFederal: 0, totalImpostos: total,
+    }
+
+    const payload = {
+      company_id: companyId,
+      competencia,
+      regime_tributario: regimeStr,
+      receita_bruta: receitaBruta,
+      faturamento_12m: null,
+      faixa_simples: 'Alíquota manual',
+      aliquota_nominal: aliquotaPct,
+      fator_r: null,
+      aliquota_efetiva: aliquotaPct,
+      valor_das: total,
+      valor_irpj: 0, valor_csll: 0, valor_pis: 0, valor_cofins: 0, valor_iss: 0,
+      total_impostos: total,
+      data_vencimento: dataVenc,
+      status: 'apurado',
+    }
+
+    const { data: existing } = await db.from('apuracao_impostos')
+      .select('id').eq('company_id', companyId).eq('competencia', competencia).maybeSingle()
+    const apuErr = existing
+      ? (await db.from('apuracao_impostos').update(payload).eq('id', existing.id)).error
+      : (await db.from('apuracao_impostos').insert(payload)).error
+    if (apuErr) return { sucesso: false, erro: apuErr.message }
+
+    // CP de previsão — mesma descrição da apuração por regime, pra dedup.
+    const nome = regimeStr === 'mei' ? 'DAS-MEI' : 'DAS Simples Nacional'
+    const desc = `${nome} - ${competencia}`
+    const obs = `Previsão por alíquota manual (${aliquotaPct.toLocaleString('pt-BR')}%) sobre o faturamento do mês — ajustar quando chegar a guia do contador.`
+    const { data: cpExist } = await db.from('contas_pagar')
+      .select('id').eq('company_id', companyId).eq('descricao', desc).is('deleted_at', null).maybeSingle()
+    let cpId: string | undefined = cpExist?.id
+    if (cpExist) {
+      const { error } = await db.from('contas_pagar')
+        .update({ valor: total, observacoes: obs, data_vencimento: dataVenc }).eq('id', cpExist.id)
+      if (error) return { sucesso: false, erro: error.message }
+    } else if (total > 0) {
+      const { data: ins, error } = await db.from('contas_pagar').insert({
+        company_id: companyId,
+        credor_nome: 'Receita Federal',
+        descricao: desc,
+        observacoes: obs,
+        valor: total,
+        data_vencimento: dataVenc,
+        status: 'aberto',
+        competencia,
+      }).select('id').single()
+      if (error) return { sucesso: false, erro: error.message }
+      cpId = ins?.id
+    }
+
+    // Vincula a CP à apuração (apuracao_impostos.conta_pagar_id).
+    if (cpId) {
+      await db.from('apuracao_impostos').update({ conta_pagar_id: cpId })
+        .eq('company_id', companyId).eq('competencia', competencia)
+    }
+
+    return { sucesso: true, resultado }
+  } catch (e: any) {
+    return { sucesso: false, erro: e.message }
+  }
+}

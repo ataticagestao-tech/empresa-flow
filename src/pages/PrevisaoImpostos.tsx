@@ -13,7 +13,7 @@ import { PagePanel } from '@/components/layout/PagePanel'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
-import { apurarImpostoCompetencia, normalizarRegime, type RegimeNorm } from '@/lib/fiscal/apuracao'
+import { apurarImpostoCompetencia, apurarImpostoManual, normalizarRegime, type RegimeNorm } from '@/lib/fiscal/apuracao'
 
 interface Apuracao {
   id: string
@@ -78,6 +78,11 @@ export default function PrevisaoImpostos() {
   // Fator R (Simples) — puxado da Folha de Pagamento dos 12 meses anteriores
   const [fatorR, setFatorR] = useState<{ folha12m: number; receita12m: number; fator: number; anexo: 'III' | 'V'; meses: number } | null>(null)
 
+  // Cálculo por alíquota manual (imposto = alíquota × faturamento do mês)
+  const [aliquotaManual, setAliquotaManual] = useState('')
+  const [receitaMes, setReceitaMes] = useState<number | null>(null)
+  const [savingManual, setSavingManual] = useState(false)
+
   // Biblioteca CNAE
   const [cnaeLib, setCnaeLib] = useState<CnaeRow[]>([])
   const [cnaeOpen, setCnaeOpen] = useState(false)
@@ -133,6 +138,28 @@ export default function PrevisaoImpostos() {
     return () => { cancelado = true }
   }, [regime, selectedCompany, activeClient, selectedAno, mesCalc])
 
+  // Alíquota manual salva por empresa (localStorage — lembra entre sessões)
+  useEffect(() => {
+    if (!selectedCompany) return
+    setAliquotaManual(localStorage.getItem(`previsao-aliquota:${selectedCompany.id}`) ?? '')
+  }, [selectedCompany])
+
+  // Faturamento (vendas) do mês selecionado — para o cálculo por alíquota ao vivo
+  useEffect(() => {
+    if (!selectedCompany) { setReceitaMes(null); return }
+    let cancelado = false
+    ;(async () => {
+      const db = activeClient as any
+      const comp = `${selectedAno}-${String(mesCalc).padStart(2, '0')}`
+      const { data } = await db.from('vendas').select('valor_total')
+        .eq('company_id', selectedCompany.id).is('deleted_at', null)
+        .gte('data_venda', `${comp}-01`).lte('data_venda', `${comp}-31`)
+      if (cancelado) return
+      setReceitaMes((data || []).reduce((s: number, v: any) => s + (Number(v.valor_total) || 0), 0))
+    })()
+    return () => { cancelado = true }
+  }, [selectedCompany, activeClient, selectedAno, mesCalc])
+
   const kpis = useMemo(() => {
     const totalImpostos = apuracoes.reduce((s, a) => s + (a.total_impostos || 0), 0)
     const totalReceita = apuracoes.reduce((s, a) => s + (a.receita_bruta || 0), 0)
@@ -157,6 +184,28 @@ export default function PrevisaoImpostos() {
       }
     } finally {
       setCalculating(false)
+    }
+  }
+
+  const provisionarManual = async () => {
+    if (!selectedCompany) return
+    const aliq = Number(String(aliquotaManual).replace(',', '.')) || 0
+    if (!(aliq > 0)) { toast.error('Informe a alíquota (%).'); return }
+    const competencia = `${selectedAno}-${String(mesCalc).padStart(2, '0')}`
+    setSavingManual(true)
+    try {
+      const res = await apurarImpostoManual({ client: activeClient as any, companyId: selectedCompany.id, competencia, aliquotaPct: aliq })
+      if (res.sucesso) {
+        localStorage.setItem(`previsao-aliquota:${selectedCompany.id}`, aliquotaManual)
+        toast.success(`Imposto de ${MESES[mesCalc - 1]}/${selectedAno} provisionado: ${formatBRL(res.resultado?.totalImpostos ?? 0)}`)
+        loadData()
+      } else if (res.semReceita) {
+        toast.error('Nenhuma venda neste mês para calcular.')
+      } else {
+        toast.error(res.erro || 'Erro ao calcular imposto')
+      }
+    } finally {
+      setSavingManual(false)
     }
   }
 
@@ -216,17 +265,21 @@ export default function PrevisaoImpostos() {
     setSavingCnae(true)
     const db = activeClient as any
     try {
-      const { error } = await db.from('cnae_tributacao').insert({
-        codigo: novoCnae.codigo.trim(),
+      // upsert pelo código (UNIQUE): código novo é inserido, código existente é
+      // atualizado — assim dá pra trocar anexo/descrição/percentuais de um CNAE já cadastrado.
+      const codigo = novoCnae.codigo.trim()
+      const { error } = await db.from('cnae_tributacao').upsert({
+        codigo,
         descricao: novoCnae.descricao.trim(),
         anexo_simples: novoCnae.anexo,
         fator_r_aplicavel: novoCnae.anexo === 'III' || novoCnae.anexo === 'V',
         presuncao_irpj: novoCnae.presIrpj,
         presuncao_csll: novoCnae.presCsll,
         aliquota_iss_sugerida: novoCnae.iss,
-      })
+      }, { onConflict: 'codigo' }).select()
       if (error) throw error
-      toast.success('CNAE adicionado à biblioteca.')
+      const atualizado = cnaeLib.some(c => c.codigo === codigo)
+      toast.success(`CNAE ${codigo} ${atualizado ? 'atualizado' : 'adicionado'} na biblioteca.`)
       setNovoCnae({ codigo: '', descricao: '', anexo: 'III', presIrpj: 32, presCsll: 32, iss: 3 })
       loadData()
     } catch (e: any) {
@@ -255,6 +308,8 @@ export default function PrevisaoImpostos() {
   const podeMix = regime === 'simples' || regime === 'presumido' || regime === 'real'
   const compAlvo = `${selectedAno}-${String(mesCalc).padStart(2, '0')}`
   const jaExiste = apuracoes.some(a => a.competencia === compAlvo)
+  const aliqNum = Number(String(aliquotaManual).replace(',', '.')) || 0
+  const impostoPreview = receitaMes != null ? receitaMes * (aliqNum / 100) : null
 
   return (
     <AppLayout title="Previsão de Impostos">
@@ -283,6 +338,46 @@ export default function PrevisaoImpostos() {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Cálculo por alíquota (manual) — imposto = alíquota × faturamento do mês */}
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Calculator size={15} className="text-[#059669]" /> Cálculo por alíquota
+              </h3>
+              <span className="text-[11px] text-gray-400 uppercase tracking-wide">{MESES[mesCalc - 1]} / {selectedAno}</span>
+            </div>
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+              <div>
+                <label className="text-[11px] text-gray-400 uppercase tracking-wide block mb-1">Alíquota (%)</label>
+                <div className="flex items-center gap-1">
+                  <input value={aliquotaManual} onChange={e => setAliquotaManual(e.target.value)} inputMode="decimal" placeholder="0,00" autoFocus
+                    className="w-24 border border-gray-300 rounded-md px-3 py-2 text-sm text-right font-semibold focus:outline-none focus:border-[#059669]" />
+                  <span className="text-gray-400 text-sm">%</span>
+                </div>
+              </div>
+              <div className="text-gray-300 text-lg pb-2">×</div>
+              <div>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wide">Faturamento do mês</p>
+                <p className="font-semibold text-gray-700">{receitaMes != null ? formatBRL(receitaMes) : '…'}</p>
+              </div>
+              <div className="text-gray-300 text-lg pb-2">=</div>
+              <div>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wide">Imposto estimado</p>
+                <p className="font-bold text-lg text-[#E53E3E]">{impostoPreview != null ? formatBRL(impostoPreview) : '—'}</p>
+              </div>
+              <button onClick={provisionarManual} disabled={savingManual}
+                className="ml-auto flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-white text-sm font-semibold disabled:opacity-50 shadow-sm"
+                style={{ backgroundColor: '#059669' }}>
+                {savingManual ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
+                {jaExiste ? 'Recalcular e provisionar' : 'Calcular e provisionar'}
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500 mt-3 flex items-start gap-1.5">
+              <Info size={13} className="text-[#059669] shrink-0 mt-0.5" />
+              Multiplica a alíquota direto sobre o faturamento (vendas) do mês selecionado — sem Fator R nem anexo. Gera a conta a pagar prevista no dia 20. A alíquota fica salva para esta empresa.
+            </p>
           </div>
 
           {/* Painel Fator R (Simples) — interage com a Folha */}
@@ -455,10 +550,11 @@ export default function PrevisaoImpostos() {
                 {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </select>
               <button onClick={() => provisionar(compAlvo)} disabled={calculating}
+                title="Cálculo automático pelo regime tributário (Fator R / anexo). Para alíquota fixa, use o card 'Cálculo por alíquota' acima."
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                 style={{ backgroundColor: '#059669' }}>
                 {calculating ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
-                {jaExiste ? 'Reprovisionar' : 'Provisionar'}
+                {jaExiste ? 'Reprovisionar por regime' : 'Provisionar por regime'}
               </button>
             </div>
 
@@ -584,7 +680,7 @@ export default function PrevisaoImpostos() {
               <div><label className="text-[11px] text-gray-400 uppercase">Pres. IRPJ</label><input type="number" value={novoCnae.presIrpj} onChange={e => setNovoCnae(v => ({ ...v, presIrpj: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
               <div><label className="text-[11px] text-gray-400 uppercase">Pres. CSLL</label><input type="number" value={novoCnae.presCsll} onChange={e => setNovoCnae(v => ({ ...v, presCsll: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
               <div><label className="text-[11px] text-gray-400 uppercase">ISS %</label><input type="number" value={novoCnae.iss} onChange={e => setNovoCnae(v => ({ ...v, iss: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
-              <button onClick={addCnaeLib} disabled={savingCnae} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ backgroundColor: '#059669' }}>{savingCnae ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add</button>
+              <button onClick={addCnaeLib} disabled={savingCnae} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 whitespace-nowrap" style={{ backgroundColor: '#059669' }}>{savingCnae ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} {cnaeLib.some(c => c.codigo === novoCnae.codigo.trim()) ? 'Atualizar' : 'Add'}</button>
             </div>
 
             {/* Lista */}
@@ -595,14 +691,17 @@ export default function PrevisaoImpostos() {
                 </tr></thead>
                 <tbody>
                   {cnaeLib.map(c => (
-                    <tr key={c.id} className="border-t border-gray-50 hover:bg-gray-50/50">
+                    <tr key={c.id}
+                      onClick={() => setNovoCnae({ codigo: c.codigo, descricao: c.descricao, anexo: c.anexo_simples || 'III', presIrpj: Number(c.presuncao_irpj), presCsll: Number(c.presuncao_csll), iss: Number(c.aliquota_iss_sugerida) })}
+                      title="Clique para editar (carrega no formulário acima)"
+                      className="border-t border-gray-50 hover:bg-[#ECFDF4] cursor-pointer">
                       <td className="px-2 py-1.5 font-medium whitespace-nowrap">{c.codigo}</td>
                       <td className="px-2 py-1.5 text-gray-600">{c.descricao}</td>
                       <td className="px-2 py-1.5 text-center">{c.anexo_simples || '—'}</td>
                       <td className="px-2 py-1.5 text-right">{Number(c.presuncao_irpj).toFixed(0)}%</td>
                       <td className="px-2 py-1.5 text-right">{Number(c.presuncao_csll).toFixed(0)}%</td>
                       <td className="px-2 py-1.5 text-right">{Number(c.aliquota_iss_sugerida).toFixed(0)}%</td>
-                      <td className="px-2 py-1.5 text-right"><button onClick={() => delCnaeLib(c.id)} className="text-gray-400 hover:text-[#E53E3E]"><Trash2 size={13} /></button></td>
+                      <td className="px-2 py-1.5 text-right"><button onClick={e => { e.stopPropagation(); delCnaeLib(c.id) }} className="text-gray-400 hover:text-[#E53E3E]"><Trash2 size={13} /></button></td>
                     </tr>
                   ))}
                   {cnaeLib.length === 0 && <tr><td colSpan={7} className="px-2 py-6 text-center text-gray-400">Biblioteca vazia. Adicione CNAEs acima.</td></tr>}

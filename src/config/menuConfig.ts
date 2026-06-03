@@ -30,14 +30,17 @@ import {
   Clock,
   GitMerge,
   CheckSquare,
+  CreditCard,
+  Archive,
   Receipt,
   Briefcase,
   Palmtree,
   UserPlus,
   Banknote,
-  Gauge,
+  MessageCircle,
   LucideIcon
 } from "lucide-react";
+import type { ModuleId } from "@/config/entitlements";
 
 export const OWNER_EMAIL = 'izabelvier@outlook.com';
 
@@ -50,6 +53,8 @@ export interface MenuItem {
   hidden?: boolean;
   adminOnly?: boolean;
   ownerOnly?: boolean;
+  /** Módulo da modularização por pacote. Ausente = herda do grupo (ou 'core' = sempre liberado). */
+  module?: ModuleId;
   /** Sub-itens em cascata. Se preenchido, o item vira um submenu (abre outro menu ao lado). */
   children?: MenuItem[];
 }
@@ -61,6 +66,8 @@ export interface MenuGroup {
   items: MenuItem[];
   isHardcodedLabel?: boolean;
   ownerOnly?: boolean;
+  /** Módulo da modularização por pacote que libera este grupo inteiro. Ausente = 'core'. */
+  module?: ModuleId;
   /** Título da seção sob a qual o grupo aparece. Grupos sem section ficam soltos no topo. */
   section?: string;
 }
@@ -70,12 +77,6 @@ export const menuGroups: MenuGroup[] = [
     id: 'dashboard',
     items: [
       { titleKey: 'menu.dashboard', icon: LayoutDashboard, url: '/dashboard' }
-    ]
-  },
-  {
-    id: 'indicadores',
-    items: [
-      { titleKey: 'Indicadores', icon: Gauge, url: '/indicadores', isHardcoded: true }
     ]
   },
   {
@@ -114,11 +115,12 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Demonstrativos', icon: FileText, isHardcoded: true, children: [
         { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
         { titleKey: 'Fluxo de Caixa', icon: Banknote, url: '/demonstrativos/dfc', isHardcoded: true },
-        { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
+        { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true, module: 'relatorios' },
       ] },
       { titleKey: 'Cobrança', icon: Bell, isHardcoded: true, children: [
-        { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
+        { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true, module: 'cobranca' },
         { titleKey: 'Conciliação Bancária', icon: CheckSquare, url: '/conciliacao', isHardcoded: true },
+        { titleKey: 'Recebíveis de Cartão', icon: CreditCard, url: '/recebiveis-cartao', isHardcoded: true },
       ] },
     ]
   },
@@ -127,7 +129,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Fiscal',
     icon: Receipt,
     isHardcodedLabel: true,
-    ownerOnly: true,
+    module: 'fiscal',
     section: 'Gestão',
     items: [
       { titleKey: 'Area do Contador', icon: Briefcase, url: '/area-contador', isHardcoded: true },
@@ -144,6 +146,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'RH & Folha',
     icon: Briefcase,
     isHardcodedLabel: true,
+    module: 'rh',
     section: 'Gestão',
     // Ordem segue o fluxo de lançamento: vínculos → ponto → ausências → folha → encargos
     items: [
@@ -159,6 +162,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Estoque',
     icon: Package,
     isHardcodedLabel: true,
+    module: 'estoque',
     section: 'Operações',
     items: [
       { titleKey: 'Estoque', icon: Package, url: '/estoque', isHardcoded: true },
@@ -171,6 +175,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Precificação',
     icon: Target,
     isHardcodedLabel: true,
+    module: 'precificacao',
     section: 'Operações',
     items: [
       { titleKey: 'Ficha Técnica', icon: ClipboardList, url: '/ficha-tecnica', isHardcoded: true },
@@ -185,6 +190,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Documentos',
     icon: FolderOpen,
     isHardcodedLabel: true,
+    module: 'documentos',
     section: 'Operações',
     items: [
       { titleKey: 'Explorador', icon: FolderOpen, url: '/documentos', isHardcoded: true },
@@ -197,7 +203,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Projeção',
     icon: TrendingUp,
     isHardcodedLabel: true,
-    ownerOnly: true,
+    module: 'projecao',
     section: 'Análise & Grupo',
     items: [
       { titleKey: 'Fluxo de Caixa Projetado', icon: TrendingUp, url: '/fluxo-caixa-projetado', isHardcoded: true },
@@ -211,7 +217,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Multi-empresa',
     icon: GitMerge,
     isHardcodedLabel: true,
-    ownerOnly: true,
+    module: 'multiempresa',
     section: 'Análise & Grupo',
     items: [
       { titleKey: 'Consolidado', icon: GitMerge, url: '/multiempresa', isHardcoded: true },
@@ -227,10 +233,14 @@ export const menuGroups: MenuGroup[] = [
     ownerOnly: true,
     section: 'Sistema',
     items: [
+      { titleKey: 'Dados da Tática', icon: Building2, url: '/admin/tatica', isHardcoded: true, adminOnly: true },
+      { titleKey: 'Planos dos Clientes', icon: Package, url: '/admin/planos', isHardcoded: true, adminOnly: true },
       { titleKey: 'Equipe', icon: UserPlus, url: '/equipe', isHardcoded: true },
       { titleKey: 'Usuários', icon: Shield, url: '/admin/usuarios', isHardcoded: true, adminOnly: true },
       { titleKey: 'WhatsApp Autorizados', icon: Shield, url: '/admin/whatsapp-autorizados', isHardcoded: true, adminOnly: true },
+      { titleKey: 'WhatsApp Inbox', icon: MessageCircle, url: '/admin/whatsapp-inbox', isHardcoded: true, adminOnly: true },
       { titleKey: 'Log de Atividades', icon: Shield, url: '/admin/log-atividades', isHardcoded: true, adminOnly: true },
+      { titleKey: 'Lançamentos Arquivados', icon: Archive, url: '/lancamentos-arquivados', isHardcoded: true, adminOnly: true },
     ]
   },
 ];
@@ -240,3 +250,31 @@ export const footerMenu: MenuItem[] = [
   { titleKey: 'menu.help', icon: Book, url: '/ajuda' },
   { titleKey: 'menu.logout', icon: LogOut, action: 'logout' }
 ];
+
+/**
+ * Descobre o módulo da rota atual percorrendo o menuConfig, casando o caminho
+ * mais específico (maior URL prefixo). Item sem `module` herda do pai/grupo.
+ * Retorna undefined quando a rota não está no menu (ex.: /checkout) → não gateada.
+ */
+export function findModuleForPath(pathname: string): ModuleId | undefined {
+  let best: { len: number; module?: ModuleId } | null = null;
+
+  const consider = (url: string | undefined, mod: ModuleId | undefined) => {
+    if (!url) return;
+    if (pathname === url || pathname.startsWith(url + '/')) {
+      if (!best || url.length > best.len) best = { len: url.length, module: mod };
+    }
+  };
+
+  for (const group of menuGroups) {
+    for (const item of group.items) {
+      const itemMod = item.module ?? group.module;
+      consider(item.url, itemMod);
+      for (const child of item.children ?? []) {
+        consider(child.url, child.module ?? itemMod);
+      }
+    }
+  }
+
+  return best?.module;
+}

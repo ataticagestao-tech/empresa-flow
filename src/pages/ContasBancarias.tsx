@@ -11,6 +11,7 @@ import { BANKS } from "@/lib/banks";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { parseOFXFull } from "@/lib/parsers/ofx";
 import { FieldHelp } from "@/components/ui/field-help";
+import { SaldoBancoVsSistema } from "@/components/dashboard/SaldoBancoVsSistema";
 
 interface BankAccount {
   id: string; company_id: string; name: string; banco: string;
@@ -428,6 +429,9 @@ export default function ContasBancarias() {
           </div>
           <p className="text-2xl font-bold text-[#059669]">{formatBRL(totalBalance)}</p>
         </div>
+
+        {/* Banco × Sistema × Diferença (Fase 1 — saldo ancorado no extrato) */}
+        <SaldoBancoVsSistema companyId={selectedCompany?.id} />
 
         {/* New Account Form */}
         {showForm && (

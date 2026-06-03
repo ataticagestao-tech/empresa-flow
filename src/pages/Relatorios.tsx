@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { PeriodFilter } from "@/components/ui/period-filter";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { CentralRelatorios } from "@/components/relatorios/CentralRelatorios";
@@ -13,8 +13,8 @@ export default function Relatorios() {
     const { selectedCompany } = useCompany();
     const { activeClient } = useAuth();
     const [dateRange, setDateRange] = useState({
-        start: format(startOfMonth(new Date()), "yyyy-MM-dd"),
-        end: format(endOfMonth(new Date()), "yyyy-MM-dd"),
+        start: format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd"),
+        end: format(endOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd"),
     });
 
     const empresaInfo = useMemo<EmpresaInfo>(

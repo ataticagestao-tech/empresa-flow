@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { menuGroups, OWNER_EMAIL, type MenuItem } from "@/config/menuConfig"
 import { useAuth } from "@/contexts/AuthContext"
 import { useAdmin } from "@/contexts/AdminContext"
+import { useEntitlements } from "@/hooks/useEntitlements"
 
 /**
  * Sub-menu de abas do módulo da rota atual. Lê o menuConfig, descobre a qual
@@ -17,15 +18,17 @@ export function ModuleTabs() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const { isSuperAdmin } = useAdmin()
+  const { hasModule } = useEntitlements()
 
   const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()
   const isItemVisible = (item: MenuItem) =>
-    !item.hidden && (!item.adminOnly || isSuperAdmin) && (!item.ownerOnly || isOwner)
+    !item.hidden && (!item.adminOnly || isSuperAdmin) && (!item.ownerOnly || isOwner) && hasModule(item.module)
 
   // Grupo cuja lista de itens contém a rota atual
   const group = menuGroups.find((g) => g.items.some((it) => it.url && it.url === pathname))
   if (!group) return null
   if (group.ownerOnly && !isOwner) return null
+  if (!hasModule(group.module)) return null
 
   const items = group.items.filter((it) => it.url && isItemVisible(it))
   if (items.length < 2) return null // só faz sentido como menu com 2+ telas

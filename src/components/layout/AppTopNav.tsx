@@ -12,6 +12,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import { useTranslation } from "react-i18next";
 import { menuGroups, OWNER_EMAIL, type MenuGroup, type MenuItem } from "@/config/menuConfig";
 
@@ -24,6 +25,7 @@ export function AppTopNav() {
   const location = useLocation();
   const { user } = useAuth();
   const { isSuperAdmin } = useAdmin();
+  const { hasModule } = useEntitlements();
   const { t } = useTranslation();
 
   const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase();
@@ -31,10 +33,11 @@ export function AppTopNav() {
   const startsWith = (url?: string) => (url ? location.pathname.startsWith(url) : false);
 
   const isItemVisible = (item: MenuItem) =>
-    !item.hidden && (!item.adminOnly || isSuperAdmin) && (!item.ownerOnly || isOwner);
+    !item.hidden && (!item.adminOnly || isSuperAdmin) && (!item.ownerOnly || isOwner) && hasModule(item.module);
 
   const visibleGroups = menuGroups.filter((group) => {
     if (group.ownerOnly && !isOwner) return false;
+    if (!hasModule(group.module)) return false;
     return group.items.filter(isItemVisible).length > 0;
   });
 

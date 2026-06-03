@@ -36,6 +36,8 @@ const ContasPagar = lazy(() => import("./pages/ContasPagar"));
 const ContasFixas = lazy(() => import("./pages/ContasFixas"));
 const ContasReceber = lazy(() => import("./pages/ContasReceber"));
 const Conciliacao = lazy(() => import("./pages/Conciliacao"));
+const RecebiveisCartao = lazy(() => import("./pages/RecebiveisCartao"));
+const LancamentosArquivados = lazy(() => import("./pages/LancamentosArquivados"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Equipe = lazy(() => import("./pages/Equipe"));
@@ -46,7 +48,10 @@ const ProdutosDepartamentos = lazy(() => import("./pages/ProdutosDepartamentos")
 const ProdutosCategoria = lazy(() => import("./pages/ProdutosCategoria"));
 const Recibos = lazy(() => import("./pages/Recibos"));
 const AdminUsuarios = lazy(() => import("./pages/AdminUsuarios"));
+const AdminPlanos = lazy(() => import("./pages/AdminPlanos"));
+const AdminTatica = lazy(() => import("./pages/AdminTatica"));
 const WhatsappAutorizados = lazy(() => import("./pages/WhatsappAutorizados"));
+const WhatsAppInbox = lazy(() => import("./pages/WhatsAppInbox"));
 const LogAtividades = lazy(() => import("./pages/LogAtividades"));
 const ContaBloqueada = lazy(() => import("./pages/ContaBloqueada"));
 const PlanoContas = lazy(() => import("./pages/PlanoContas"));
@@ -216,6 +221,8 @@ const App = () => (
                     <Route path="/contas-fixas" element={<ContasFixas />} />
                     <Route path="/contas-receber" element={<ContasReceber />} />
                     <Route path="/conciliacao" element={<Conciliacao />} />
+                    <Route path="/recebiveis-cartao" element={<RecebiveisCartao />} />
+                    <Route path="/lancamentos-arquivados" element={<LancamentosArquivados />} />
                     <Route path="/fluxo-caixa-projetado" element={<FluxoCaixaProjetado />} />
                     <Route path="/orcamento" element={<Orcamento />} />
                     <Route path="/previsao-receitas" element={<PrevisaoReceitas />} />
@@ -260,8 +267,11 @@ const App = () => (
                     <Route path="/equipe" element={<Equipe />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
+                      <Route path="/admin/tatica" element={<AdminTatica />} />
+                      <Route path="/admin/planos" element={<AdminPlanos />} />
                       <Route path="/admin/usuarios" element={<AdminUsuarios />} />
                       <Route path="/admin/whatsapp-autorizados" element={<WhatsappAutorizados />} />
+                      <Route path="/admin/whatsapp-inbox" element={<WhatsAppInbox />} />
                       <Route path="/admin/log-atividades" element={<LogAtividades />} />
                     </Route>
                     </Route>

@@ -30,6 +30,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ProdutoCatalogoDialog } from "@/components/products/ProdutoCatalogoDialog";
+import { formatCPF, formatCNPJ } from "@/lib/format";
 import { BankTransaction } from "@/modules/finance/domain/schemas/bank-reconciliation.schema";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -39,6 +42,7 @@ import { useCategorySuggestion, ExternalSuggestion } from "@/modules/finance/pre
 import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
 import { OpeningCheckDialog } from "@/modules/finance/presentation/components/OpeningCheckDialog";
 import { StatementSecurityDialog } from "@/modules/finance/presentation/components/StatementSecurityDialog";
+import { SaldoBancoVsSistema } from "@/components/dashboard/SaldoBancoVsSistema";
 import type { StatementSource, StatementSecurityReport } from "@/modules/finance/application/statementSecurity";
 import { SupplierSheet } from "@/components/suppliers/SupplierSheet";
 import { ClientSheet } from "@/components/clients/ClientSheet";
@@ -134,6 +138,12 @@ export default function Conciliacao() {
     const [expandedBatchKey, setExpandedBatchKey] = useState<string | null>(null);
     const [expandedBatchTxIds, setExpandedBatchTxIds] = useState<string[]>([]);
     const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
+    // Conciliação contra uma CR/CP SEM categoria: em vez de o "Aceitar" dar erro
+    // (mov não nasce sem categoria), abre este seletor pra definir a categoria na hora.
+    const [categorizingMatch, setCategorizingMatch] = useState<{ bt: BankTransaction; sysTx: SystemTransaction } | null>(null);
+    // Seletor de categoria em LOTE: aplica a categoria escolhida nas CR/CP dos selecionados
+    // (que estiverem sem categoria) e concilia todos 1↔1 via conciliar_lote.
+    const [bulkCatOpen, setBulkCatOpen] = useState(false);
     const [filterDateFrom, setFilterDateFrom] = useState("");
     const [filterDateTo, setFilterDateTo] = useState("");
     const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; success: number; failed: number } | null>(null);
@@ -152,12 +162,15 @@ export default function Conciliacao() {
     // Modal "Lançar como venda" — cria venda + CR pago + mov + match a partir de uma entrada
     const [lancarVendaBt, setLancarVendaBt] = useState<BankTransaction | null>(null);
     const [lancarVendaForm, setLancarVendaForm] = useState({
+        cliente_id: "",
         cliente_nome: "",
         cliente_cpf_cnpj: "",
-        tipo: "servico",
         forma_pagamento: "pix",
-        conta_contabil_id: "",
     });
+    // Itens da venda (multi-produto, valores editáveis) — fecham o valor do extrato.
+    const [lancarVendaItens, setLancarVendaItens] = useState<Array<{ descricao: string; quantidade: number; valor_unitario: number; conta_contabil_id: string | null }>>([]);
+    const [catalogoItemIdx, setCatalogoItemIdx] = useState<number | null>(null); // qual item está escolhendo produto
+    const [clientePickerOpen, setClientePickerOpen] = useState(false);
     const [isLancandoVenda, setIsLancandoVenda] = useState(false);
 
     const { activeClient, user } = useAuth();
@@ -413,7 +426,7 @@ export default function Conciliacao() {
         if (!linkedId) {
             if (!bankTxId) {
                 toast({ title: "Erro", description: "Transação sem identificador — não é possível atualizar categoria.", variant: "destructive" });
-                return;
+                return false;
             }
             const { error, data } = await (activeClient as any)
                 .from("bank_transactions")
@@ -454,7 +467,7 @@ export default function Conciliacao() {
 
         if (!updated) {
             toast({ title: "Erro", description: "Não foi possível atualizar a categoria. Registro não encontrado ou sem permissão.", variant: "destructive" });
-            return;
+            return false;
         }
 
         toast({ title: "Categoria atualizada", description: "A categoria foi alterada com sucesso." });
@@ -464,7 +477,12 @@ export default function Conciliacao() {
         queryClient.invalidateQueries({ queryKey: ["dashboard_revenue_by_service"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard_revenue_by_payment"] });
         queryClient.invalidateQueries({ queryKey: ["historical_categorized_tx"] });
+        // Refresca também a lista de pendentes/sugestões, pra o bestMatch já vir com categoria
+        // (e o botão "Definir categoria" virar "Aceitar" sem precisar recarregar a página).
+        queryClient.invalidateQueries({ queryKey: ["bank_transactions_pending"] });
+        queryClient.invalidateQueries({ queryKey: ["system_pending_transactions"] });
         setEditingCategoryTxId(null);
+        return true;
     };
 
     // Totais do extrato atual (pendentes + ja reconciliadas — fluxo financeiro real)
@@ -518,6 +536,34 @@ export default function Conciliacao() {
         const start = currentPage * PAGE_SIZE;
         return filteredBankTransactions.slice(start, start + PAGE_SIZE);
     }, [filteredBankTransactions, currentPage, PAGE_SIZE]);
+
+    // Agrupa os pendentes pela sugestão de CR/CP (entity_name) — pra selecionar o grupo
+    // inteiro de uma vez (todas as páginas) e conciliar em lote. Só grupos com 2+ itens
+    // e que tenham contraparte sugerida (os sem sugestão não dá pra conciliar em lote).
+    const gruposConciliaveis = useMemo(() => {
+        const map = new Map<string, { label: string; ids: string[]; total: number }>();
+        for (const bt of filteredBankTransactions) {
+            const sysTx = suggestionMap.get(bt.id)?.systemTransaction;
+            if (!sysTx) continue;
+            const label = sysTx.entity_name || sysTx.description || "(sem nome)";
+            const g = map.get(label) || { label, ids: [], total: 0 };
+            g.ids.push(bt.id);
+            g.total += Math.abs(Number(bt.amount || 0));
+            map.set(label, g);
+        }
+        return Array.from(map.values()).filter(g => g.ids.length >= 2).sort((a, b) => b.ids.length - a.ids.length);
+    }, [filteredBankTransactions, suggestionMap]);
+
+    // Marca/desmarca um grupo inteiro (toggle): se tudo já está selecionado, limpa; senão adiciona.
+    const toggleGrupo = (ids: string[]) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            const todosSelecionados = ids.every(id => next.has(id));
+            if (todosSelecionados) ids.forEach(id => next.delete(id));
+            else ids.forEach(id => next.add(id));
+            return next;
+        });
+    };
 
     // Reset page when filters change
     const prevFilterRef = useRef({ scoreFilter, typeFilter });
@@ -882,33 +928,72 @@ export default function Conciliacao() {
     };
 
     // Abrir modal "Lançar como venda" pré-preenchido com dados do extrato
+    // Deduz a forma de pagamento a partir da descrição do extrato (a conciliação já sabe).
+    const inferFormaPagamento = (desc?: string | null): string => {
+        const d = (desc || "").toLowerCase();
+        if (/cr[ée]dito|credit/.test(d)) return "cartao_credito";
+        if (/d[ée]bito|debit/.test(d)) return "cartao_debito";
+        if (/\bpix\b/.test(d)) return "pix";
+        if (/boleto/.test(d)) return "boleto";
+        if (/transf|\bted\b|\bdoc\b/.test(d)) return "transferencia";
+        if (/dinheiro|esp[ée]cie/.test(d)) return "dinheiro";
+        return "pix";
+    };
+
+    // Máscara padrão do sistema: CPF 000.000.000-00 / CNPJ 00.000.000/0000-00.
+    const formatDoc = (s?: string | null): string => {
+        const c = (s || "").replace(/\D/g, "");
+        return c.length <= 11 ? formatCPF(c) : formatCNPJ(c);
+    };
+
     const handleAbrirLancarVenda = (bt: BankTransaction) => {
         setLancarVendaBt(bt);
         setLancarVendaForm({
-            cliente_nome: bt.description || "",
+            cliente_id: "",
+            cliente_nome: "",
             cliente_cpf_cnpj: "",
-            tipo: "servico",
-            forma_pagamento: "pix",
-            conta_contabil_id: "",
+            forma_pagamento: inferFormaPagamento(bt.description),
         });
+        // Começa com 1 item já no valor do extrato — venda de 1 produto fecha sozinha.
+        setLancarVendaItens([{ descricao: "", quantidade: 1, valor_unitario: Math.abs(Number(bt.amount || 0)), conta_contabil_id: null }]);
     };
 
-    // Submeter o modal: cria venda + item + CR pago + concilia o extrato
+    const addItemVenda = () => setLancarVendaItens(prev => [...prev, { descricao: "", quantidade: 1, valor_unitario: 0, conta_contabil_id: null }]);
+    const removeItemVenda = (idx: number) => setLancarVendaItens(prev => prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx));
+    const updateItemVenda = (idx: number, patch: Partial<{ descricao: string; quantidade: number; valor_unitario: number; conta_contabil_id: string | null }>) =>
+        setLancarVendaItens(prev => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
+    const totalItensVenda = lancarVendaItens.reduce((s, it) => s + (Number(it.quantidade) || 0) * (Number(it.valor_unitario) || 0), 0);
+
+    // Submeter o modal: cria venda + itens + CR pago + concilia o extrato
     const handleSalvarLancamentoVenda = async () => {
         if (!lancarVendaBt || !selectedCompany?.id || isLancandoVenda) return;
+        const valor = Math.abs(Number(lancarVendaBt.amount || 0));
+        const itensValidos = lancarVendaItens.filter(it => it.descricao.trim() && (Number(it.quantidade) || 0) > 0);
         if (!lancarVendaForm.cliente_nome.trim()) {
-            toast({ title: "Cliente obrigatório", description: "Informe o nome do cliente.", variant: "destructive" });
+            toast({ title: "Cliente obrigatório", description: "Selecione o cliente (ou cadastre um novo).", variant: "destructive" });
             return;
         }
-        if (!lancarVendaForm.conta_contabil_id) {
-            toast({ title: "Conta contábil obrigatória", description: "Selecione a conta de receita para alimentar DRE/Painel.", variant: "destructive" });
+        if (itensValidos.length === 0) {
+            toast({ title: "Itens obrigatórios", description: "Adicione ao menos um produto/serviço (o que foi vendido).", variant: "destructive" });
+            return;
+        }
+        // Categoria contábil vem dos PRODUTOS — usa a do item de maior valor que tiver categoria.
+        const itemComCat = [...itensValidos].sort((a, b) => (b.quantidade * b.valor_unitario) - (a.quantidade * a.valor_unitario)).find(it => it.conta_contabil_id);
+        const categoriaId = itemComCat?.conta_contabil_id || null;
+        if (!categoriaId) {
+            toast({ title: "Produto sem categoria contábil", description: "Defina a categoria do produto/serviço em Operacional › Categoria Contábil. A venda precisa dela pro DRE.", variant: "destructive" });
+            return;
+        }
+        // A soma dos itens precisa fechar o valor do extrato.
+        if (Math.abs(totalItensVenda - valor) > 0.01) {
+            const dif = valor - totalItensVenda;
+            toast({ title: "Itens não fecham o valor", description: `Extrato ${formatBRL(valor)} · itens ${formatBRL(totalItensVenda)} (${dif > 0 ? "faltam" : "sobram"} ${formatBRL(Math.abs(dif))}). Ajuste os valores ou adicione itens.`, variant: "destructive" });
             return;
         }
 
         setIsLancandoVenda(true);
         try {
             const bt = lancarVendaBt;
-            const valor = Math.abs(Number(bt.amount || 0));
             const cpfCnpj = lancarVendaForm.cliente_cpf_cnpj.replace(/\D/g, "") || null;
 
             // 1. Criar venda
@@ -918,7 +1003,7 @@ export default function Conciliacao() {
                     company_id: selectedCompany.id,
                     cliente_nome: lancarVendaForm.cliente_nome.trim(),
                     cliente_cpf_cnpj: cpfCnpj,
-                    tipo: lancarVendaForm.tipo,
+                    tipo: "servico",
                     valor_total: valor,
                     data_venda: bt.date,
                     forma_pagamento: lancarVendaForm.forma_pagamento,
@@ -928,15 +1013,15 @@ export default function Conciliacao() {
                 .single();
             if (vendaErr) throw vendaErr;
 
-            // 2. Criar item único (descrição = descrição do extrato)
+            // 2. Criar os itens da venda (o "o que foi vendido")
             const { error: itemErr } = await (activeClient as any)
                 .from("vendas_itens")
-                .insert({
+                .insert(itensValidos.map(it => ({
                     venda_id: vendaData.id,
-                    descricao: bt.description || "Lançamento via conciliação",
-                    quantidade: 1,
-                    valor_unitario: valor,
-                });
+                    descricao: it.descricao.trim(),
+                    quantidade: Number(it.quantidade) || 1,
+                    valor_unitario: Number(it.valor_unitario) || 0,
+                })));
             if (itemErr) throw itemErr;
 
             // 3. Criar conta_receber já paga, vinculada à venda e ao extrato
@@ -952,7 +1037,7 @@ export default function Conciliacao() {
                     data_pagamento: bt.date,
                     status: "pago",
                     forma_recebimento: lancarVendaForm.forma_pagamento,
-                    conta_contabil_id: lancarVendaForm.conta_contabil_id,
+                    conta_contabil_id: categoriaId,
                     venda_id: vendaData.id,
                     created_via_bank_tx_id: bt.id,
                 })
@@ -990,6 +1075,71 @@ export default function Conciliacao() {
         // uma regra antiga vira conflito sem sentido para o usuario que esta
         // apenas linkando lancamentos existentes — nao categorizando)
         matchTransaction.mutate({ bankTx: bt, sysTx });
+    };
+
+    // Abre o popup INTEIRO do lançamento (mesmo form de criar) em modo edição, pré-carregado
+    // com a CR/CP que vai casar — pra o usuário completar TODOS os campos (categoria, descrição,
+    // competência, centro de custo…), não só a categoria. Depois salva e concilia.
+    const openAdjustMatch = async (bt: BankTransaction, sysTx: SystemTransaction) => {
+        const isExpense = bt.amount < 0;
+        const table = isExpense ? "contas_pagar" : "contas_receber";
+        const { data: row } = await (activeClient as any)
+            .from(table).select("*").eq("id", sysTx.original_table_id).maybeSingle();
+        setSelectedBankTx(bt);
+        setShowCreateForm(true);
+        setCategorizingMatch({ bt, sysTx });
+        setNewEntry({
+            entity_name: (isExpense ? row?.credor_nome : row?.pagador_nome) || sysTx.entity_name || bt.description || "",
+            description: (isExpense ? row?.descricao : row?.observacoes) || "",
+            category_id: row?.conta_contabil_id || "",
+            centro_custo_id: row?.centro_custo_id || "",
+            competencia: row?.competencia || "",
+            cpf_cnpj: (isExpense ? "" : row?.pagador_cpf_cnpj) || "",
+            email: (isExpense ? "" : row?.pagador_email) || "",
+        });
+    };
+
+    // Submit do popup quando está em modo edição (categorizingMatch setado): ATUALIZA a CR/CP
+    // existente com os campos ajustados e concilia — não cria lançamento novo (sem duplicata).
+    const handleAdjustMatchAndReconcile = async () => {
+        if (!categorizingMatch || !selectedCompany?.id) return;
+        if (!newEntry.category_id || newEntry.category_id === "none") {
+            toast({ title: "Conta contábil obrigatória", description: "Selecione uma conta contábil para o lançamento alimentar DRE, Balanço e Fluxo de Caixa.", variant: "destructive" });
+            return;
+        }
+        const { bt, sysTx } = categorizingMatch;
+        const isExpense = bt.amount < 0;
+        const table = isExpense ? "contas_pagar" : "contas_receber";
+        setIsCreating(true);
+        try {
+            const upd: Record<string, any> = {
+                conta_contabil_id: newEntry.category_id,
+                centro_custo_id: newEntry.centro_custo_id || null,
+            };
+            const nome = (newEntry.entity_name || sysTx.entity_name || "").trim();
+            if (isExpense) {
+                if (nome) upd.credor_nome = nome;
+                if (newEntry.description.trim()) upd.descricao = newEntry.description.trim();
+                if (newEntry.competencia) upd.competencia = newEntry.competencia;
+            } else {
+                if (nome) upd.pagador_nome = nome;
+                if (newEntry.description.trim()) upd.observacoes = newEntry.description.trim();
+                if (newEntry.cpf_cnpj.trim()) upd.pagador_cpf_cnpj = newEntry.cpf_cnpj.trim();
+                if (newEntry.email.trim()) upd.pagador_email = newEntry.email.trim();
+            }
+            const { error } = await (activeClient as any).from(table).update(upd).eq("id", sysTx.original_table_id);
+            if (error) throw error;
+            matchTransaction.mutate({ bankTx: bt, sysTx: { ...sysTx, conta_contabil_id: newEntry.category_id } });
+            setCategorizingMatch(null);
+            setShowCreateForm(false);
+            setSelectedBankTx(null);
+            setNewEntry({ entity_name: "", description: "", category_id: "", centro_custo_id: "", competencia: "", cpf_cnpj: "", email: "" });
+            toast({ title: "Lançamento ajustado e conciliado" });
+        } catch (e: any) {
+            toast({ title: "Erro", description: e.message, variant: "destructive" });
+        } finally {
+            setIsCreating(false);
+        }
     };
 
     const handleCreateAndReconcile = async () => {
@@ -1259,6 +1409,12 @@ export default function Conciliacao() {
         queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
         queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
         queryClient.invalidateQueries({ queryKey: ['import_history'] });
+        // Quadro Banco × Sistema + selo "conciliado": o lote baixou lançamentos → cai o
+        // "a conciliar" e muda o saldo, o painel precisa atualizar na hora.
+        queryClient.invalidateQueries({ queryKey: ['saldo_banco_vs_sistema'] });
+        queryClient.invalidateQueries({ queryKey: ['contas_saldo'] });
+        queryClient.invalidateQueries({ queryKey: ['conciliadas_ids'] });
+        queryClient.invalidateQueries({ queryKey: ['mov_conciliadas_ids'] });
         // Refresh MVs — conciliar_lote já faz no banco, mas invalidar cache do frontend
         queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
         queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
@@ -1277,6 +1433,105 @@ export default function Conciliacao() {
                 description: `${totalSuccess} conciliado(s)`,
             });
         }
+    };
+
+    // LOTE com categoria escolhida pelo usuário: para os selecionados que têm CR/CP sugerida,
+    // preenche a categoria nas que estão SEM categoria (não sobrescreve as já preenchidas) e
+    // concilia 1↔1 via conciliar_lote (mesmo RPC do "Aprovar Selecionados", sem duplicar).
+    const handleBulkCategorizeAndApprove = async (categoryId: string) => {
+        setBulkCatOpen(false);
+        const sugs = Array.from(selectedIds)
+            .map(id => suggestionMap.get(id))
+            .filter((s): s is MatchSuggestion => !!s && !!s.systemTransaction);
+        const semMatch = selectedIds.size - sugs.length;
+        if (sugs.length === 0) {
+            toast({ title: "Nenhum com sugestão", description: "Os selecionados não têm CR/CP sugerido pra casar. Use 'Lançar venda' nessas linhas.", variant: "destructive" });
+            return;
+        }
+        // Transferência interna não vira CP/CR (é só registro entre contas próprias).
+        const naoTransfers = sugs.filter(s => !isLikelyInternalTransfer(s.bankTransaction.description || "", allCompanies || []));
+        const transfers = sugs.length - naoTransfers.length;
+        if (naoTransfers.length === 0) {
+            toast({ title: "Só transferências internas", description: "Concilie como transferência manualmente — não viram receita/despesa." });
+            return;
+        }
+
+        // Preenche a categoria nas CR/CP que ainda estão SEM categoria (só preenche o vazio).
+        const crIds = naoTransfers.filter(s => s.systemTransaction!.type === "receivable").map(s => s.systemTransaction!.id);
+        const cpIds = naoTransfers.filter(s => s.systemTransaction!.type === "payable").map(s => s.systemTransaction!.id);
+        try {
+            if (crIds.length) await (activeClient as any).from("contas_receber").update({ conta_contabil_id: categoryId }).in("id", crIds).is("conta_contabil_id", null);
+            if (cpIds.length) await (activeClient as any).from("contas_pagar").update({ conta_contabil_id: categoryId }).in("id", cpIds).is("conta_contabil_id", null);
+        } catch (e: any) {
+            toast({ title: "Erro ao categorizar", description: e.message, variant: "destructive" });
+            return;
+        }
+
+        const items = naoTransfers.map(s => {
+            const sysTx = s.systemTransaction!;
+            const linksExisting = sysTx.status === "aberto" || sysTx.status === "vencido" || sysTx.status === "parcial" || sysTx.status === "pago";
+            return {
+                bank_tx_id: s.bankTransaction.id,
+                amount: Math.abs(s.bankTransaction.amount),
+                date: s.bankTransaction.date,
+                description: s.bankTransaction.description || "Conciliação automática",
+                is_expense: s.bankTransaction.amount < 0,
+                account_id: categoryId,
+                unidade_destino_id: (s.bankTransaction as any).unidade_destino_id || null,
+                payable_id: linksExisting && sysTx.type === "payable" ? sysTx.id : null,
+                receivable_id: linksExisting && sysTx.type === "receivable" ? sysTx.id : null,
+            };
+        });
+
+        const total = items.length;
+        let totalSuccess = 0, totalFailed = 0;
+        const failedReasons: Array<{ description?: string; error: string }> = [];
+        setBatchProgress({ total, done: 0, success: 0, failed: 0 });
+        const batchSize = 100;
+        for (let i = 0; i < items.length; i += batchSize) {
+            const batch = items.slice(i, i + batchSize);
+            try {
+                const { data, error } = await (activeClient as any).rpc("conciliar_lote", {
+                    p_company_id: selectedCompany?.id,
+                    p_bank_account_id: selectedAccountId,
+                    p_user_id: user?.id || null,
+                    p_items: batch,
+                });
+                if (error) throw error;
+                const result = data || { success: 0, failed: batch.length };
+                totalSuccess += result.success || 0;
+                totalFailed += result.failed || 0;
+                if (Array.isArray(result.failed_reasons)) for (const r of result.failed_reasons) failedReasons.push(r);
+            } catch (e: any) {
+                totalFailed += batch.length;
+                failedReasons.push({ error: e?.message || "erro desconhecido na RPC" });
+                console.error("[bulk_categorize conciliar_lote] erro:", e);
+            }
+            setBatchProgress({ total, done: Math.min(i + batchSize, total), success: totalSuccess, failed: totalFailed });
+        }
+        for (const s of naoTransfers) learnRule.mutate({ bankTx: s.bankTransaction, categoryId });
+
+        setSelectedIds(new Set());
+        setBatchProgress(null);
+        queryClient.invalidateQueries({ queryKey: ["bank_transactions_pending"] });
+        queryClient.invalidateQueries({ queryKey: ["reconciled_transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["import_history"] });
+        queryClient.invalidateQueries({ queryKey: ["saldo_banco_vs_sistema"] });
+        queryClient.invalidateQueries({ queryKey: ["contas_saldo"] });
+        queryClient.invalidateQueries({ queryKey: ["conciliadas_ids"] });
+        queryClient.invalidateQueries({ queryKey: ["mov_conciliadas_ids"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_accounts_balance"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_cashflow"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_dre"] });
+
+        const ignorados: string[] = [];
+        if (semMatch > 0) ignorados.push(`${semMatch} sem sugestão`);
+        if (transfers > 0) ignorados.push(`${transfers} transferência(s)`);
+        toast({
+            title: totalFailed > 0 ? `Lote: ${totalSuccess} ok, ${totalFailed} falha(s)` : "Categorizado e conciliado",
+            description: `${totalSuccess} conciliado(s)${ignorados.length ? ` · ignorados: ${ignorados.join(", ")}` : ""}${totalFailed > 0 ? ` · ${failedReasons[0]?.error || "ver F12"}` : ""}`,
+            variant: totalFailed > 0 ? "destructive" : undefined,
+        });
     };
 
     const handleSelectHighConfidence = () => {
@@ -1450,6 +1705,9 @@ export default function Conciliacao() {
                         )}
                     </div>
                 </div>
+
+                {/* Banco × Sistema × Diferença (Fase 1 — saldo ancorado no extrato) */}
+                <SaldoBancoVsSistema />
 
                 {/* Última conciliação por conta — detalhado, visível já na entrada */}
                 {accounts && accounts.length > 0 && (
@@ -2086,6 +2344,13 @@ export default function Conciliacao() {
                                                 <Zap className="h-3.5 w-3.5" />
                                                 Selecionar Alta Confiança
                                             </Button>
+                                            <Button size="sm" variant="outline" onClick={() => setBulkCatOpen(true)}
+                                                disabled={!!batchProgress}
+                                                title="Define a categoria escolhida nos selecionados (que estiverem sem) e concilia 1↔1"
+                                                className="gap-1 text-amber-700 border-amber-300 hover:bg-amber-50">
+                                                <BookOpen className="h-3.5 w-3.5" />
+                                                Definir categoria
+                                            </Button>
                                             <Button size="sm" onClick={handleBatchApprove}
                                                 disabled={!!batchProgress}
                                                 className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
@@ -2104,6 +2369,31 @@ export default function Conciliacao() {
                                 </div>
                             </CardHeader>
                             <CardContent>
+                                {/* Grupos semelhantes: selecione o grupo inteiro (todas as páginas) e use "Definir categoria". */}
+                                {gruposConciliaveis.length > 0 && (
+                                    <div className="mb-4 p-3 rounded-lg border border-[#EAECF0] bg-[#FAFAFA]">
+                                        <div className="flex items-center gap-1.5 mb-2">
+                                            <CheckSquare className="h-3.5 w-3.5 text-amber-600" />
+                                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+                                                Grupos semelhantes — clique pra selecionar o grupo inteiro, depois use "Definir categoria"
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {gruposConciliaveis.map(g => {
+                                                const todosSel = g.ids.every(id => selectedIds.has(id));
+                                                return (
+                                                    <button key={g.label} type="button" onClick={() => toggleGrupo(g.ids)}
+                                                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-xs transition-colors ${todosSel ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-[#EAECF0] bg-white hover:bg-amber-50 hover:border-amber-300"}`}>
+                                                        {todosSel ? <Check className="h-3.5 w-3.5 shrink-0" /> : <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                                                        <span className="font-semibold truncate max-w-[220px]">{g.label}</span>
+                                                        <Badge variant="outline" className="text-[10px] py-0 px-1.5">{g.ids.length}</Badge>
+                                                        <span className="text-muted-foreground whitespace-nowrap">{formatBRL(g.total)}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                                 {batchProgress && (
                                     <div className="mb-4 p-4 rounded-lg border bg-emerald-50 border-emerald-200">
                                         <div className="flex items-center justify-between mb-2">
@@ -2219,10 +2509,19 @@ export default function Conciliacao() {
                                                             <div className="flex justify-end items-center gap-1">
                                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                     {bestMatch && (
-                                                                        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                                            onClick={() => handleMatch(bt, bestMatch)}>
-                                                                            Aceitar
-                                                                        </Button>
+                                                                        bestMatch.conta_contabil_id ? (
+                                                                            <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                                onClick={() => handleMatch(bt, bestMatch)}>
+                                                                                Aceitar
+                                                                            </Button>
+                                                                        ) : (
+                                                                            <Button size="sm" variant="outline"
+                                                                                className="h-7 text-xs border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                                                                onClick={() => openAdjustMatch(bt, bestMatch)}
+                                                                                title="A contraparte está sem categoria — abre o lançamento pra você completar e conciliar">
+                                                                                Ajustar e conciliar
+                                                                            </Button>
+                                                                        )
                                                                     )}
                                                                     {/* Aceite inline so para bestMatch (CR/CP). Conciliar por categoria
                                                                         removido — user pediu para nao sugerir categoria, so CR/CP. */}
@@ -2296,7 +2595,7 @@ export default function Conciliacao() {
 
                 {/* Modal de Conciliação Manual */}
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
-                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ entity_name: "", description: "", category_id: "", centro_custo_id: "", competencia: "", cpf_cnpj: "", email: "" }); setFilterDateFrom(""); setFilterDateTo(""); setSelectedSysTxsForMatch([]); }
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setCategorizingMatch(null); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ entity_name: "", description: "", category_id: "", centro_custo_id: "", competencia: "", cpf_cnpj: "", email: "" }); setFilterDateFrom(""); setFilterDateTo(""); setSelectedSysTxsForMatch([]); }
                 }}>
                     <DialogContent className="grid-cols-1 w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
                         <DialogHeader>
@@ -2627,9 +2926,9 @@ export default function Conciliacao() {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <h4 className="text-sm font-semibold text-foreground">
-                                                        Criar {selectedBankTx.amount < 0 ? "Conta a Pagar" : "Conta a Receber"}
+                                                        {categorizingMatch ? "Ajustar" : "Criar"} {selectedBankTx.amount < 0 ? "Conta a Pagar" : "Conta a Receber"}
                                                     </h4>
-                                                    <p className="text-[11px] text-muted-foreground">Lançamento criado e conciliado em uma ação</p>
+                                                    <p className="text-[11px] text-muted-foreground">{categorizingMatch ? "Complete os dados do lançamento e concilie" : "Lançamento criado e conciliado em uma ação"}</p>
                                                 </div>
                                             </div>
 
@@ -2913,14 +3212,14 @@ export default function Conciliacao() {
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="outline" className="flex-1"
-                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ entity_name: "", description: "", category_id: "", centro_custo_id: "", competencia: "", cpf_cnpj: "", email: "" }); }}>
+                                                onClick={() => { setShowCreateForm(false); setCategorizingMatch(null); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ entity_name: "", description: "", category_id: "", centro_custo_id: "", competencia: "", cpf_cnpj: "", email: "" }); }}>
                                                 Voltar
                                             </Button>
                                             <Button className={`flex-1 text-white ${selectedBankTx.amount < 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                                                onClick={handleCreateAndReconcile}
+                                                onClick={categorizingMatch ? handleAdjustMatchAndReconcile : handleCreateAndReconcile}
                                                 disabled={isCreating || !newEntry.entity_name.trim() || !newEntry.category_id}>
                                                 {isCreating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-                                                Criar e Conciliar
+                                                {categorizingMatch ? "Salvar e Conciliar" : "Criar e Conciliar"}
                                             </Button>
                                         </div>
                                     </>
@@ -3007,43 +3306,63 @@ export default function Conciliacao() {
                                 <span className="text-lg font-bold text-emerald-700">{formatBRL(lancarVendaBt.amount)}</span>
                             </div>
 
-                            {/* Cliente */}
+                            {/* Cliente — busca digitável (digita e filtra) + "Novo cliente" (mesmo cadastro do Vendas) */}
                             <div className="space-y-1">
-                                <Label className="text-xs font-semibold uppercase text-muted-foreground">Cliente *</Label>
-                                <Input
-                                    value={lancarVendaForm.cliente_nome}
-                                    onChange={(e) => setLancarVendaForm(f => ({ ...f, cliente_nome: e.target.value }))}
-                                    placeholder="Nome do cliente"
-                                    autoFocus
-                                />
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">Cliente *</Label>
+                                    <button type="button" onClick={() => setIsClientSheetOpen(true)}
+                                        className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline">
+                                        <Plus className="h-3 w-3" /> Novo cliente
+                                    </button>
+                                </div>
+                                <Popover open={clientePickerOpen} onOpenChange={setClientePickerOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                                            <span className={lancarVendaForm.cliente_nome ? "truncate" : "text-muted-foreground"}>
+                                                {lancarVendaForm.cliente_nome || "Buscar cliente..."}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+                                        <Command>
+                                            <CommandInput placeholder="Digite o nome do cliente..." />
+                                            <CommandList>
+                                                <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">Nenhum cliente — use "Novo cliente".</CommandEmpty>
+                                                <CommandGroup className="max-h-[240px] overflow-y-auto">
+                                                    {(clientsList || []).map((c: any) => {
+                                                        const nome = c.razao_social || c.nome_fantasia || "";
+                                                        return (
+                                                            <CommandItem key={c.id} value={`${nome} ${c.cpf_cnpj || ""}`}
+                                                                onSelect={() => {
+                                                                    setLancarVendaForm(f => ({ ...f, cliente_id: c.id, cliente_nome: nome, cliente_cpf_cnpj: c.cpf_cnpj ? formatDoc(c.cpf_cnpj) : "" }));
+                                                                    setClientePickerOpen(false);
+                                                                }}
+                                                                className="text-sm cursor-pointer">
+                                                                <span className="truncate">{nome}</span>
+                                                                {c.cpf_cnpj && <span className="ml-2 text-[11px] text-muted-foreground">{formatDoc(c.cpf_cnpj)}</span>}
+                                                            </CommandItem>
+                                                        );
+                                                    })}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
 
-                            {/* CPF/CNPJ */}
-                            <div className="space-y-1">
-                                <Label className="text-xs font-semibold uppercase text-muted-foreground">CPF / CNPJ</Label>
-                                <Input
-                                    value={lancarVendaForm.cliente_cpf_cnpj}
-                                    onChange={(e) => setLancarVendaForm(f => ({ ...f, cliente_cpf_cnpj: e.target.value }))}
-                                    placeholder="Opcional"
-                                />
-                            </div>
-
-                            {/* Tipo + Forma de pagamento (lado a lado) */}
+                            {/* CPF/CNPJ (máscara padrão) + Forma (da conciliação) */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1">
-                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">Tipo *</Label>
-                                    <Select value={lancarVendaForm.tipo} onValueChange={(v) => setLancarVendaForm(f => ({ ...f, tipo: v }))}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="servico">Serviço</SelectItem>
-                                            <SelectItem value="produto">Produto</SelectItem>
-                                            <SelectItem value="pacote">Pacote</SelectItem>
-                                            <SelectItem value="contrato">Contrato</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">CPF / CNPJ</Label>
+                                    <Input
+                                        value={lancarVendaForm.cliente_cpf_cnpj}
+                                        onChange={(e) => setLancarVendaForm(f => ({ ...f, cliente_cpf_cnpj: formatDoc(e.target.value) }))}
+                                        placeholder="000.000.000-00"
+                                    />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">Forma *</Label>
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">Forma <span className="normal-case font-normal text-[10px] text-emerald-600">(da conciliação)</span></Label>
                                     <Select value={lancarVendaForm.forma_pagamento} onValueChange={(v) => setLancarVendaForm(f => ({ ...f, forma_pagamento: v }))}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
@@ -3058,19 +3377,50 @@ export default function Conciliacao() {
                                 </div>
                             </div>
 
-                            {/* Conta contábil de receita */}
-                            <div className="space-y-1">
-                                <Label className="text-xs font-semibold uppercase text-muted-foreground">Conta contábil (receita) *</Label>
-                                <Select value={lancarVendaForm.conta_contabil_id} onValueChange={(v) => setLancarVendaForm(f => ({ ...f, conta_contabil_id: v }))}>
-                                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {(chartCategories || [])
-                                            .filter((c: any) => c.type === "receita")
-                                            .map((c: any) => (
-                                                <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
-                                            ))}
-                                    </SelectContent>
-                                </Select>
+                            {/* O que foi vendido — catálogo, vários itens, valores editáveis; a categoria vem do produto */}
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">O que foi vendido *</Label>
+                                    <button type="button" onClick={addItemVenda}
+                                        className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline">
+                                        <Plus className="h-3 w-3" /> Adicionar item
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    {lancarVendaItens.map((it, idx) => (
+                                        <div key={idx} className="flex items-center gap-2">
+                                            <button type="button" onClick={() => setCatalogoItemIdx(idx)}
+                                                className="flex-1 min-w-0 text-left text-sm px-2.5 py-2 rounded-md border border-[#EAECF0] bg-white hover:border-emerald-300 hover:bg-emerald-50/40 transition-colors">
+                                                {it.descricao
+                                                    ? <span className="block truncate text-[#1D2939]">{it.descricao}</span>
+                                                    : <span className="text-muted-foreground">Escolher do catálogo...</span>}
+                                            </button>
+                                            <Input type="number" min={1} value={it.quantidade}
+                                                onChange={(e) => updateItemVenda(idx, { quantidade: parseFloat(e.target.value) || 0 })}
+                                                className="w-14 text-center" title="Quantidade" />
+                                            <Input type="number" step="0.01" value={it.valor_unitario}
+                                                onChange={(e) => updateItemVenda(idx, { valor_unitario: parseFloat(e.target.value) || 0 })}
+                                                className="w-24 text-right" title="Valor unitário (editável)" />
+                                            <button type="button" onClick={() => removeItemVenda(idx)} disabled={lancarVendaItens.length <= 1}
+                                                className="text-red-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="flex items-center justify-between text-[12px] pt-0.5">
+                                    <span className="text-muted-foreground">Soma dos itens × valor do extrato</span>
+                                    {(() => {
+                                        const alvo = Math.abs(Number(lancarVendaBt.amount || 0));
+                                        const bate = Math.abs(totalItensVenda - alvo) <= 0.01;
+                                        return (
+                                            <span className={`font-semibold ${bate ? "text-emerald-700" : "text-amber-600"}`}>
+                                                {formatBRL(totalItensVenda)} / {formatBRL(alvo)}{bate ? " ✓" : ""}
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">A categoria contábil vem do produto/serviço (cadastre em <strong>Operacional › Categoria Contábil</strong>).</p>
                             </div>
 
                             <div className="flex gap-2 pt-2">
@@ -3079,7 +3429,7 @@ export default function Conciliacao() {
                                     Cancelar
                                 </Button>
                                 <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    disabled={isLancandoVenda || !lancarVendaForm.cliente_nome.trim() || !lancarVendaForm.conta_contabil_id}
+                                    disabled={isLancandoVenda || !lancarVendaForm.cliente_nome.trim()}
                                     onClick={handleSalvarLancamentoVenda}>
                                     {isLancandoVenda ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                                     Lançar venda
@@ -3089,6 +3439,21 @@ export default function Conciliacao() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Catálogo compartilhado — escolher produto/serviço de um item da venda */}
+            <ProdutoCatalogoDialog
+                open={catalogoItemIdx !== null}
+                onClose={() => setCatalogoItemIdx(null)}
+                companyId={selectedCompany?.id}
+                onPick={(p) => {
+                    if (catalogoItemIdx === null) return;
+                    updateItemVenda(catalogoItemIdx, {
+                        descricao: p.description,
+                        valor_unitario: p.price && p.price > 0 ? p.price : (lancarVendaItens[catalogoItemIdx]?.valor_unitario || 0),
+                        conta_contabil_id: p.conta_contabil_id ?? null,
+                    });
+                }}
+            />
 
             <OpeningCheckDialog
                 open={!!openingCheck}
@@ -3123,6 +3488,39 @@ export default function Conciliacao() {
                     queryClient.invalidateQueries({ queryKey: ["clients_picker", selectedCompany?.id] });
                 }}
             />
+
+            {/* Seletor de categoria EM LOTE: aplica nos selecionados (sem categoria) e concilia 1↔1. */}
+            <Dialog open={bulkCatOpen} onOpenChange={setBulkCatOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Categoria para os selecionados</DialogTitle>
+                        <DialogDescription>
+                            A categoria escolhida será aplicada nos <span className="font-semibold">{selectedIds.size}</span> selecionados que
+                            estiverem <span className="font-semibold">sem categoria</span> (não sobrescreve os já categorizados), e cada um será conciliado com a sua CR/CP (1↔1).
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Command className="rounded-lg border shadow-sm" shouldFilter={true}>
+                        <CommandInput placeholder="Buscar categoria..." className="h-9 text-sm" />
+                        <CommandList>
+                            <CommandEmpty className="py-3 text-center text-sm text-muted-foreground">Nenhuma encontrada</CommandEmpty>
+                            <CommandGroup className="max-h-[300px] overflow-y-auto">
+                                {(chartCategories || []).map((cat: any) => (
+                                    <CommandItem
+                                        key={cat.id}
+                                        value={`${cat.code} ${cat.name}`}
+                                        onSelect={() => handleBulkCategorizeAndApprove(cat.id)}
+                                        className="text-sm cursor-pointer"
+                                    >
+                                        <span className="font-medium text-muted-foreground mr-1.5">{cat.code}</span>
+                                        <span>{cat.name}</span>
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </DialogContent>
+            </Dialog>
+
         </AppLayout>
     );
 }

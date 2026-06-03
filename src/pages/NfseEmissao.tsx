@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { format, endOfMonth, parseISO } from 'date-fns'
+import { format, endOfMonth, startOfMonth, parseISO } from 'date-fns'
 import {
   FileText, Plus, Search, Loader2, X, Download,
   Mail, MoreHorizontal, Check, Ban, RefreshCw,
@@ -20,6 +20,8 @@ import { PagePanel } from '@/components/layout/PagePanel'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { toast } from 'sonner'
 import { apurarImpostoCompetencia, normalizarRegime, type RegimeNorm } from '@/lib/fiscal/apuracao'
+import { useLimit } from '@/hooks/useEntitlements'
+import { LimitBadge } from '@/components/LimitBadge'
 
 const REGIME_LABEL: Record<string, string> = {
   simples: 'Simples Nacional', presumido: 'Lucro Presumido', real: 'Lucro Real', mei: 'MEI',
@@ -235,6 +237,33 @@ export default function NfseEmissao() {
   const [loading, setLoading] = useState(true)
   const [config, setConfig] = useState<NfseConfig | null>(null)
   const [clients, setClients] = useState<Client[]>([])
+
+  // ── Limite de NFSe/mês do pacote (modularização Fase 3) ──────────
+  // Conta notas EFETIVAMENTE emitidas (numero_nfse preenchido) no mês CORRENTE,
+  // independente do mês visualizado na tela.
+  const [usedNfseMes, setUsedNfseMes] = useState(0)
+  const nfseLimit = useLimit('nfse_per_month', usedNfseMes)
+  useEffect(() => {
+    if (!selectedCompany?.id) { setUsedNfseMes(0); return }
+    const db = activeClient as any
+    const ini = format(startOfMonth(new Date()), 'yyyy-MM-dd')
+    const fim = format(endOfMonth(new Date()), 'yyyy-MM-dd')
+    db.from('nfse_emissoes')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', selectedCompany.id)
+      .gte('data_emissao', ini)
+      .lte('data_emissao', fim)
+      .not('numero_nfse', 'is', null)
+      .then((r: any) => setUsedNfseMes(r?.count ?? 0))
+    // recount quando a lista de emissões muda (após emitir/cancelar)
+  }, [selectedCompany?.id, activeClient, emissoes])
+  const podeEmitirNfse = () => {
+    if (nfseLimit.atLimit) {
+      toast.error(`Seu plano permite até ${nfseLimit.limit} NFSe por mês. Fale com a Tática para fazer upgrade.`)
+      return false
+    }
+    return true
+  }
 
   // Previsão de imposto do mês (apuração)
   const [apuracao, setApuracao] = useState<any | null>(null)
@@ -1115,6 +1144,7 @@ export default function NfseEmissao() {
 
   // ─── Emitir NFSe ─────────────────────────────────────────────────
   const handleEmitir = async () => {
+    if (!podeEmitirNfse()) return
     setSubmitting(true)
     const db = activeClient as any
 
@@ -1826,6 +1856,7 @@ export default function NfseEmissao() {
                                 <button
                                   onClick={async () => {
                                     setDropdownOpen(null)
+                                    if (!podeEmitirNfse()) return
                                     const db = activeClient as any
                                     toast.info('Enviando NFSe...')
                                     try {
@@ -2206,6 +2237,12 @@ export default function NfseEmissao() {
 
               {/* Footer */}
               <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+                {!nfseLimit.isUnlimited && (
+                  <div className="mr-auto flex items-center gap-2 text-xs text-[#667085]">
+                    <span>NFSe este mês:</span>
+                    <LimitBadge limitKey="nfse_per_month" used={usedNfseMes} />
+                  </div>
+                )}
                 <button
                   onClick={() => { setShowNovaModal(false); stopPolling() }}
                   className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"

@@ -130,9 +130,9 @@ export default function PainelGerencial() {
   // ── Filtro de período ───────────────────────────────────────
   type PeriodoTipo = "mes" | "custom";
   const [periodoTipo, setPeriodoTipo] = useState<PeriodoTipo>("mes");
-  const [mesSelecionado, setMesSelecionado] = useState(format(realToday, "yyyy-MM"));
-  const [dataInicio, setDataInicio] = useState(format(startOfMonth(realToday), "yyyy-MM-dd"));
-  const [dataFim, setDataFim] = useState(format(endOfMonth(realToday), "yyyy-MM-dd"));
+  const [mesSelecionado, setMesSelecionado] = useState(format(subMonths(realToday, 1), "yyyy-MM"));
+  const [dataInicio, setDataInicio] = useState(format(startOfMonth(subMonths(realToday, 1)), "yyyy-MM-dd"));
+  const [dataFim, setDataFim] = useState(format(endOfMonth(subMonths(realToday, 1)), "yyyy-MM-dd"));
 
   // ── Regime contábil do faturamento ──────────────────────────
   // "competencia": soma das vendas emitidas no período (tabela `vendas`)

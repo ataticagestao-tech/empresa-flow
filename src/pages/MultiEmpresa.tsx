@@ -878,31 +878,88 @@ function CompCard({
   );
 }
 
-/** Barras comparando empresas (uma barra por empresa) + médias + linha de média. */
+/** Barra centralizada de largura fixa (px). Usada p/ sobrepor 2025 (largo) ATRÁS de 2026 (estreito),
+ *  ambas centradas no mesmo ponto da loja. Recharts injeta x/y/width/height; barW é a largura desenhada. */
+function CenteredBar(props: any) {
+  const { x, width, y, height, fill, fillOpacity = 1, barW = 24, radius = 4 } = props;
+  if (!(height > 0) || width == null) return null;
+  const cx = x + width / 2;
+  const bx = cx - barW / 2;
+  const r = Math.max(0, Math.min(radius, barW / 2, height));
+  const d = `M ${bx} ${y + height} L ${bx} ${y + r} Q ${bx} ${y} ${bx + r} ${y} L ${bx + barW - r} ${y} Q ${bx + barW} ${y} ${bx + barW} ${y + r} L ${bx + barW} ${y + height} Z`;
+  return <path d={d} fill={fill} fillOpacity={fillOpacity} />;
+}
+
+/** Barras comparando empresas (uma barra por empresa) + médias + linha de média.
+ *  Modo comparativo (prop `compare`): barra do ano anterior (laranja, mais LARGA, semi-transparente)
+ *  ATRÁS da barra atual (verde, mais estreita), sobrepostas e centradas no mesmo eixo. Se vier
+ *  `inflPct`, desenha ainda a LINHA de meta = faturamento do ano anterior × (1 + inflação). */
 function CompBarCard({
   title, subtitle, info, caption, rows, valueKey, color = "#039855", height = 240,
+  compare, legend,
 }: {
   title: string; subtitle?: string; info?: string; caption?: string; rows: GrupoCompanyRow[];
   valueKey: keyof GrupoCompanyRow; color?: string; height?: number;
+  compare?: { byId: Record<string, number>; label: string; curLabel: string; color: string; inflPct?: number | null };
+  legend?: CardLegend[];
 }) {
   const allowNegative = valueKey === "caixaGerado";
+  const infl = compare?.inflPct ?? null;
   const data = rows
-    .map((r) => ({ nome: r.nome, valor: Number(r[valueKey] ?? 0) }))
-    .filter((d) => d.valor !== 0)
-    .sort((a, b) => b.valor - a.valor);
+    .map((r) => {
+      const valor = Number(r[valueKey] ?? 0);
+      const prev = compare ? Number(compare.byId[r.company_id] ?? 0) : 0;
+      const meta = compare && infl != null && prev > 0 ? prev * (1 + infl / 100) : null;
+      return { nome: r.nome, valor, prev, meta };
+    })
+    .filter((d) => (compare ? (d.valor !== 0 || d.prev !== 0) : d.valor !== 0))
+    .sort((a, b) => (compare ? (b.valor + b.prev) - (a.valor + a.prev) : b.valor - a.valor));
 
   const vals = data.map((d) => d.valor);
   const media = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
-  const stats: CardStat[] = [
-    { label: "Média", value: fmt(media) },
-    { label: "Maior", value: vals.length ? fmt(Math.max(...vals)) : "—" },
-    { label: "Menor", value: vals.length ? fmt(Math.min(...vals)) : "—" },
-  ];
+  const hasMeta = !!compare && infl != null && data.some((d) => d.meta != null);
+  const metaName = compare ? `Meta ${compare.curLabel} (infl.)` : "";
+
+  let stats: CardStat[];
+  if (compare) {
+    const totCur = data.reduce((s, d) => s + d.valor, 0);
+    const totPrev = data.reduce((s, d) => s + d.prev, 0);
+    const varPct = totPrev !== 0 ? ((totCur - totPrev) / totPrev) * 100 : null;
+    stats = [
+      { label: compare.curLabel, value: fmt(totCur), color },
+      { label: compare.label, value: fmt(totPrev), color: compare.color },
+      { label: "Variação", value: varPct == null ? "—" : `${varPct >= 0 ? "+" : ""}${varPct.toFixed(1)}%`, color: varPct != null && varPct >= 0 ? "#039855" : "#E53E3E" },
+    ];
+  } else {
+    stats = [
+      { label: "Média", value: fmt(media) },
+      { label: "Maior", value: vals.length ? fmt(Math.max(...vals)) : "—" },
+      { label: "Menor", value: vals.length ? fmt(Math.min(...vals)) : "—" },
+    ];
+  }
+
+  const SLOT = 48; // largura do "trilho" das duas barras (precisa caber a laranja larga)
 
   return (
-    <CompCard title={title} subtitle={subtitle} info={info} caption={caption} stats={stats} height={height}>
+    <CompCard title={title} subtitle={subtitle} info={info} caption={caption} stats={stats} legend={legend} height={height}>
       {data.length === 0 ? (
         <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2 }}>Sem dados no período</div>
+      ) : compare ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 4 }} barCategoryGap="18%" barGap={-SLOT}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+            <XAxis dataKey="nome" interval={0} height={56} tick={<WrappedAxisTick />} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} tickMargin={8} />
+            <YAxis tick={{ fontSize: 9, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} width={40} tickFormatter={yTickFmt} />
+            <ReTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n: string) => [fmt(v), n]} cursor={{ fill: "rgba(3, 152, 85, 0.06)" }} />
+            {/* laranja (ano anterior): larga, atrás */}
+            <Bar dataKey="prev" name={compare.label} fill={compare.color} fillOpacity={0.45} barSize={SLOT} shape={<CenteredBar barW={44} />} isAnimationActive={false} />
+            {/* verde (ano atual): estreita, na frente */}
+            <Bar dataKey="valor" name={compare.curLabel} fill={color} barSize={SLOT} shape={<CenteredBar barW={22} />} isAnimationActive={false} />
+            {hasMeta && (
+              <Line type="linear" dataKey="meta" name={metaName} stroke="#1D2939" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 3, fill: "#fff", stroke: "#1D2939", strokeWidth: 1.5 }} connectNulls={false} isAnimationActive={false} />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
       ) : (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 4 }} barCategoryGap="14%">
@@ -1187,7 +1244,14 @@ const pctTxt = (v: number, d = 1) => `${v.toLocaleString("pt-BR", { minimumFract
 
 /** DRE por competência DETALHADA por categoria (conta contábil), com uma coluna por loja
  * selecionada + TOTAL. Custos e Despesas abrem nas suas categorias. Lojas ligam/desligam. */
-function DREComparativaCard({ rows, categorias, periodLabel }: { rows: GrupoCompanyRow[]; categorias: DreCategoria[]; periodLabel: string }) {
+function DREComparativaCard({
+  rows, categorias, periodLabel,
+  prevRows, prevCategorias, comparar = false, onToggleComparar, loadingPrev = false, curLabel = "", prevLabel = "",
+}: {
+  rows: GrupoCompanyRow[]; categorias: DreCategoria[]; periodLabel: string;
+  prevRows?: GrupoCompanyRow[]; prevCategorias?: DreCategoria[];
+  comparar?: boolean; onToggleComparar?: () => void; loadingPrev?: boolean; curLabel?: string; prevLabel?: string;
+}) {
   // Rastreamos as DEselecionadas: assim toda loja nova já entra ligada por padrão.
   const [excluidas, setExcluidas] = useState<Set<string>>(new Set());
   const [detalhar, setDetalhar] = useState(true); // abre detalhado por categoria
@@ -1196,51 +1260,74 @@ function DREComparativaCard({ rows, categorias, periodLabel }: { rows: GrupoComp
     setExcluidas((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const sel = rows.filter((r) => isOn(r.company_id));
-  const total = sel.reduce(
-    (a, r) => ({ faturamento: a.faturamento + r.faturamento, custo: a.custo + r.custo, despesaOp: a.despesaOp + r.despesaOp, imposto: a.imposto + r.imposto }),
-    { faturamento: 0, custo: 0, despesaOp: 0, imposto: 0 },
-  );
+  const comparing = comparar && !!prevRows; // só pareia quando o 2025 já carregou
+
   type DreLin = { faturamento: number; custo: number; despesaOp: number; imposto: number };
+  const ZERO: DreLin = { faturamento: 0, custo: 0, despesaOp: 0, imposto: 0 };
+  const linOf = (r: GrupoCompanyRow): DreLin => ({ faturamento: r.faturamento, custo: r.custo, despesaOp: r.despesaOp, imposto: r.imposto });
+  const prevById = new Map<string, GrupoCompanyRow>((prevRows || []).map((r) => [r.company_id, r]));
+  const prevCatByKey = new Map<string, Record<string, number>>((prevCategorias || []).map((c) => [c.classe + "|" + c.nome, c.porEmpresa]));
+  const prevLin = (cid: string): DreLin => { const r = prevById.get(cid); return r ? linOf(r) : ZERO; };
+  const sumLin = (get: (cid: string) => DreLin) =>
+    sel.reduce((a, r) => { const x = get(r.company_id); return { faturamento: a.faturamento + x.faturamento, custo: a.custo + x.custo, despesaOp: a.despesaOp + x.despesaOp, imposto: a.imposto + x.imposto }; }, { ...ZERO });
+  const total = sumLin((cid) => linOf(rows.find((x) => x.company_id === cid)!));
+  const totalPrev = sumLin(prevLin);
+
   const receitaLiq = (r: DreLin) => r.faturamento - r.imposto;
   const resultadoDe = (r: DreLin) => r.faturamento - r.imposto - r.custo - r.despesaOp;
   const margemDe = (res: number, f: number) => (f > 0 ? (res / f) * 100 : 0);
 
-  const impostos = categorias.filter((c) => c.classe === "imposto");
-  const custos = categorias.filter((c) => c.classe === "custo");
-  const despesas = categorias.filter((c) => c.classe === "despesa");
-  const catTotalSel = (c: DreCategoria) => sel.reduce((s, r) => s + (c.porEmpresa[r.company_id] || 0), 0);
+  // categorias unidas (atual + só-2025), p/ não perder categoria que só exista no ano anterior
+  const allCats = comparing
+    ? [...categorias, ...(prevCategorias || []).filter((c) => !categorias.some((x) => x.classe === c.classe && x.nome === c.nome))]
+    : categorias;
+  const impostos = allCats.filter((c) => c.classe === "imposto");
+  const custos = allCats.filter((c) => c.classe === "custo");
+  const despesas = allCats.filter((c) => c.classe === "despesa");
+  const catCur = (c: DreCategoria, cid: string) => c.porEmpresa[cid] || 0;
+  const catPrev = (c: DreCategoria, cid: string) => prevCatByKey.get(c.classe + "|" + c.nome)?.[cid] || 0;
+  const catTotalSel = (c: DreCategoria) => sel.reduce((s, r) => s + catCur(c, r.company_id), 0);
+  const catTotalSelPrev = (c: DreCategoria) => sel.reduce((s, r) => s + catPrev(c, r.company_id), 0);
 
-  const colCount = sel.length + 2; // DRE + lojas + TOTAL
+  const colCount = comparing ? sel.length * 2 + 3 : sel.length + 2; // DRE + lojas(×2?) + TOTAL(×2?)
+
+  // célula de valor de uma linha principal
+  const cell = (key: string, v: number, tipo: "rec" | "neg" | "sub" | "res", o: { total?: boolean; muted?: boolean } = {}) => {
+    const color = o.muted ? "#98A2B3" : tipo === "res" ? (v >= 0 ? "#1570EF" : "#E53E3E") : tipo === "neg" ? "#B54708" : "#1D2939";
+    return <td key={key} className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums" style={{ color, fontWeight: tipo === "res" || o.total ? 700 : 600, background: o.total ? (o.muted ? "#FBF8F3" : "#F6F2EB") : undefined, fontSize: o.muted ? 12 : undefined }}>{tipo === "neg" ? `(${fmt(v)})` : fmt(v)}</td>;
+  };
 
   // Linha principal. tipo: rec = Receita; neg = dedução/custo/despesa; sub = subtotal (Receita líquida); res = Resultado.
   const renderLinha = (label: string, valor: (r: DreLin) => number, tipo: "rec" | "neg" | "sub" | "res") => (
     <tr key={label} className={`border-b border-[#F1F3F5] ${tipo === "res" ? "bg-[#FAFAFA]" : ""}`}>
-      <td className={`px-3 py-1.5 sticky left-0 ${tipo === "res" ? "bg-[#FAFAFA] font-bold text-[#1D2939]" : "bg-white"} ${tipo === "rec" || tipo === "neg" || tipo === "sub" ? "font-semibold text-[#1D2939]" : ""}`}>{label}</td>
-      {sel.map((r) => {
-        const v = valor(r);
-        const color = tipo === "res" ? (v >= 0 ? "#1570EF" : "#E53E3E") : tipo === "neg" ? "#B54708" : "#1D2939";
-        return <td key={r.company_id} className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums" style={{ color, fontWeight: tipo === "res" ? 700 : 600 }}>{tipo === "neg" ? `(${fmt(v)})` : fmt(v)}</td>;
+      <td className={`px-3 py-1.5 sticky left-0 ${tipo === "res" ? "bg-[#FAFAFA] font-bold text-[#1D2939]" : "bg-white"} font-semibold text-[#1D2939]`}>{label}</td>
+      {sel.flatMap((r) => {
+        const cells = [cell(r.company_id + ":c", valor(linOf(r)), tipo)];
+        if (comparing) cells.push(cell(r.company_id + ":p", valor(prevLin(r.company_id)), tipo, { muted: true }));
+        return cells;
       })}
-      {(() => {
-        const v = valor(total);
-        const color = tipo === "res" ? (v >= 0 ? "#1570EF" : "#E53E3E") : tipo === "neg" ? "#B54708" : "#1D2939";
-        return <td className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums bg-[#F6F2EB]" style={{ color, fontWeight: 700 }}>{tipo === "neg" ? `(${fmt(v)})` : fmt(v)}</td>;
-      })()}
+      {cell("total:c", valor(total), tipo, { total: true })}
+      {comparing ? cell("total:p", valor(totalPrev), tipo, { total: true, muted: true }) : null}
     </tr>
   );
 
   // Linha de categoria (indentada, sob Custos/Despesas)
   const renderCatRow = (c: DreCategoria) => {
     const tSel = catTotalSel(c);
-    if (tSel <= 0) return null;
+    const tSelPrev = comparing ? catTotalSelPrev(c) : 0;
+    if (tSel <= 0 && tSelPrev <= 0) return null;
+    const catCell = (key: string, v: number, o: { total?: boolean; muted?: boolean } = {}) =>
+      <td key={key} className="text-right px-3 py-1 whitespace-nowrap tabular-nums" style={{ color: o.muted ? (v ? "#B9A38F" : "#D8C9BB") : v ? "#98623A" : "#CBD2DA", fontSize: 12.5, fontWeight: o.total ? 600 : 400, background: o.total ? "#FBF8F3" : undefined }}>{v ? `(${fmt(v)})` : "—"}</td>;
     return (
       <tr key={c.classe + "|" + c.nome} className="border-b border-[#F7F7F7]">
         <td className="px-3 py-1 sticky left-0 bg-white truncate" style={{ paddingLeft: 28, color: "#667085", fontSize: 12.5, maxWidth: 260 }} title={c.nome}>{c.nome}</td>
-        {sel.map((r) => {
-          const v = c.porEmpresa[r.company_id] || 0;
-          return <td key={r.company_id} className="text-right px-3 py-1 whitespace-nowrap tabular-nums" style={{ color: v ? "#98623A" : "#CBD2DA", fontSize: 12.5 }}>{v ? `(${fmt(v)})` : "—"}</td>;
+        {sel.flatMap((r) => {
+          const cells = [catCell(r.company_id + ":c", catCur(c, r.company_id))];
+          if (comparing) cells.push(catCell(r.company_id + ":p", catPrev(c, r.company_id), { muted: true }));
+          return cells;
         })}
-        <td className="text-right px-3 py-1 whitespace-nowrap tabular-nums bg-[#FBF8F3]" style={{ color: "#98623A", fontSize: 12.5, fontWeight: 600 }}>{`(${fmt(tSel)})`}</td>
+        {catCell("t:c", tSel, { total: true })}
+        {comparing ? catCell("t:p", tSelPrev, { total: true, muted: true }) : null}
       </tr>
     );
   };
@@ -1253,16 +1340,28 @@ function DREComparativaCard({ rows, categorias, periodLabel }: { rows: GrupoComp
             <h3 className="font-extrabold text-white m-0" style={{ fontSize: 14, letterSpacing: "-0.01em", textTransform: "uppercase" }}>DRE comparativa — lojas lado a lado</h3>
             <span title="Demonstrativo de Resultado por competência. Receita = vendas; Custos/Despesas = contas a pagar classificadas no plano de contas, abertas por categoria. Marque/desmarque lojas e troque o período no topo." className="inline-flex cursor-help"><Info size={13} className="text-white/60" /></span>
           </div>
-          <div className="text-white/65" style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>{periodLabel} · regime de competência · {sel.length} de {rows.length} loja(s)</div>
+          <div className="text-white/65" style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>{periodLabel} · regime de competência · {sel.length} de {rows.length} loja(s){comparing ? ` · ${curLabel} × ${prevLabel}` : ""}</div>
         </div>
-        <button
-          onClick={() => setDetalhar((d) => !d)}
-          className="self-center rounded-lg text-[12px] font-medium px-2.5 py-1.5 whitespace-nowrap"
-          style={{ background: detalhar ? "#fff" : "transparent", color: detalhar ? NAVY : "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.25)" }}
-          title="Mostrar/ocultar as categorias dentro de Custos e Despesas"
-        >
-          {detalhar ? "Ocultar categorias" : "Detalhar categorias"}
-        </button>
+        <div className="self-center flex items-center gap-2">
+          {onToggleComparar && (
+            <button
+              onClick={onToggleComparar}
+              className="rounded-lg text-[12px] font-medium px-2.5 py-1.5 whitespace-nowrap"
+              style={{ background: comparar ? "#fff" : "transparent", color: comparar ? NAVY : "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.25)" }}
+              title="Trazer o mesmo período do ano anterior, lado a lado, em cada loja"
+            >
+              {loadingPrev ? "Carregando…" : comparar ? `Comparando ${prevLabel}` : `Comparar ${prevLabel}`}
+            </button>
+          )}
+          <button
+            onClick={() => setDetalhar((d) => !d)}
+            className="rounded-lg text-[12px] font-medium px-2.5 py-1.5 whitespace-nowrap"
+            style={{ background: detalhar ? "#fff" : "transparent", color: detalhar ? NAVY : "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.25)" }}
+            title="Mostrar/ocultar as categorias dentro de Custos e Despesas"
+          >
+            {detalhar ? "Ocultar categorias" : "Detalhar categorias"}
+          </button>
+        </div>
       </div>
       <div className="bg-white px-5 py-4 flex flex-col gap-3">
         {/* Chips de seleção de lojas */}
@@ -1289,12 +1388,22 @@ function DREComparativaCard({ rows, categorias, periodLabel }: { rows: GrupoComp
             <table className="text-sm" style={{ minWidth: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr className="text-[12px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD]">
-                  <th className="text-left px-3 py-2.5 sticky left-0 bg-white" style={{ minWidth: 200 }}>DRE</th>
+                  <th rowSpan={comparing ? 2 : 1} className="text-left px-3 py-2.5 sticky left-0 bg-white" style={{ minWidth: 200 }}>DRE</th>
                   {sel.map((r) => (
-                    <th key={r.company_id} className="text-right px-3 py-2.5 whitespace-nowrap" style={{ minWidth: 120 }} title={r.nome}>{shortName(r.nome)}</th>
+                    <th key={r.company_id} colSpan={comparing ? 2 : 1} className={`${comparing ? "text-center border-l border-[#EAECF0]" : "text-right"} px-3 py-2.5 whitespace-nowrap`} style={{ minWidth: comparing ? 170 : 120 }} title={r.nome}>{shortName(r.nome)}</th>
                   ))}
-                  <th className="text-right px-3 py-2.5 whitespace-nowrap bg-[#F6F2EB]" style={{ minWidth: 120 }}>TOTAL</th>
+                  <th colSpan={comparing ? 2 : 1} className={`${comparing ? "text-center" : "text-right"} px-3 py-2.5 whitespace-nowrap bg-[#F6F2EB] border-l border-[#EAD9C2]`} style={{ minWidth: comparing ? 170 : 120 }}>TOTAL</th>
                 </tr>
+                {comparing && (
+                  <tr className="text-[10px] font-bold uppercase tracking-wide border-b-2 border-[#D0D5DD]">
+                    {sel.flatMap((r) => [
+                      <th key={r.company_id + ":hc"} className="text-right px-3 py-1 whitespace-nowrap border-l border-[#EAECF0]" style={{ color: "#039855" }}>{curLabel}</th>,
+                      <th key={r.company_id + ":hp"} className="text-right px-3 py-1 whitespace-nowrap" style={{ color: "#98A2B3" }}>{prevLabel}</th>,
+                    ])}
+                    <th key="thc" className="text-right px-3 py-1 whitespace-nowrap bg-[#F6F2EB] border-l border-[#EAD9C2]" style={{ color: "#039855" }}>{curLabel}</th>
+                    <th key="thp" className="text-right px-3 py-1 whitespace-nowrap bg-[#F6F2EB]" style={{ color: "#98A2B3" }}>{prevLabel}</th>
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {renderLinha("Receita", (r) => r.faturamento, "rec")}
@@ -1316,20 +1425,30 @@ function DREComparativaCard({ rows, categorias, periodLabel }: { rows: GrupoComp
                 {/* Margem % */}
                 <tr className="border-b border-[#F1F3F5]">
                   <td className="px-3 py-1.5 sticky left-0 bg-white text-[#475467]">Margem %</td>
-                  {sel.map((r) => {
-                    const mg = margemDe(resultadoDe(r), r.faturamento);
-                    return <td key={r.company_id} className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums" style={{ color: mg >= 0 ? "#039855" : "#E53E3E", fontWeight: 600 }}>{pctTxt(mg)}</td>;
+                  {sel.flatMap((r) => {
+                    const mgC = margemDe(resultadoDe(linOf(r)), r.faturamento);
+                    const cells = [<td key={r.company_id + ":mc"} className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums" style={{ color: mgC >= 0 ? "#039855" : "#E53E3E", fontWeight: 600 }}>{pctTxt(mgC)}</td>];
+                    if (comparing) {
+                      const p = prevLin(r.company_id);
+                      const mgP = margemDe(resultadoDe(p), p.faturamento);
+                      cells.push(<td key={r.company_id + ":mp"} className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums" style={{ color: "#98A2B3", fontWeight: 600, fontSize: 12 }}>{pctTxt(mgP)}</td>);
+                    }
+                    return cells;
                   })}
                   {(() => {
                     const mg = margemDe(resultadoDe(total), total.faturamento);
-                    return <td className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums bg-[#F6F2EB]" style={{ color: mg >= 0 ? "#039855" : "#E53E3E", fontWeight: 700 }}>{pctTxt(mg)}</td>;
+                    return <td key="mgtc" className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums bg-[#F6F2EB]" style={{ color: mg >= 0 ? "#039855" : "#E53E3E", fontWeight: 700 }}>{pctTxt(mg)}</td>;
+                  })()}
+                  {comparing && (() => {
+                    const mg = margemDe(resultadoDe(totalPrev), totalPrev.faturamento);
+                    return <td key="mgtp" className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums bg-[#FBF8F3]" style={{ color: "#98A2B3", fontWeight: 700, fontSize: 12 }}>{pctTxt(mg)}</td>;
                   })()}
                 </tr>
               </tbody>
             </table>
           </div>
         )}
-        <p style={{ fontSize: 11.5, color: TXT2, lineHeight: 1.35 }}>Receita pelas vendas; Impostos sobre vendas, Custos e Despesas pelas contas a pagar classificadas no plano de contas (regime de competência), abertas por categoria. Marque/desmarque lojas acima; o período vem do seletor no topo.</p>
+        <p style={{ fontSize: 11.5, color: TXT2, lineHeight: 1.35 }}>Receita pelas vendas; Impostos sobre vendas, Custos e Despesas pelas contas a pagar classificadas no plano de contas (regime de competência), abertas por categoria. Marque/desmarque lojas acima; o período vem do seletor no topo. Botão "Comparar {prevLabel || "ano anterior"}" traz o mesmo período do ano anterior lado a lado em cada loja (coluna em cinza).</p>
       </div>
     </Card>
   );
@@ -1782,16 +1901,20 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
   const [exporting, setExporting] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null); // capturamos os gráficos daqui p/ o PDF
 
-  const { periodStart, periodEnd, periodLabel } = useMemo(() => {
+  const { periodStart, periodEnd, periodLabel, prevStart, prevEnd } = useMemo(() => {
     const t = new Date();
     if (periodo === "mes")
-      return { periodStart: toISO(new Date(t.getFullYear(), t.getMonth(), 1)), periodEnd: toISO(new Date(t.getFullYear(), t.getMonth() + 1, 0)), periodLabel: "Mês atual" };
+      return { periodStart: toISO(new Date(t.getFullYear(), t.getMonth(), 1)), periodEnd: toISO(new Date(t.getFullYear(), t.getMonth() + 1, 0)), periodLabel: "Mês atual",
+               prevStart: toISO(new Date(t.getFullYear() - 1, t.getMonth(), 1)), prevEnd: toISO(new Date(t.getFullYear() - 1, t.getMonth() + 1, 0)) };
     if (periodo === "mes_anterior")
-      return { periodStart: toISO(new Date(t.getFullYear(), t.getMonth() - 1, 1)), periodEnd: toISO(new Date(t.getFullYear(), t.getMonth(), 0)), periodLabel: "Mês anterior" };
+      return { periodStart: toISO(new Date(t.getFullYear(), t.getMonth() - 1, 1)), periodEnd: toISO(new Date(t.getFullYear(), t.getMonth(), 0)), periodLabel: "Mês anterior",
+               prevStart: toISO(new Date(t.getFullYear() - 1, t.getMonth() - 1, 1)), prevEnd: toISO(new Date(t.getFullYear() - 1, t.getMonth(), 0)) };
     if (periodo === "ano")
-      return { periodStart: toISO(new Date(t.getFullYear(), 0, 1)), periodEnd: toISO(new Date(t.getFullYear(), 11, 31)), periodLabel: "Ano atual" };
+      return { periodStart: toISO(new Date(t.getFullYear(), 0, 1)), periodEnd: toISO(new Date(t.getFullYear(), 11, 31)), periodLabel: "Ano atual",
+               prevStart: toISO(new Date(t.getFullYear() - 1, 0, 1)), prevEnd: toISO(new Date(t.getFullYear() - 1, 11, 31)) };
     const [y, m] = mesEspecifico.split("-").map(Number);
-    return { periodStart: toISO(new Date(y, m - 1, 1)), periodEnd: toISO(new Date(y, m, 0)), periodLabel: mesEspecifico };
+    return { periodStart: toISO(new Date(y, m - 1, 1)), periodEnd: toISO(new Date(y, m, 0)), periodLabel: mesEspecifico,
+             prevStart: toISO(new Date(y - 1, m - 1, 1)), prevEnd: toISO(new Date(y - 1, m, 0)) };
   }, [periodo, mesEspecifico]);
 
   // Grupo
@@ -1832,6 +1955,30 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     queryFn: async () => {
       const { rows, totals, vendasDiarias, despesasPorCategoria, dreCategorias } = await calcGrupoDashboard(db, companyIds, periodStart, periodEnd);
       return { rows: rows.map((r) => ({ ...r, nome: nomeEmpresa(r.company_id) })), totals, vendasDiarias, despesasPorCategoria, dreCategorias };
+    },
+  });
+
+  // Faturamento por loja do MESMO período no ano anterior (YoY) — base leve só p/ o comparativo do gráfico.
+  // Mesma base do faturamento atual: soma de vendas.valor_total por data_venda, sem filtro de status.
+  const { data: fatPrevById = {} } = useQuery({
+    queryKey: ["grupo_dash_fat_prev", grupoId, companyIds.join(","), prevStart, prevEnd],
+    enabled: companyIds.length > 0,
+    queryFn: async () => {
+      const acc: Record<string, number> = {};
+      let from = 0;
+      for (;;) {
+        const { data, error } = await db.from("vendas")
+          .select("company_id, valor_total")
+          .in("company_id", companyIds)
+          .is("deleted_at", null)
+          .gte("data_venda", prevStart).lte("data_venda", prevEnd)
+          .range(from, from + 999);
+        if (error) throw error;
+        (data || []).forEach((r: any) => { acc[r.company_id] = (acc[r.company_id] || 0) + Number(r.valor_total || 0); });
+        if (!data || data.length < 1000) break;
+        from += 1000;
+      }
+      return acc;
     },
   });
 
@@ -1941,6 +2088,19 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     ? (metrics.totals.resultado / metrics.totals.faturamento) * 100 : 0;
 
   const dashRows = metrics?.rows || [];
+  const curYear = periodStart.slice(0, 4);
+  const prevYear = String(Number(curYear) - 1);
+  const ipca12m = indicadores?.inflacao?.ipca_12m?.valor ?? null; // % acumulado 12m (correção da inflação)
+  // DRE comparativa: dados do ano anterior (mesmo período) sob demanda — cálculo completo (pesado), só busca quando ligado.
+  const [comparar2025, setComparar2025] = useState(false);
+  const { data: drePrev, isFetching: drePrevFetching } = useQuery({
+    queryKey: ["grupo_dash_dre_prev", grupoId, companyIds.join(","), prevStart, prevEnd],
+    enabled: comparar2025 && companyIds.length > 0,
+    queryFn: async () => {
+      const r = await calcGrupoDashboard(db, companyIds, prevStart, prevEnd);
+      return { rows: r.rows.map((x) => ({ ...x, nome: nomeEmpresa(x.company_id) })), dreCategorias: r.dreCategorias };
+    },
+  });
   const leitura = useMemo(
     () => (metrics ? gerarLeitura(metrics.rows, metrics.totals, periodLabel) : []),
     [metrics, periodLabel],
@@ -2172,7 +2332,7 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
             {(isFetching || isFetchingFunc) && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </div>
           <div data-pdf-chart>
-            <CompBarCard title="Faturamento por loja" subtitle={`Por loja · ${periodLabel}`} caption="Linha tracejada = média do grupo. Quem está acima/abaixo da média." info="Soma das vendas (valor total) por loja, igual à página Vendas." rows={dashRows} valueKey="faturamento" color="#039855" height={300} />
+            <CompBarCard title="Faturamento por loja" subtitle={`${curYear} × ${prevYear} · ${periodLabel}`} caption={`Verde = ${curYear}; laranja (atrás) = mesmo período em ${prevYear}.${ipca12m != null ? ` Linha tracejada = ${prevYear} corrigido pela inflação (IPCA 12m ${ipca12m.toFixed(1).replace(".", ",")}%) = o que ${curYear} precisava faturar p/ manter o valor real.` : ""}`} info="Soma das vendas (valor total) por loja. Compara o período selecionado com o mesmo período do ano anterior; a linha mostra o faturamento do ano anterior corrigido pela inflação (IPCA 12 meses)." rows={dashRows} valueKey="faturamento" color="#039855" height={300} compare={{ byId: fatPrevById, label: prevYear, curLabel: curYear, color: "#F79009", inflPct: ipca12m }} legend={[{ label: curYear, color: "#039855" }, { label: prevYear, color: "#F79009" }, ...(ipca12m != null ? [{ label: `Meta ${curYear} c/ inflação`, color: "#1D2939" }] : [])]} />
           </div>
 
           {/* Ponto de equilíbrio × Lucro líquido (2 linhas) — logo abaixo do faturamento */}
@@ -2181,7 +2341,10 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
           </div>
 
           {/* 1º DRE comparativa — lojas lado a lado (detalhada por categoria) */}
-          <DREComparativaCard rows={dashRows} categorias={metrics?.dreCategorias || []} periodLabel={periodLabel} />
+          <DREComparativaCard rows={dashRows} categorias={metrics?.dreCategorias || []} periodLabel={periodLabel}
+            comparar={comparar2025} onToggleComparar={() => setComparar2025((v) => !v)} loadingPrev={drePrevFetching}
+            prevRows={comparar2025 ? drePrev?.rows : undefined} prevCategorias={comparar2025 ? drePrev?.dreCategorias : undefined}
+            curLabel={curYear} prevLabel={prevYear} />
 
           {/* 2º Geração de caixa (1/2) + explicação (1/2) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

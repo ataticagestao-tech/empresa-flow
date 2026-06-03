@@ -2,10 +2,8 @@ import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCompany } from "@/contexts/CompanyContext";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { CicloCaixaCard } from "@/components/dashboard/CicloCaixaCard";
-import { LiquidezCard } from "@/components/dashboard/LiquidezCard";
-import { MargensCard } from "@/components/dashboard/MargensCard";
 import { PontoEquilibrioCard } from "@/components/dashboard/PontoEquilibrioCard";
+import { ComparativoMensalCard } from "@/components/dashboard/ComparativoMensalCard";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { ContextoIndicadores } from "@/components/dashboard/ContextoIndicadores";
 import {
@@ -35,7 +33,7 @@ export default function Indicadores() {
     const cId = selectedCompany?.id;
     const companyName = selectedCompany?.razao_social || selectedCompany?.nome_fantasia || "Empresa";
 
-    const [period, setPeriod] = useState<Period>("mes");
+    const [period, setPeriod] = useState<Period>("mes_anterior");
 
     const { periodStart, periodEnd, periodLabel } = useMemo(() => {
         const today = new Date();
@@ -124,9 +122,7 @@ export default function Indicadores() {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
                         <ContextoIndicadores companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
                         <PontoEquilibrioCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
-                        <MargensCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
-                        <CicloCaixaCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
-                        <LiquidezCard companyId={cId} periodEnd={periodEnd} />
+                        <ComparativoMensalCard companyId={cId} />
                     </div>
                 )}
             </div>

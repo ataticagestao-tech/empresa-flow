@@ -11,7 +11,7 @@ import {
   LabelList,
   ResponsiveContainer,
 } from "recharts";
-import { useContextoIndicadores } from "@/modules/finance/presentation/hooks/useContextoIndicadores";
+import { useContextoIndicadores, type ContextoComposicao } from "@/modules/finance/presentation/hooks/useContextoIndicadores";
 import { usePontoEquilibrio } from "@/modules/finance/presentation/hooks/usePontoEquilibrio";
 
 /* ── Tokens idênticos aos cards de indicadores ── */
@@ -193,8 +193,52 @@ function FatDespTooltip({ active, payload, label }: any) {
   );
 }
 
+/* ── A2) Composição do Resultado: cascata Faturamento Bruto → deduções → Resultado ── */
+function CascataResultado({ c }: { c: ContextoComposicao }) {
+  const lucroBruto = c.receitaLiquida - c.custo;
+  const resultadoOperacional = lucroBruto - c.despesaOperacional;
+  const neg = (v: number) => (v > 0 ? -v : 0);
+  type Tipo = "bruto" | "deducao" | "subtotal" | "resultado";
+  const linhas: Array<{ label: string; value: number; tipo: Tipo }> = [
+    { label: "Faturamento Bruto", value: c.receita, tipo: "bruto" },
+    { label: "(−) Taxa de cartão", value: neg(c.taxaCartao), tipo: "deducao" },
+    { label: "= Receita Líquida", value: c.receitaLiquida, tipo: "subtotal" },
+    { label: "(−) Custo", value: neg(c.custo), tipo: "deducao" },
+    { label: "= Lucro Bruto", value: lucroBruto, tipo: "subtotal" },
+    { label: "(−) Despesa Operacional", value: neg(c.despesaOperacional), tipo: "deducao" },
+    { label: "= Resultado Operacional", value: resultadoOperacional, tipo: "subtotal" },
+    { label: "(−) Outras", value: neg(c.outras), tipo: "deducao" },
+    { label: "= Resultado", value: c.resultado, tipo: "resultado" },
+  ];
+  return (
+    <div style={{ ...whitePanel, padding: 0, overflow: "hidden" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <tbody>
+          {linhas.map((l, i) => {
+            const isSub = l.tipo === "subtotal";
+            const isRes = l.tipo === "resultado";
+            const isDed = l.tipo === "deducao";
+            const bg = isRes ? NAVY : isSub ? "#F6F7F9" : "#fff";
+            const cor = isRes ? "#fff" : isDed ? VERMELHO : "#1D2939";
+            const peso = isDed ? 500 : 700;
+            const pad = isRes ? "12px 16px" : "8px 16px";
+            return (
+              <tr key={i} style={{ background: bg, borderTop: i === 0 ? "none" : "1px solid #EEF1F4" }}>
+                <td style={{ padding: pad, paddingLeft: isDed ? 30 : 16, color: cor, fontWeight: peso }}>{l.label}</td>
+                <td style={{ padding: pad, textAlign: "right", whiteSpace: "nowrap", fontWeight: peso, color: isRes ? (l.value >= 0 ? "#34D399" : "#FCA5A5") : cor }}>
+                  {fmtMoney(l.value)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function ContextoIndicadores({ companyId, periodStart, periodEnd }: ContextoIndicadoresProps) {
-  const { kpis, serie, isLoading } = useContextoIndicadores({
+  const { kpis, serie, composicao, isLoading } = useContextoIndicadores({
     companyId,
     periodStart,
     periodEnd,
@@ -254,6 +298,18 @@ export function ContextoIndicadores({ companyId, periodStart, periodEnd }: Conte
             <KpiBox label="Resultado" value={kpis.resultado} sign />
             <KpiBox label="Geração de Caixa" value={kpis.geracaoCaixa} sign />
           </div>
+        )}
+      </ChartCardLike>
+
+      {/* A2) Composição do Resultado (cascata com a taxa de cartão explícita) */}
+      <ChartCardLike
+        title="Composição do Resultado"
+        info="Do faturamento bruto, vai descontando: taxa de cartão (MDR + antecipação, da agenda), custos, despesas operacionais e outras — até o resultado. Regime de competência."
+      >
+        {isLoading ? (
+          <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, color: "#98A2B3" }}>Carregando…</div>
+        ) : (
+          <CascataResultado c={composicao} />
         )}
       </ChartCardLike>
 

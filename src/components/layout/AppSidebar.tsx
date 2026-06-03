@@ -22,6 +22,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import { useTranslation } from "react-i18next";
 import { menuGroups, footerMenu, OWNER_EMAIL } from "@/config/menuConfig";
 
@@ -32,6 +33,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const { isSuperAdmin } = useAdmin();
+  const { hasModule } = useEntitlements();
   const { t } = useTranslation();
   const isActive = (url?: string) => (url ? location.pathname === url : false);
   const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase();
@@ -63,11 +65,12 @@ export function AppSidebar() {
     }
   };
 
-  const isItemVisible = (item: { hidden?: boolean; adminOnly?: boolean; ownerOnly?: boolean }) =>
-    !item.hidden && (!item.adminOnly || isSuperAdmin) && (!item.ownerOnly || isOwner);
+  const isItemVisible = (item: { hidden?: boolean; adminOnly?: boolean; ownerOnly?: boolean; module?: import("@/config/entitlements").ModuleId }) =>
+    !item.hidden && (!item.adminOnly || isSuperAdmin) && (!item.ownerOnly || isOwner) && hasModule(item.module);
 
   const visibleGroups = menuGroups.filter((group) => {
     if (group.ownerOnly && !isOwner) return false;
+    if (!hasModule(group.module)) return false;
     const visibleItems = group.items.filter(isItemVisible);
     return visibleItems.length > 0;
   });

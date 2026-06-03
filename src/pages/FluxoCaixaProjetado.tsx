@@ -1,295 +1,235 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { KpiCard, KpiCardGrid } from "@/components/ui/kpi-card";
-import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { Eye, ChevronDown } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format, addDays, parseISO } from "date-fns";
+import { AlertTriangle, CheckCircle2, CalendarRange, Wallet, Pencil } from "lucide-react";
+import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { FluxoEntradasSaidas } from "@/components/dashboard/FluxoEntradasSaidas";
+import { useFluxoProjetado, type FluxoProjetadoData } from "@/modules/finance/presentation/hooks/useFluxoProjetado";
+import { useSaldoBancoVsSistema } from "@/modules/finance/presentation/hooks/useContasSaldo";
 
-const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+const NAVY = "#071D41";
+
+/** Parse "1.234,56" / "92.146" / "-99126" → número; null se vazio/inválido. */
+function parseBRL(s: string): number | null {
+  const t = s.trim();
+  if (!t) return null;
+  const n = Number(t.replace(/r\$|\s/gi, "").replace(/\./g, "").replace(",", "."));
+  return Number.isNaN(n) ? null : n;
+}
+
+/** 'YYYY-MM-DD' → 'dd/MM/aaaa'. */
+function fmtData(iso: string | null): string {
+  if (!iso) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
+/** Resumo da projeção: KPIs + alerta de dia crítico. */
+function ProjecaoResumo({ data, isLoading }: { data: FluxoProjetadoData; isLoading: boolean }) {
+  if (isLoading) {
+    return <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: "#98A2B3" }}>Carregando projeção…</div>;
+  }
+
+  const saldoFinalNeg = data.saldoFinal < 0;
+  const ficaNegativo = data.diaCritico !== null;
+
+  return (
+    <div className="space-y-4">
+      <KpiCardGrid className="lg:grid-cols-5">
+        <KpiCard label="Saldo hoje" value={fmt(data.saldoInicial)} valueColor={data.saldoInicial >= 0 ? "#1D2939" : "#E53E3E"} sub="caixa + banco" />
+        <KpiCard label="A receber" value={fmt(data.totalReceber)} valueColor="#039855" sub={data.comReceber ? `${data.horizonteDias} dias` : "fora do saldo (pior caso)"} />
+        <KpiCard label="A pagar" value={fmt(data.totalPagar)} valueColor="#E53E3E" sub={`${data.horizonteDias} dias`} />
+        <KpiCard label="Saldo projetado" value={fmt(data.saldoFinal)} valueColor={saldoFinalNeg ? "#E53E3E" : "#059669"} sub={`fim de ${data.horizonteDias} dias`} />
+        <KpiCard label="Menor saldo" value={fmt(data.menorSaldo)} valueColor={data.menorSaldo < 0 ? "#E53E3E" : "#059669"} sub={`em ${fmtData(data.menorSaldoData)}`} />
+      </KpiCardGrid>
+
+      {ficaNegativo ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, background: "#FEF3F2", border: "1px solid #FDA29B" }}>
+          <AlertTriangle size={18} style={{ color: "#D92D20", flexShrink: 0 }} />
+          <span style={{ fontSize: 13, color: "#912018" }}>
+            O caixa fica <strong>negativo a partir de {fmtData(data.diaCritico)}</strong>
+            {data.comReceber ? " (contando com os recebíveis previstos)." : " — mesmo sem contar recebíveis (pior caso)."}
+            {" "}Menor saldo: <strong>{fmt(data.menorSaldo)}</strong>.
+          </span>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, background: "#ECFDF3", border: "1px solid #A6F4C5" }}>
+          <CheckCircle2 size={18} style={{ color: "#039855", flexShrink: 0 }} />
+          <span style={{ fontSize: 13, color: "#054F31" }}>
+            O caixa se mantém positivo nos próximos {data.horizonteDias} dias. Menor saldo: <strong>{fmt(data.menorSaldo)}</strong> em {fmtData(data.menorSaldoData)}.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function FluxoCaixaProjetado() {
-    const { activeClient } = useAuth();
-    const { selectedCompany } = useCompany();
-    const [days, setDays] = useState(90);
+  const { selectedCompany } = useCompany();
+  const cId = selectedCompany?.id;
+  const [days, setDays] = useState(30);
+  const [cenario, setCenario] = useState<"com" | "sem">("com");
+  const incluirCR = cenario === "com";
 
-    // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
-    const COL_ORDER = ['data', 'descricao', 'tipo', 'valor', 'saldo'];
-    const COL_LABELS: Record<string, string> = {
-        data: 'Data', descricao: 'Descrição', tipo: 'Tipo', valor: 'Valor', saldo: 'Saldo Acumulado',
-    };
-    const COL_WIDTHS_DEFAULT: Record<string, number> = {
-        data: 120, descricao: 280, tipo: 110, valor: 140, saldo: 160,
-    };
-    const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
-        try {
-            const s = localStorage.getItem('fluxoprojetado_col_widths');
-            if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
-        } catch { /* ignore */ }
-        return COL_WIDTHS_DEFAULT;
+  // ── Saldo inicial: contas marcáveis (ancoradas no extrato) + override manual ──
+  const { comparacao: contas } = useSaldoBancoVsSistema(cId);
+  const [excluidas, setExcluidas] = useState<Set<string>>(new Set());
+  const [override, setOverride] = useState<string>("");
+
+  useEffect(() => {
+    if (!cId) {
+      setExcluidas(new Set());
+      setOverride("");
+      return;
+    }
+    let e = new Set<string>();
+    try {
+      const s = localStorage.getItem(`fcproj_excl_${cId}`);
+      if (s) e = new Set(JSON.parse(s) as string[]);
+    } catch { /* ignore */ }
+    setExcluidas(e);
+    try {
+      setOverride(localStorage.getItem(`fcproj_ovr_${cId}`) || "");
+    } catch {
+      setOverride("");
+    }
+  }, [cId]);
+
+  const toggleConta = (id: string) => {
+    setExcluidas((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      if (cId) { try { localStorage.setItem(`fcproj_excl_${cId}`, JSON.stringify([...n])); } catch { /* ignore */ } }
+      return n;
     });
-    useEffect(() => { localStorage.setItem('fluxoprojetado_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
-    const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
-        try {
-            const s = localStorage.getItem('fluxoprojetado_hidden_cols');
-            if (s) return new Set(JSON.parse(s) as string[]);
-        } catch { /* ignore */ }
-        return new Set();
-    });
-    useEffect(() => { localStorage.setItem('fluxoprojetado_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
-    const [colMenuOpen, setColMenuOpen] = useState(false);
-    const isColVisible = (k: string) => !hiddenCols.has(k);
-    const toggleColVisible = (k: string) => setHiddenCols(prev => {
-        const n = new Set(prev);
-        if (n.has(k)) n.delete(k); else n.add(k);
-        return n;
-    });
-    const visibleCols = COL_ORDER.filter(isColVisible);
-    const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
-    const startResize = (key: string) => (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
-        const onMove = (ev: MouseEvent) => {
-            const r = resizingRef.current;
-            if (!r) return;
-            const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
-            setColWidths(prev => ({ ...prev, [r.key]: newW }));
-        };
-        const onUp = () => {
-            resizingRef.current = null;
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-        };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-    };
+  };
+  const changeOverride = (v: string) => {
+    setOverride(v);
+    if (cId) { try { localStorage.setItem(`fcproj_ovr_${cId}`, v); } catch { /* ignore */ } }
+  };
 
-    const today = new Date();
-    const endDate = addDays(today, days);
+  const saldoCalculado = contas.filter((c) => !excluidas.has(c.contaId)).reduce((s, c) => s + c.saldoEfetivo, 0);
+  const overrideNum = parseBRL(override);
+  const saldoEfetivo = overrideNum != null ? overrideNum : saldoCalculado;
 
-    const { data: receivables = [] } = useQuery({
-        queryKey: ["fc_receivables", selectedCompany?.id, days],
-        queryFn: async () => {
-            const { data: raw } = await (activeClient as any)
-                .from("contas_receber")
-                .select("id, pagador_nome, valor, data_vencimento, status")
-                .eq("company_id", selectedCompany?.id)
-                .eq("status", "aberto")
-                .gte("data_vencimento", format(today, "yyyy-MM-dd"))
-                .lte("data_vencimento", format(endDate, "yyyy-MM-dd"))
-                .order("data_vencimento");
-            const data = (raw || []).map((r: any) => ({ id: r.id, description: r.pagador_nome || "", amount: Number(r.valor || 0), due_date: r.data_vencimento, status: r.status }));
-            return data || [];
-        },
-        enabled: !!selectedCompany?.id,
-    });
+  const { isLoading, ...data } = useFluxoProjetado({ dias: days, incluirCR, saldoInicial: saldoEfetivo });
 
-    const { data: payables = [] } = useQuery({
-        queryKey: ["fc_payables", selectedCompany?.id, days],
-        queryFn: async () => {
-            const { data: raw } = await (activeClient as any)
-                .from("contas_pagar")
-                .select("id, credor_nome, valor, data_vencimento, status")
-                .eq("company_id", selectedCompany?.id)
-                .eq("status", "aberto")
-                .gte("data_vencimento", format(today, "yyyy-MM-dd"))
-                .lte("data_vencimento", format(endDate, "yyyy-MM-dd"))
-                .order("data_vencimento");
-            const data = (raw || []).map((p: any) => ({ id: p.id, description: p.credor_nome || "", amount: Number(p.valor || 0), due_date: p.data_vencimento, status: p.status }));
-            return data || [];
-        },
-        enabled: !!selectedCompany?.id,
-    });
+  // Período avaliado: de hoje até hoje + N dias.
+  const hoje = new Date();
+  const inicioLabel = format(hoje, "dd 'de' MMM 'de' yyyy", { locale: ptBR });
+  const fimLabel = format(addDays(hoje, days), "dd 'de' MMM 'de' yyyy", { locale: ptBR });
 
-    const totalEntradas = receivables.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-    const totalSaidas = payables.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-    const saldoProjetado = totalEntradas - totalSaidas;
+  return (
+    <AppLayout title="Fluxo de Caixa Projetado">
+      <div style={{ fontFamily: "var(--font-base)" }}>
+        <PagePanel title="Fluxo de Caixa Projetado" subtitle={`Próximos ${days} dias · saldo projetado, entradas e saídas`}>
+          {/* ── Controles ── */}
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <SegmentedControl<"com" | "sem">
+              value={cenario}
+              onChange={setCenario}
+              options={[
+                { value: "com", label: "Com recebíveis", title: "Conta com os recebíveis previstos (CR) entrando no vencimento" },
+                { value: "sem", label: "Pior caso (só CP)", title: "Ignora os recebíveis — só o caixa de hoje contra os compromissos a pagar" },
+              ]}
+            />
+            <SegmentedControl<"30" | "60" | "90">
+              value={String(days) as "30" | "60" | "90"}
+              onChange={(v) => setDays(Number(v))}
+              options={[
+                { value: "30", label: "30 dias" },
+                { value: "60", label: "60 dias" },
+                { value: "90", label: "90 dias" },
+              ]}
+            />
+          </div>
 
-    const allItems = useMemo(() => {
-        const items = [
-            ...receivables.map((r: any) => ({ ...r, tipo: "entrada" as const })),
-            ...payables.map((p: any) => ({ ...p, tipo: "saida" as const })),
-        ].sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
+          {/* ── Período avaliado (explícito) ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "#F8FAFC", border: "var(--border-hairline)" }}>
+            <CalendarRange size={16} style={{ color: "#475467", flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: "#1D2939" }}>
+              Período avaliado: <strong>{inicioLabel}</strong> → <strong>{fimLabel}</strong>
+              <span style={{ color: "#98A2B3" }}> · {days} dias a partir de hoje</span>
+            </span>
+          </div>
 
-        let acc = 0;
-        return items.map(item => {
-            acc += item.tipo === "entrada" ? Number(item.amount) : -Number(item.amount);
-            return { ...item, saldo_acumulado: acc };
-        });
-    }, [receivables, payables]);
-
-    const chartData = useMemo(() => {
-        const byDate: Record<string, { entradas: number; saidas: number }> = {};
-        allItems.forEach(item => {
-            const d = item.due_date || "";
-            if (!byDate[d]) byDate[d] = { entradas: 0, saidas: 0 };
-            if (item.tipo === "entrada") byDate[d].entradas += Number(item.amount);
-            else byDate[d].saidas += Number(item.amount);
-        });
-        let acc = 0;
-        return Object.entries(byDate).sort().map(([date, vals]) => {
-            acc += vals.entradas - vals.saidas;
-            return { date: format(parseISO(date), "dd/MM", { locale: ptBR }), saldo: acc, entradas: vals.entradas, saidas: vals.saidas };
-        });
-    }, [allItems]);
-
-    return (
-        <AppLayout title="Fluxo de Caixa Projetado">
-            <div style={{ fontFamily: "var(--font-base)" }}>
-
-                <PagePanel title="Fluxo de Caixa Projetado" subtitle={`Próximos ${days} dias`}>
-                    <div className="flex flex-wrap items-center gap-2 justify-end">
-                        <SegmentedControl<"30" | "60" | "90">
-                            value={String(days) as "30" | "60" | "90"}
-                            onChange={(v) => setDays(Number(v))}
-                            options={[
-                                { value: "30", label: "30 dias" },
-                                { value: "60", label: "60 dias" },
-                                { value: "90", label: "90 dias" },
-                            ]}
-                        />
-                    </div>
-
-                <KpiCardGrid className="lg:grid-cols-3">
-                    <KpiCard
-                        label="Entradas previstas"
-                        value={fmt(totalEntradas)}
-                        valueColor="#039855"
-                        sub={`${receivables.length} recebíveis`}
-                    />
-                    <KpiCard
-                        label="Saídas previstas"
-                        value={fmt(totalSaidas)}
-                        valueColor="#E53E3E"
-                        sub={`${payables.length} contas a pagar`}
-                    />
-                    <KpiCard
-                        label="Saldo projetado"
-                        value={fmt(saldoProjetado)}
-                        valueColor={saldoProjetado >= 0 ? "#059669" : "#E53E3E"}
-                        sub="Entradas - Saídas"
-                    />
-                </KpiCardGrid>
-
-                {chartData.length > 0 && (
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Saldo Acumulado Projetado</p>
-                        <ResponsiveContainer width="100%" height={280}>
-                            <AreaChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
-                                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                                <Tooltip formatter={(v: number) => fmt(v)} />
-                                <Area type="monotone" dataKey="saldo" stroke="#059669" fill="#ECFDF4" strokeWidth={2} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </Card>
-                )}
-
-                <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden", padding: 0 }}>
-                    <div className="flex items-center justify-between px-4 py-3" style={{ background: "#071D41" }}>
-                        <h3 className="font-extrabold text-white m-0" style={{ fontSize: 16, letterSpacing: "-0.015em", lineHeight: 1.15 }}>
-                            Lançamentos Projetados
-                        </h3>
-                        <div className="flex items-center gap-3">
-                            <span className="text-[13px] text-white/70 font-medium">
-                                {allItems.length} registro{allItems.length !== 1 ? "s" : ""}
-                            </span>
-                            <div className="relative self-center">
-                                <button
-                                    onClick={() => setColMenuOpen(o => !o)}
-                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
-                                    title="Mostrar/ocultar colunas"
-                                >
-                                    <Eye size={14} className="text-white/70" /> Colunas
-                                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? "rotate-180" : ""}`} />
-                                </button>
-                                {colMenuOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-40" onClick={() => setColMenuOpen(false)} />
-                                        <div className="absolute right-0 mt-1 z-50 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
-                                            <p className="px-3 py-1.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
-                                            {COL_ORDER.map(k => (
-                                                <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isColVisible(k)}
-                                                        onChange={() => toggleColVisible(k)}
-                                                        className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
-                                                    />
-                                                    {COL_LABELS[k]}
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white overflow-x-auto">
-                        <table className="text-sm" style={{ tableLayout: "fixed", width: visibleCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: "100%" }}>
-                            <colgroup>
-                                {COL_ORDER.map(k => (
-                                    <col key={k} className={isColVisible(k) ? "" : "hidden"} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
-                                ))}
-                            </colgroup>
-                            <thead>
-                                <tr className="bg-white text-[15px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
-                                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible("data") ? "" : "hidden"}`}>
-                                        <span onMouseDown={startResize("data")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
-                                        Data
-                                    </th>
-                                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible("descricao") ? "" : "hidden"}`}>
-                                        <span onMouseDown={startResize("descricao")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
-                                        Descrição
-                                    </th>
-                                    <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible("tipo") ? "" : "hidden"}`}>
-                                        <span onMouseDown={startResize("tipo")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
-                                        Tipo
-                                    </th>
-                                    <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible("valor") ? "" : "hidden"}`}>
-                                        <span onMouseDown={startResize("valor")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
-                                        Valor
-                                    </th>
-                                    <th className={`text-right px-3 py-3 relative ${isColVisible("saldo") ? "" : "hidden"}`}>
-                                        Saldo Acumulado
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {allItems.length === 0 ? (
-                                    <tr><td colSpan={visibleCols.length} className="text-center py-8 text-[#667085]">Nenhum lançamento futuro encontrado.</td></tr>
-                                ) : allItems.map((item, i) => (
-                                    <tr key={i} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
-                                        <td className={`px-3 py-1 text-left text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible("data") ? "" : "hidden"}`}>{item.due_date ? format(parseISO(item.due_date), "dd/MM/yyyy") : "—"}</td>
-                                        <td className={`px-3 py-1 text-left text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible("descricao") ? "" : "hidden"}`} title={item.description || ""}>{item.description || "—"}</td>
-                                        <td className={`px-3 py-1 text-center border-r border-[#F1F3F5] ${isColVisible("tipo") ? "" : "hidden"}`}>
-                                            <Badge className={item.tipo === "entrada" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
-                                                {item.tipo === "entrada" ? "Entrada" : "Saída"}
-                                            </Badge>
-                                        </td>
-                                        <td className={`px-3 py-1 text-right border-r border-[#F1F3F5] ${isColVisible("valor") ? "" : "hidden"}`} style={{ color: item.tipo === "entrada" ? "#039855" : "#E53E3E" }}>
-                                            {fmt(Number(item.amount))}
-                                        </td>
-                                        <td className={`px-3 py-1 text-right ${isColVisible("saldo") ? "" : "hidden"}`} style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#059669" : "#E53E3E" }}>
-                                            {fmt(item.saldo_acumulado)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-                </PagePanel>
+          {!cId ? (
+            <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: "#98A2B3" }}>
+              Selecione uma empresa para ver a projeção.
             </div>
-        </AppLayout>
-    );
+          ) : (
+            <div className="space-y-4">
+              {/* ── Saldo inicial: contas marcáveis + override manual ── */}
+              <div style={{ background: "#FFFFFF", border: "var(--border-hairline)", borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ padding: "12px 16px", background: NAVY, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Wallet size={15} style={{ color: "#fff" }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, color: "#fff" }}>Saldo inicial da projeção</span>
+                </div>
+                <div style={{ padding: 14, display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-start" }}>
+                  {/* Contas marcáveis */}
+                  <div style={{ flex: "1 1 320px", minWidth: 260 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#98A2B3", marginBottom: 6 }}>Contas · saldo do banco quando tem extrato</div>
+                    {contas.length === 0 ? (
+                      <div style={{ fontSize: 12, color: "#98A2B3", padding: "8px 0" }}>Nenhuma conta encontrada.</div>
+                    ) : (
+                      contas.map((c) => {
+                        const marcada = !excluidas.has(c.contaId);
+                        return (
+                          <label key={c.contaId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", cursor: "pointer", opacity: marcada ? 1 : 0.5 }}>
+                            <input type="checkbox" checked={marcada} onChange={() => toggleConta(c.contaId)} style={{ width: 15, height: 15, accentColor: "#059669" }} />
+                            <span style={{ flex: 1, fontSize: 13, color: "#1D2939" }}>
+                              {c.nome}
+                              <span style={{ marginLeft: 6, fontSize: 10, color: c.fonte === "banco" ? "#039855" : "#98A2B3" }}>
+                                {c.fonte === "banco" ? `banco · extrato ${c.asOfDate ? c.asOfDate.split("-").reverse().slice(0, 2).join("/") : ""}` : "sistema"}
+                              </span>
+                            </span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: c.saldoEfetivo < 0 ? "#E53E3E" : "#1D2939", whiteSpace: "nowrap" }}>{fmt(c.saldoEfetivo)}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", borderTop: "var(--border-hairline)", marginTop: 6, paddingTop: 8, fontSize: 12, color: "#667085" }}>
+                      <span>Calculado (marcadas)</span>
+                      <strong style={{ color: "#1D2939" }}>{fmt(saldoCalculado)}</strong>
+                    </div>
+                  </div>
+
+                  {/* Override manual + saldo efetivo */}
+                  <div style={{ flex: "1 1 240px", minWidth: 220 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#98A2B3", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                      <Pencil size={12} /> Sobrescrever total (opcional)
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={override}
+                      onChange={(e) => changeOverride(e.target.value)}
+                      placeholder="vazio = usar o calculado"
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #D0D5DD", fontSize: 14, color: "#1D2939" }}
+                    />
+                    <div style={{ fontSize: 11, color: "#98A2B3", marginTop: 4 }}>Use só se a conta não tiver extrato ou o saldo do banco também estiver errado.</div>
+                    <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 8, background: "#F0FDF4", border: "1px solid #A6F4C5", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span style={{ fontSize: 12, color: "#054F31" }}>Saldo usado {overrideNum != null ? "(manual)" : "(calculado)"}</span>
+                      <strong style={{ fontSize: 18, color: saldoEfetivo < 0 ? "#E53E3E" : "#039855" }}>{fmt(saldoEfetivo)}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Resumo: KPIs + alerta de dia crítico ── */}
+              <ProjecaoResumo data={data} isLoading={isLoading} />
+
+              {/* ── 3 colunas: Entradas | Gráfico | Saídas ── */}
+              <FluxoEntradasSaidas data={data} isLoading={isLoading} />
+            </div>
+          )}
+        </PagePanel>
+      </div>
+    </AppLayout>
+  );
 }

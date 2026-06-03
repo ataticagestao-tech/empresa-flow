@@ -263,7 +263,7 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
 
     return (
         <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-            <DialogContent className="sm:max-w-[520px]">
+            <DialogContent className="w-[95vw] max-w-[520px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         {isAligned ? (

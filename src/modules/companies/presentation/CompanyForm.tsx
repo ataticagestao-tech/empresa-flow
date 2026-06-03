@@ -2,13 +2,16 @@
 import { FormProvider } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompanyForm } from "./hooks/useCompanyForm";
 import { CompanyFiscalTab } from "./partials/CompanyFiscalTab";
 import { CompanyAddressTab } from "./partials/CompanyAddressTab";
 import { CompanyDocumentsTab } from "./partials/CompanyDocumentsTab";
 import { CompanyNfseTab } from "./partials/CompanyNfseTab";
-import { Building2, FileText, MapPin, Landmark, ListTree } from "lucide-react";
+import { Building2, FileText, MapPin, Landmark, ListTree, ShieldCheck } from "lucide-react";
 import { ChartOfAccountsManager } from "@/components/companies/ChartOfAccountsManager";
+import { useAdmin } from "@/contexts/AdminContext";
+import { PLAN_ORDER, PLANS, type PlanoId } from "@/config/entitlements";
 
 interface CompanyFormProps {
     companyId?: string;
@@ -18,6 +21,9 @@ interface CompanyFormProps {
 
 export function CompanyForm({ companyId, onSuccess, onCancel }: CompanyFormProps) {
     const { form, onSubmit, isLoading, isSearchingCnpj, ...files } = useCompanyForm(companyId);
+    const { isSuperAdmin } = useAdmin();
+
+    const planoValue = ((form.watch("plano") as string | null | undefined) ?? "__none__");
 
     const handleSubmit = async (data: any) => {
         const result = await onSubmit(data);
@@ -30,6 +36,40 @@ export function CompanyForm({ companyId, onSuccess, onCancel }: CompanyFormProps
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col h-full overflow-hidden bg-white">
                 <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
+                    {isSuperAdmin && (
+                        <div className="mb-6 rounded-xl border border-[#EAECF0] bg-[#FBFAF7] p-4">
+                            <div className="flex items-center gap-2 mb-1">
+                                <ShieldCheck className="w-4 h-4 text-green-700" />
+                                <span className="text-sm font-semibold text-[#1D2939]">Plano Tática (interno)</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-3">
+                                Define os módulos e limites liberados para esta empresa-cliente. Visível só para a equipe Tática.
+                            </p>
+                            <Select
+                                value={planoValue}
+                                onValueChange={(v) =>
+                                    form.setValue("plano", v === "__none__" ? null : (v as PlanoId), { shouldDirty: true })
+                                }
+                            >
+                                <SelectTrigger className="bg-white max-w-sm">
+                                    <SelectValue placeholder="Selecione o pacote" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__none__">Sem plano (acesso total)</SelectItem>
+                                    {PLAN_ORDER.map((id) => (
+                                        <SelectItem key={id} value={id}>
+                                            {PLANS[id].label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {planoValue !== "__none__" && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    {PLANS[planoValue as PlanoId].resumo}
+                                </p>
+                            )}
+                        </div>
+                    )}
                     <Tabs defaultValue="fiscal" className="w-full">
                         <TabsList className="w-full justify-start overflow-x-auto h-12 bg-[#F6F2EB] p-1 mb-6 rounded-xl shrink-0">
                             <TabsTrigger value="fiscal" className="data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:shadow-sm rounded-lg px-4 py-2 gap-2 whitespace-nowrap">

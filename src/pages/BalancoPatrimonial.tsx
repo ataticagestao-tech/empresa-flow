@@ -33,7 +33,7 @@ export default function BalancoPatrimonial() {
   const queryClient = useQueryClient();
 
   const hoje = new Date();
-  const [mesRef, setMesRef] = useState(format(hoje, "yyyy-MM"));
+  const [mesRef, setMesRef] = useState(format(subMonths(hoje, 1), "yyyy-MM"));
 
   const mesesOpcoes = useMemo(() => {
     const opts: string[] = [];

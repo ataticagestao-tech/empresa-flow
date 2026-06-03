@@ -1,3 +1,5 @@
+import type { PlanoId, PlanoConfig } from "@/config/entitlements";
+
 export interface Company {
     id: string;
     razao_social: string;
@@ -10,6 +12,10 @@ export interface Company {
     enable_nfse?: boolean;
     enable_nfe?: boolean;
     enable_nfce?: boolean;
+    /** Pacote comercial Tática contratado. null = acesso total (legado). */
+    plano?: PlanoId | null;
+    /** Overrides por empresa: módulos extras / ajuste de limites. */
+    plano_config?: PlanoConfig | null;
     natureza_juridica: string | null;
     regime_tributario: string | null;
     email: string | null;

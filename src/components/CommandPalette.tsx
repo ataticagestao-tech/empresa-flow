@@ -13,6 +13,7 @@ import {
 import { menuGroups, footerMenu, OWNER_EMAIL } from "@/config/menuConfig";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import { ShoppingCart, UserPlus, ArrowUpCircle, ArrowDownCircle, Building2 } from "lucide-react";
 
 const QUICK_ACTIONS: { label: string; url: string; icon: typeof ShoppingCart }[] = [
@@ -31,12 +32,14 @@ export function CommandPalette() {
   const { t } = useTranslation();
   const { isSuperAdmin } = useAdmin();
   const { user } = useAuth();
+  const { hasModule } = useEntitlements();
   const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase();
 
-  const isItemVisible = (item: { hidden?: boolean; adminOnly?: boolean; ownerOnly?: boolean; url?: string }) =>
+  const isItemVisible = (item: { hidden?: boolean; adminOnly?: boolean; ownerOnly?: boolean; url?: string; module?: import("@/config/entitlements").ModuleId }) =>
     !item.hidden &&
     (!item.adminOnly || isSuperAdmin) &&
     (!item.ownerOnly || isOwner) &&
+    hasModule(item.module) &&
     Boolean(item.url);
 
   useEffect(() => {
@@ -65,6 +68,7 @@ export function CommandPalette() {
 
   const visibleGroups = menuGroups.filter((group) => {
     if (group.ownerOnly && !isOwner) return false;
+    if (!hasModule(group.module)) return false;
     const items = group.items.filter(isItemVisible);
     return items.length > 0;
   });

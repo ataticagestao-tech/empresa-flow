@@ -33,6 +33,9 @@ const CACHE_TTL: Record<string, number> = {
     ipca_12m: 86_400_000,
     igpm: 86_400_000,
     inpc: 86_400_000,
+    inadimplencia_pf: 86_400_000,     // mensal → 24h
+    salario_minimo: 86_400_000,
+    credito_familias_12m: 86_400_000,
     noticias_ibge: 1_800_000,  // 30 min
     noticias_agbr: 1_800_000,
     bolsa: 300_000,            // 5 min (cotação B3 com atraso ~15 min)
@@ -67,6 +70,10 @@ const BCB_SGS = (serie: number, n: number) =>
 
 const SERIES: Record<string, number> = {
     selic: 432, cdi: 12, ipca: 433, ipca_12m: 13522, igpm: 189, inpc: 188,
+    // Economia real (todas mensais, BCB SGS — confirmadas via API em 2026-06)
+    inadimplencia_pf: 21084,   // Inadimplência da carteira de crédito - PF - total (%)
+    salario_minimo: 1619,      // Salário mínimo nominal (R$)
+    credito_familias: 20570,   // Saldo da carteira de crédito - PF (R$ milhões) → usado p/ var. 12m
 };
 
 async function fetchSgs(key: string, n = 1): Promise<Array<{ data: string; valor: string }>> {
@@ -152,6 +159,10 @@ const HIST: Record<string, HistCfg> = {
     ipca_12m: { tipo: "sgs", n: 12, titulo: "IPCA 12m", unidade: "%" },
     igpm:     { tipo: "sgs", n: 12, titulo: "IGP-M", unidade: "%" },
     inpc:     { tipo: "sgs", n: 12, titulo: "INPC", unidade: "%" },
+    inadimplencia_pf: { tipo: "sgs", n: 12, titulo: "Inadimplência PF", unidade: "%" },
+    salario_minimo:   { tipo: "sgs", n: 13, titulo: "Salário mínimo", unidade: "R$" },
+    // credito_familias é tratado à parte (série de variação 12m) em fetchHistorico.
+    credito_familias: { tipo: "sgs", n: 13, titulo: "Crédito famílias (var. 12m)", unidade: "%" },
     dolar:    { tipo: "ptax", moeda: "USD", dias: 45, titulo: "Dólar", unidade: "R$" },
     euro:     { tipo: "ptax", moeda: "EUR", dias: 45, titulo: "Euro", unidade: "R$" },
 };
@@ -178,12 +189,52 @@ function sgsDateOffset(diasAtras: number): string {
 }
 
 async function fetchHistorico(indicador: string): Promise<{ titulo: string; unidade: string; historico: Array<{ data: string; valor: number }> }> {
+    // Setoriais (IBGE SIDRA) — histórico de ~13 períodos da variação 12m.
+    if (SIDRA_T[indicador]) {
+        const cacheKey = `hist_${indicador}`;
+        const cached = getCache<any>(cacheKey);
+        if (cached) return cached;
+        let hist: Array<{ data: string; valor: number }> = [];
+        try {
+            hist = await fetchSidraSerie(indicador, 13);
+        } catch (e) {
+            console.warn(`histórico setorial ${indicador}:`, e instanceof Error ? e.message : e);
+        }
+        const result = { titulo: SIDRA_TITULO[indicador], unidade: "%", historico: hist };
+        if (hist.length > 0) setCache(cacheKey, result);
+        return result;
+    }
+
     const cfg = HIST[indicador];
     if (!cfg) return { titulo: indicador, unidade: "", historico: [] };
 
     const cacheKey = `hist_${indicador}`;
     const cached = getCache<any>(cacheKey);
     if (cached) return cached;
+
+    // Crédito às famílias: série de VARIAÇÃO 12m (coerente com o card), não o saldo
+    // cru. Precisa de ~25 meses de saldo p/ render 13 pontos de YoY — e o BCB limita
+    // `ultimos/N` a 20 nesta série, então busca por INTERVALO de datas (sem limite).
+    if (indicador === "credito_familias") {
+        let hist: Array<{ data: string; valor: number }> = [];
+        try {
+            const url = BCB_SGS_PER(SERIES.credito_familias, sgsDateOffset(27 * 31), sgsDateOffset(0));
+            const raw = await getJson(url);
+            const arr = (Array.isArray(raw) ? raw : [])
+                .map((r: any) => ({ data: r.data as string, valor: Number(r.valor) }))
+                .filter((r) => Number.isFinite(r.valor));
+            for (let i = 12; i < arr.length; i++) {
+                const base = arr[i - 12].valor;
+                if (base) hist.push({ data: arr[i].data, valor: ((arr[i].valor - base) / base) * 100 });
+            }
+            hist = hist.slice(-13);
+        } catch (e) {
+            console.warn("histórico crédito famílias:", e instanceof Error ? e.message : e);
+        }
+        const result = { titulo: cfg.titulo, unidade: cfg.unidade, historico: hist };
+        if (hist.length > 0) setCache(cacheKey, result);
+        return result;
+    }
 
     let historico: Array<{ data: string; valor: number }> = [];
     try {
@@ -354,6 +405,88 @@ function fmtSgs(data: Array<{ data: string; valor: string }>, nome: string, unid
     return { nome, valor: Number.isFinite(valor) ? valor : null, data: ultimo.data ?? null, unidade };
 }
 
+// Variação acumulada em 12 meses do saldo de crédito às famílias (série mensal).
+// Mostra a expansão/retração do crédito ao consumidor como um número limpo (% a/a),
+// em vez do saldo cru em R$ trilhões.
+async function fetchCreditoFamilias12m(): Promise<{ nome: string; valor: number | null; data: string | null; unidade: string }> {
+    const nome = "Crédito famílias 12m";
+    const unidade = "%";
+    const cached = getCache<any>("credito_familias_12m");
+    if (cached) return cached;
+    try {
+        const data = await getJson(BCB_SGS(SERIES.credito_familias, 13));
+        const arr = (Array.isArray(data) ? data : [])
+            .map((r: any) => ({ data: r.data, valor: Number(r.valor) }))
+            .filter((r) => Number.isFinite(r.valor));
+        if (arr.length >= 13) {
+            const ult = arr[arr.length - 1];
+            const ant = arr[arr.length - 13];
+            const variacao = ant.valor ? ((ult.valor - ant.valor) / ant.valor) * 100 : null;
+            const res = { nome, valor: variacao, data: ult.data ?? null, unidade };
+            if (variacao != null) setCache("credito_familias_12m", res);
+            return res;
+        }
+    } catch (e) {
+        console.warn("crédito famílias 12m:", e instanceof Error ? e.message : e);
+    }
+    return { nome, valor: null, data: null, unidade };
+}
+
+// ── IBGE SIDRA — indicadores setoriais (variação acumulada 12 meses) ──
+// Endpoints e variáveis confirmados via metadados em 2026-06.
+// %PER% = nº de períodos (1 = atual; 13 = histórico). Mantém a ordem exata
+// dos segmentos testada na API (período antes da classificação).
+const SIDRA = "https://apisidra.ibge.gov.br/values";
+const SIDRA_T: Record<string, string> = {
+    desemprego:    `${SIDRA}/t/6381/n1/all/v/4099/p/last%20%PER%`,                 // PNAD - taxa de desocupação (%)
+    ipca_saude:    `${SIDRA}/t/7060/n1/1/v/2265/p/last%20%PER%/c315/7660`,         // IPCA grupo Saúde - acum. 12m
+    ipca_educacao: `${SIDRA}/t/7060/n1/1/v/2265/p/last%20%PER%/c315/7766`,         // IPCA grupo Educação - acum. 12m
+    pmc_varejo:    `${SIDRA}/t/8880/n1/all/v/11711/p/last%20%PER%/c11046/56734`,   // PMC volume varejo - acum. 12m
+    pms_servicos:  `${SIDRA}/t/8688/n1/all/v/11626/p/last%20%PER%/c11046/56726`,   // PMS volume serviços - acum. 12m
+};
+const SIDRA_TITULO: Record<string, string> = {
+    desemprego: "Desemprego",
+    ipca_saude: "IPCA Saúde 12m",
+    ipca_educacao: "IPCA Educação 12m",
+    pmc_varejo: "Varejo (PMC) 12m",
+    pms_servicos: "Serviços (PMS) 12m",
+};
+
+const sidraNum = (v: unknown): number => Number(String(v ?? "").replace(",", "."));
+// O período é o único campo "…N" cujo valor contém um ano (ex.: "abril 2026",
+// "fev-mar-abr 2026") — robusto independente da ordem das dimensões.
+function sidraPeriodo(r: Record<string, any>): string {
+    for (const k of Object.keys(r)) {
+        if (k.endsWith("N") && /\b20\d{2}\b/.test(String(r[k] ?? ""))) return String(r[k]);
+    }
+    return "";
+}
+async function fetchSidraSerie(key: string, periodos: number): Promise<Array<{ data: string; valor: number }>> {
+    const url = SIDRA_T[key].replace("%PER%", String(periodos));
+    const raw = await getJson(url);
+    const rows = Array.isArray(raw) ? raw.slice(1) : []; // raw[0] é o cabeçalho
+    return rows
+        .map((r: any) => ({ data: sidraPeriodo(r), valor: sidraNum(r.V) }))
+        .filter((r) => Number.isFinite(r.valor));
+}
+async function fetchSetorial(key: string): Promise<{ nome: string; valor: number | null; data: string | null; unidade: string }> {
+    const nome = SIDRA_TITULO[key];
+    const cached = getCache<any>(`set_${key}`);
+    if (cached) return cached;
+    try {
+        const serie = await fetchSidraSerie(key, 1);
+        if (serie.length > 0) {
+            const ult = serie[serie.length - 1];
+            const res = { nome, valor: ult.valor, data: ult.data || null, unidade: "%" };
+            setCache(`set_${key}`, res);
+            return res;
+        }
+    } catch (e) {
+        console.warn(`setorial ${key}:`, e instanceof Error ? e.message : e);
+    }
+    return { nome, valor: null, data: null, unidade: "%" };
+}
+
 serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
@@ -392,13 +525,20 @@ serve(async (req: Request) => {
         }
 
         // recurso === "todos" (default): indicadores + notícias num payload só
+        // Tudo em paralelo (BCB + PTAX + bolsa + notícias + setoriais IBGE).
+        // Falha de uma fonte não derruba as demais — cada fetch trata seu erro.
         const [
             selic, cdi, ipca, ipca12m, igpm, inpc, dolar, euro, bolsa, ibge, agbr,
+            inadPf, salMin, credFam12m,
+            desemprego, ipcaSaude, ipcaEducacao, pmcVarejo, pmsServicos,
         ] = await Promise.all([
             fetchSgs("selic"), fetchSgs("cdi"), fetchSgs("ipca"),
             fetchSgs("ipca_12m"), fetchSgs("igpm"), fetchSgs("inpc"),
             fetchCambio("USD"), fetchCambio("EUR"), fetchBolsa(),
             fetchNoticiasIbge(qtd), fetchNoticiasAgbr(qtd),
+            fetchSgs("inadimplencia_pf"), fetchSgs("salario_minimo"), fetchCreditoFamilias12m(),
+            fetchSetorial("desemprego"), fetchSetorial("ipca_saude"), fetchSetorial("ipca_educacao"),
+            fetchSetorial("pmc_varejo"), fetchSetorial("pms_servicos"),
         ]);
 
         const noticias: Noticia[] = [];
@@ -419,6 +559,15 @@ serve(async (req: Request) => {
                 ipca_12m: fmtSgs(ipca12m, "IPCA Acum. 12m", "%"),
                 igpm: fmtSgs(igpm, "IGP-M Mensal", "%"),
                 inpc: fmtSgs(inpc, "INPC Mensal", "%"),
+            },
+            economia: {
+                inadimplencia_pf: fmtSgs(inadPf, "Inadimplência PF", "%"),
+                salario_minimo: fmtSgs(salMin, "Salário mínimo", "R$"),
+                credito_familias_12m: credFam12m,
+            },
+            setorial: {
+                desemprego, ipca_saude: ipcaSaude, ipca_educacao: ipcaEducacao,
+                pmc_varejo: pmcVarejo, pms_servicos: pmsServicos,
             },
             bolsa,
             noticias: noticias.slice(0, qtd * 2),

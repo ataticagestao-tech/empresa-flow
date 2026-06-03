@@ -1217,6 +1217,49 @@ serve(async (req: Request) => {
         phone: phoneNorm,
     };
 
+    // 2.5. Limite de WhatsApp do pacote (modularização por pacote).
+    //   Conta interações (mensagens do usuário) do mês corrente para a empresa ativa.
+    //   Espelha os números de src/config/entitlements.ts — manter em sincronia.
+    //   Empresa sem plano (null) = ilimitada (legado). Fail-open se a checagem falhar.
+    {
+        const WHATSAPP_LIMIT_POR_PLANO: Record<string, number> = {
+            assistente: 100,
+            controller: 300,
+            gestor: 1000,
+        };
+        try {
+            const { data: compRow } = await service
+                .from("companies")
+                .select("plano")
+                .eq("id", empresa_ativa_id)
+                .maybeSingle();
+            const plano = (compRow as any)?.plano as string | null;
+            const limite = plano ? (WHATSAPP_LIMIT_POR_PLANO[plano] ?? Infinity) : Infinity;
+            if (Number.isFinite(limite)) {
+                const inicioMes = new Date();
+                inicioMes.setUTCDate(1);
+                inicioMes.setUTCHours(0, 0, 0, 0);
+                const { count } = await service
+                    .from("agente_conversas")
+                    .select("id", { count: "exact", head: true })
+                    .eq("company_id", empresa_ativa_id)
+                    .eq("role", "user")
+                    .or("canal.is.null,canal.eq.whatsapp")
+                    .gte("created_at", inicioMes.toISOString());
+                if ((count ?? 0) >= limite) {
+                    await enviarResposta(
+                        phoneNorm,
+                        `⚠️ O limite de ${limite} interações por mês do seu plano foi atingido. Pra continuar usando o Assistente, fale com a Tática pra fazer upgrade do pacote.`,
+                    );
+                    return jsonResp({ ok: true, status: "limite_whatsapp_atingido" });
+                }
+            }
+        } catch (e: any) {
+            // fail-open: se a checagem falhar, não bloqueia o atendimento
+            console.error("[orquestrador] checagem de limite whatsapp falhou:", e?.message);
+        }
+    }
+
     // 3. carrega histórico
     const historico = await carregarHistorico(service, contexto.user_id, contexto.acesso_id, contexto.empresa_ativa_id);
 

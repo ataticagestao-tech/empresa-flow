@@ -7,15 +7,17 @@ import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, ComposedChart, Area, Cell, LabelList,
-    AreaChart, PieChart, Pie, Line, ReferenceLine,
+    AreaChart, PieChart, Pie, Line, ReferenceLine, Customized,
 } from "recharts";
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
 import IndicadoresEconomicos from "@/components/dashboard/IndicadoresEconomicos";
+import BenchmarkSetor from "@/components/dashboard/BenchmarkSetor";
 import VendasPorItemCard from "@/components/dashboard/VendasPorItemCard";
-import NoticiasCard from "@/components/dashboard/NoticiasCard";
 import RadarLegislativo from "@/components/dashboard/RadarLegislativo";
+import NoticiasSetor from "@/components/dashboard/NoticiasSetor";
 import BolsaTicker from "@/components/dashboard/BolsaTicker";
+import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
@@ -101,6 +103,25 @@ const fmtInt = (v: number) =>
 const fmtFull = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 const fmtPct = (v: number) => `${v.toFixed(1)}%`;
+
+/* Setas nas pontas dos eixos (estilo do gráfico de Ponto de Equilíbrio).
+   Usado via <Customized component={renderAxisArrows} /> dentro de um chart Recharts. */
+const AXIS_COLOR = "#475569";
+function renderAxisArrows(props: any) {
+    const o = props?.offset;
+    if (!o || o.width == null || o.height == null) return null;
+    const left = o.left, top = o.top;
+    const right = o.left + o.width;
+    const bottom = o.top + o.height;
+    return (
+        <g>
+            {/* seta para cima no eixo Y */}
+            <polygon points={`${left - 4},${top + 4} ${left + 4},${top + 4} ${left},${top - 6}`} fill={AXIS_COLOR} />
+            {/* seta para a direita no eixo X */}
+            <polygon points={`${right - 4},${bottom - 4} ${right - 4},${bottom + 4} ${right + 7},${bottom}`} fill={AXIS_COLOR} />
+        </g>
+    );
+}
 const fmtShort = (v: number) => {
     if (!v || v === 0) return "";
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
@@ -125,11 +146,12 @@ export default function CompanyDashboard() {
         }
     }, [selectedCompany?.id, companyId, navigate]);
 
-    const [period, setPeriod] = useState<Period>("mes");
+    // Padrão: mês anterior (último mês fechado), não o mês corrente em andamento.
+    const [period, setPeriod] = useState<Period>("mes_especifico");
     const [customStart, setCustomStart] = useState("");
     const [customEnd, setCustomEnd] = useState("");
-    const [specificMonth, setSpecificMonth] = useState(() => new Date().getMonth());
-    const [specificYear, setSpecificYear] = useState(() => new Date().getFullYear());
+    const [specificMonth, setSpecificMonth] = useState(() => subMonths(new Date(), 1).getMonth());
+    const [specificYear, setSpecificYear] = useState(() => subMonths(new Date(), 1).getFullYear());
     const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
     const [regime, setRegime] = useState<"caixa" | "competencia">("competencia");
     const [productsPage, setProductsPage] = useState(0);
@@ -1279,7 +1301,11 @@ export default function CompanyDashboard() {
             <div style={{ marginBottom: 12 }}>
                 <BolsaTicker />
             </div>
-            <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+            {/* ── Abas do Dashboard (Visão Geral | Indicadores) ── */}
+            <div style={{ marginBottom: 12 }}>
+                <DashboardTabs active="visao" />
+            </div>
+            <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "stretch", flexWrap: "wrap" }}>
             <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ flex: 1, minWidth: 320, fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ marginBottom: 14 }}>
@@ -1868,12 +1894,12 @@ export default function CompanyDashboard() {
                                     ))}
                                 </div>
                                 <div style={whitePanel}>
-                                <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 8, fontSize: 12, color: C.text2 }}>
+                                <div style={{ display: "flex", justifyContent: "flex-start", gap: 24, marginBottom: 8, fontSize: 12, color: C.text2 }}>
                                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />Faturamento acumulado</span>
                                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />Despesa acumulada</span>
                                 </div>
                                 <ResponsiveContainer width="100%" height={230}>
-                                    <ComposedChart data={rows} margin={{ top: 12, right: 8, left: 0, bottom: 4 }}>
+                                    <ComposedChart data={rows} margin={{ top: 14, right: 14, left: 0, bottom: 4 }}>
                                         <defs>
                                             <linearGradient id="accFat" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="0%" stopColor="#039855" stopOpacity={0.18} />
@@ -1895,6 +1921,7 @@ export default function CompanyDashboard() {
                                         <ReferenceLine y={mediaFatMes} {...refLineProps} label={refLabel("Média mensal")} />
                                         <Area type="monotone" dataKey="fat" stroke="#039855" strokeWidth={2.2} fill="url(#accFat)" dot={false} name="fat" />
                                         <Area type="monotone" dataKey="desp" stroke="#EF9F27" strokeWidth={2.2} fill="url(#accDesp)" dot={false} name="desp" />
+                                        <Customized component={renderAxisArrows} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
                                 </div>
@@ -1904,13 +1931,20 @@ export default function CompanyDashboard() {
                 </ChartCard>
                 </div>
 
+                {/* ── Benchmarking do setor (Você vs seu setor) — preenche o espaço
+                     abaixo dos gráficos, casando com a coluna lateral à direita ── */}
+                <BenchmarkSetor companyId={cId} />
+
             </div>
 
-            {/* ── Coluna lateral: widgets empilhados (240px) ── */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, alignSelf: "flex-start" }}>
+            {/* ── Coluna lateral: widgets empilhados (240px) ──
+                 Acompanha a altura do quadro branco (align-items: stretch do container).
+                 Indicadores tem altura natural; Notícias e Radar dividem (flex:1) o resto
+                 e rolam internamente — a coluna termina junto com o quadro branco. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 240, flexShrink: 0, minHeight: 0 }}>
                 <IndicadoresEconomicos />
+                <NoticiasSetor />
                 <RadarLegislativo />
-                <NoticiasCard />
             </div>
             </div>
         </AppLayout>
