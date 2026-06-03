@@ -1640,8 +1640,8 @@ function PontoEquilibrioLucroCard({ rows, periodLabel }: { rows: GrupoCompanyRow
     <CompCard
       title="Faturamento × Ponto de equilíbrio × Lucro"
       subtitle={`Por loja · ${periodLabel}`}
-      info="Coluna = faturamento da loja. Ponto de equilíbrio = faturamento mínimo para não dar prejuízo (custos fixos ÷ margem de contribuição). Lucro líquido = Receita − Impostos − Custos − Despesas (competência)."
-      caption="A coluna acima da linha laranja (ponto de equilíbrio) = loja dá lucro. A linha azul (lucro líquido) abaixo de zero = prejuízo no período."
+      info="Coluna = faturamento da loja (laranja = abaixo do ponto de equilíbrio). Ponto de equilíbrio = faturamento mínimo para não dar prejuízo (custos fixos ÷ margem de contribuição). Lucro líquido = Receita − Impostos − Custos − Despesas (competência)."
+      caption="Coluna VERDE = loja faturando acima do ponto de equilíbrio (lucro); coluna LARANJA = abaixo do ponto de equilíbrio (prejuízo). A linha azul (lucro líquido) abaixo de zero = prejuízo no período."
       stats={stats} legend={legend} height={300}
     >
       {data.length === 0 ? (
@@ -1654,7 +1654,12 @@ function PontoEquilibrioLucroCard({ rows, periodLabel }: { rows: GrupoCompanyRow
             <YAxis tick={{ fontSize: 9, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} width={44} tickFormatter={yTickFmt} />
             <ReTooltip content={tip} cursor={{ fill: "rgba(3, 152, 85, 0.06)" }} />
             <ReferenceLine y={0} stroke="#475569" strokeWidth={1} strokeDasharray="2 2" />
-            <Bar dataKey="faturamento" name="Faturamento" fill="#039855" fillOpacity={0.2} stroke="#039855" strokeOpacity={0.35} maxBarSize={52} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="faturamento" name="Faturamento" maxBarSize={52} radius={[4, 4, 0, 0]}>
+              {data.map((d, i) => {
+                const abaixo = d.pe != null && d.faturamento < (d.pe as number);
+                return <Cell key={i} fill={abaixo ? "#EF9F27" : "#039855"} fillOpacity={abaixo ? 0.4 : 0.2} stroke={abaixo ? "#B54708" : "#039855"} strokeOpacity={abaixo ? 0.6 : 0.35} />;
+              })}
+            </Bar>
             <Line type="monotone" dataKey="pe" name="Ponto de equilíbrio" stroke="#B54708" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3, fill: "#B54708" }} connectNulls={false} />
             <Line type="monotone" dataKey="lucro" name="Lucro líquido" stroke="#1570EF" strokeWidth={2.25} dot={{ r: 3, fill: "#1570EF" }} />
           </ComposedChart>
