@@ -25,7 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, Cell, ReferenceLine, LabelList,
-  PieChart, Pie, LineChart, Line,
+  PieChart, Pie, ComposedChart, Line,
 } from "recharts";
 import {
   Building2, Plus, Trash2, Edit2, RefreshCw, ArrowRightLeft,
@@ -1604,16 +1604,18 @@ function PontoEquilibrioLucroCard({ rows, periodLabel }: { rows: GrupoCompanyRow
     .filter((d) => d.faturamento > 0 || d.lucro !== 0)
     .sort((a, b) => b.faturamento - a.faturamento);
 
+  const fatTotal = data.reduce((s, d) => s + d.faturamento, 0);
   const lucroTotal = data.reduce((s, d) => s + d.lucro, 0);
   const noLucro = data.filter((d) => d.lucro > 0).length;
   const comPE = data.filter((d) => d.pe != null).length;
   const acimaPE = data.filter((d) => d.pe != null && d.faturamento >= (d.pe as number)).length;
   const stats: CardStat[] = [
+    { label: "Faturamento (grupo)", value: fmt(fatTotal), color: "#039855" },
     { label: "Lucro líq. (grupo)", value: fmt(lucroTotal), color: lucroTotal >= 0 ? "#039855" : "#E53E3E" },
-    { label: "Lojas no lucro", value: `${noLucro}/${data.length}` },
     { label: "Acima do P.E.", value: comPE ? `${acimaPE}/${comPE}` : "—" },
   ];
   const legend: CardLegend[] = [
+    { label: "Faturamento", color: "#039855" },
     { label: "Ponto de equilíbrio", color: "#B54708" },
     { label: "Lucro líquido", color: "#1570EF" },
   ];
@@ -1636,25 +1638,26 @@ function PontoEquilibrioLucroCard({ rows, periodLabel }: { rows: GrupoCompanyRow
 
   return (
     <CompCard
-      title="Ponto de equilíbrio × Lucro líquido"
+      title="Faturamento × Ponto de equilíbrio × Lucro"
       subtitle={`Por loja · ${periodLabel}`}
-      info="Ponto de equilíbrio = faturamento mínimo para não dar prejuízo (custos fixos ÷ margem de contribuição). Lucro líquido = Receita − Impostos − Custos − Despesas (competência)."
-      caption="Loja faturando acima do ponto de equilíbrio dá lucro. A linha azul (lucro líquido) abaixo de zero = prejuízo no período."
+      info="Coluna = faturamento da loja. Ponto de equilíbrio = faturamento mínimo para não dar prejuízo (custos fixos ÷ margem de contribuição). Lucro líquido = Receita − Impostos − Custos − Despesas (competência)."
+      caption="A coluna acima da linha laranja (ponto de equilíbrio) = loja dá lucro. A linha azul (lucro líquido) abaixo de zero = prejuízo no período."
       stats={stats} legend={legend} height={300}
     >
       {data.length === 0 ? (
         <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2 }}>Sem dados no período</div>
       ) : (
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}>
+          <ComposedChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 4 }} barCategoryGap="22%">
             <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
             <XAxis dataKey="nome" interval={0} height={56} tick={<WrappedAxisTick />} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} tickMargin={8} />
             <YAxis tick={{ fontSize: 9, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} width={44} tickFormatter={yTickFmt} />
-            <ReTooltip content={tip} cursor={{ stroke: "#CBD2DA", strokeWidth: 1 }} />
+            <ReTooltip content={tip} cursor={{ fill: "rgba(3, 152, 85, 0.06)" }} />
             <ReferenceLine y={0} stroke="#475569" strokeWidth={1} strokeDasharray="2 2" />
+            <Bar dataKey="faturamento" name="Faturamento" fill="#039855" fillOpacity={0.2} stroke="#039855" strokeOpacity={0.35} maxBarSize={52} radius={[4, 4, 0, 0]} />
             <Line type="monotone" dataKey="pe" name="Ponto de equilíbrio" stroke="#B54708" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3, fill: "#B54708" }} connectNulls={false} />
             <Line type="monotone" dataKey="lucro" name="Lucro líquido" stroke="#1570EF" strokeWidth={2.25} dot={{ r: 3, fill: "#1570EF" }} />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       )}
     </CompCard>
