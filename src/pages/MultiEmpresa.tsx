@@ -878,31 +878,88 @@ function CompCard({
   );
 }
 
-/** Barras comparando empresas (uma barra por empresa) + médias + linha de média. */
+/** Barra centralizada de largura fixa (px). Usada p/ sobrepor 2025 (largo) ATRÁS de 2026 (estreito),
+ *  ambas centradas no mesmo ponto da loja. Recharts injeta x/y/width/height; barW é a largura desenhada. */
+function CenteredBar(props: any) {
+  const { x, width, y, height, fill, fillOpacity = 1, barW = 24, radius = 4 } = props;
+  if (!(height > 0) || width == null) return null;
+  const cx = x + width / 2;
+  const bx = cx - barW / 2;
+  const r = Math.max(0, Math.min(radius, barW / 2, height));
+  const d = `M ${bx} ${y + height} L ${bx} ${y + r} Q ${bx} ${y} ${bx + r} ${y} L ${bx + barW - r} ${y} Q ${bx + barW} ${y} ${bx + barW} ${y + r} L ${bx + barW} ${y + height} Z`;
+  return <path d={d} fill={fill} fillOpacity={fillOpacity} />;
+}
+
+/** Barras comparando empresas (uma barra por empresa) + médias + linha de média.
+ *  Modo comparativo (prop `compare`): barra do ano anterior (laranja, mais LARGA, semi-transparente)
+ *  ATRÁS da barra atual (verde, mais estreita), sobrepostas e centradas no mesmo eixo. Se vier
+ *  `inflPct`, desenha ainda a LINHA de meta = faturamento do ano anterior × (1 + inflação). */
 function CompBarCard({
   title, subtitle, info, caption, rows, valueKey, color = "#039855", height = 240,
+  compare, legend,
 }: {
   title: string; subtitle?: string; info?: string; caption?: string; rows: GrupoCompanyRow[];
   valueKey: keyof GrupoCompanyRow; color?: string; height?: number;
+  compare?: { byId: Record<string, number>; label: string; curLabel: string; color: string; inflPct?: number | null };
+  legend?: CardLegend[];
 }) {
   const allowNegative = valueKey === "caixaGerado";
+  const infl = compare?.inflPct ?? null;
   const data = rows
-    .map((r) => ({ nome: r.nome, valor: Number(r[valueKey] ?? 0) }))
-    .filter((d) => d.valor !== 0)
-    .sort((a, b) => b.valor - a.valor);
+    .map((r) => {
+      const valor = Number(r[valueKey] ?? 0);
+      const prev = compare ? Number(compare.byId[r.company_id] ?? 0) : 0;
+      const meta = compare && infl != null && prev > 0 ? prev * (1 + infl / 100) : null;
+      return { nome: r.nome, valor, prev, meta };
+    })
+    .filter((d) => (compare ? (d.valor !== 0 || d.prev !== 0) : d.valor !== 0))
+    .sort((a, b) => (compare ? (b.valor + b.prev) - (a.valor + a.prev) : b.valor - a.valor));
 
   const vals = data.map((d) => d.valor);
   const media = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
-  const stats: CardStat[] = [
-    { label: "Média", value: fmt(media) },
-    { label: "Maior", value: vals.length ? fmt(Math.max(...vals)) : "—" },
-    { label: "Menor", value: vals.length ? fmt(Math.min(...vals)) : "—" },
-  ];
+  const hasMeta = !!compare && infl != null && data.some((d) => d.meta != null);
+  const metaName = compare ? `Meta ${compare.curLabel} (infl.)` : "";
+
+  let stats: CardStat[];
+  if (compare) {
+    const totCur = data.reduce((s, d) => s + d.valor, 0);
+    const totPrev = data.reduce((s, d) => s + d.prev, 0);
+    const varPct = totPrev !== 0 ? ((totCur - totPrev) / totPrev) * 100 : null;
+    stats = [
+      { label: compare.curLabel, value: fmt(totCur), color },
+      { label: compare.label, value: fmt(totPrev), color: compare.color },
+      { label: "Variação", value: varPct == null ? "—" : `${varPct >= 0 ? "+" : ""}${varPct.toFixed(1)}%`, color: varPct != null && varPct >= 0 ? "#039855" : "#E53E3E" },
+    ];
+  } else {
+    stats = [
+      { label: "Média", value: fmt(media) },
+      { label: "Maior", value: vals.length ? fmt(Math.max(...vals)) : "—" },
+      { label: "Menor", value: vals.length ? fmt(Math.min(...vals)) : "—" },
+    ];
+  }
+
+  const SLOT = 48; // largura do "trilho" das duas barras (precisa caber a laranja larga)
 
   return (
-    <CompCard title={title} subtitle={subtitle} info={info} caption={caption} stats={stats} height={height}>
+    <CompCard title={title} subtitle={subtitle} info={info} caption={caption} stats={stats} legend={legend} height={height}>
       {data.length === 0 ? (
         <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2 }}>Sem dados no período</div>
+      ) : compare ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 4 }} barCategoryGap="18%" barGap={-SLOT}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+            <XAxis dataKey="nome" interval={0} height={56} tick={<WrappedAxisTick />} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} tickMargin={8} />
+            <YAxis tick={{ fontSize: 9, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} width={40} tickFormatter={yTickFmt} />
+            <ReTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n: string) => [fmt(v), n]} cursor={{ fill: "rgba(3, 152, 85, 0.06)" }} />
+            {/* laranja (ano anterior): larga, atrás */}
+            <Bar dataKey="prev" name={compare.label} fill={compare.color} fillOpacity={0.45} barSize={SLOT} shape={<CenteredBar barW={44} />} isAnimationActive={false} />
+            {/* verde (ano atual): estreita, na frente */}
+            <Bar dataKey="valor" name={compare.curLabel} fill={color} barSize={SLOT} shape={<CenteredBar barW={22} />} isAnimationActive={false} />
+            {hasMeta && (
+              <Line type="linear" dataKey="meta" name={metaName} stroke="#1D2939" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 3, fill: "#fff", stroke: "#1D2939", strokeWidth: 1.5 }} connectNulls={false} isAnimationActive={false} />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
       ) : (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 4 }} barCategoryGap="14%">
@@ -1782,16 +1839,20 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
   const [exporting, setExporting] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null); // capturamos os gráficos daqui p/ o PDF
 
-  const { periodStart, periodEnd, periodLabel } = useMemo(() => {
+  const { periodStart, periodEnd, periodLabel, prevStart, prevEnd } = useMemo(() => {
     const t = new Date();
     if (periodo === "mes")
-      return { periodStart: toISO(new Date(t.getFullYear(), t.getMonth(), 1)), periodEnd: toISO(new Date(t.getFullYear(), t.getMonth() + 1, 0)), periodLabel: "Mês atual" };
+      return { periodStart: toISO(new Date(t.getFullYear(), t.getMonth(), 1)), periodEnd: toISO(new Date(t.getFullYear(), t.getMonth() + 1, 0)), periodLabel: "Mês atual",
+               prevStart: toISO(new Date(t.getFullYear() - 1, t.getMonth(), 1)), prevEnd: toISO(new Date(t.getFullYear() - 1, t.getMonth() + 1, 0)) };
     if (periodo === "mes_anterior")
-      return { periodStart: toISO(new Date(t.getFullYear(), t.getMonth() - 1, 1)), periodEnd: toISO(new Date(t.getFullYear(), t.getMonth(), 0)), periodLabel: "Mês anterior" };
+      return { periodStart: toISO(new Date(t.getFullYear(), t.getMonth() - 1, 1)), periodEnd: toISO(new Date(t.getFullYear(), t.getMonth(), 0)), periodLabel: "Mês anterior",
+               prevStart: toISO(new Date(t.getFullYear() - 1, t.getMonth() - 1, 1)), prevEnd: toISO(new Date(t.getFullYear() - 1, t.getMonth(), 0)) };
     if (periodo === "ano")
-      return { periodStart: toISO(new Date(t.getFullYear(), 0, 1)), periodEnd: toISO(new Date(t.getFullYear(), 11, 31)), periodLabel: "Ano atual" };
+      return { periodStart: toISO(new Date(t.getFullYear(), 0, 1)), periodEnd: toISO(new Date(t.getFullYear(), 11, 31)), periodLabel: "Ano atual",
+               prevStart: toISO(new Date(t.getFullYear() - 1, 0, 1)), prevEnd: toISO(new Date(t.getFullYear() - 1, 11, 31)) };
     const [y, m] = mesEspecifico.split("-").map(Number);
-    return { periodStart: toISO(new Date(y, m - 1, 1)), periodEnd: toISO(new Date(y, m, 0)), periodLabel: mesEspecifico };
+    return { periodStart: toISO(new Date(y, m - 1, 1)), periodEnd: toISO(new Date(y, m, 0)), periodLabel: mesEspecifico,
+             prevStart: toISO(new Date(y - 1, m - 1, 1)), prevEnd: toISO(new Date(y - 1, m, 0)) };
   }, [periodo, mesEspecifico]);
 
   // Grupo
@@ -1832,6 +1893,30 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     queryFn: async () => {
       const { rows, totals, vendasDiarias, despesasPorCategoria, dreCategorias } = await calcGrupoDashboard(db, companyIds, periodStart, periodEnd);
       return { rows: rows.map((r) => ({ ...r, nome: nomeEmpresa(r.company_id) })), totals, vendasDiarias, despesasPorCategoria, dreCategorias };
+    },
+  });
+
+  // Faturamento por loja do MESMO período no ano anterior (YoY) — base leve só p/ o comparativo do gráfico.
+  // Mesma base do faturamento atual: soma de vendas.valor_total por data_venda, sem filtro de status.
+  const { data: fatPrevById = {} } = useQuery({
+    queryKey: ["grupo_dash_fat_prev", grupoId, companyIds.join(","), prevStart, prevEnd],
+    enabled: companyIds.length > 0,
+    queryFn: async () => {
+      const acc: Record<string, number> = {};
+      let from = 0;
+      for (;;) {
+        const { data, error } = await db.from("vendas")
+          .select("company_id, valor_total")
+          .in("company_id", companyIds)
+          .is("deleted_at", null)
+          .gte("data_venda", prevStart).lte("data_venda", prevEnd)
+          .range(from, from + 999);
+        if (error) throw error;
+        (data || []).forEach((r: any) => { acc[r.company_id] = (acc[r.company_id] || 0) + Number(r.valor_total || 0); });
+        if (!data || data.length < 1000) break;
+        from += 1000;
+      }
+      return acc;
     },
   });
 
@@ -1941,6 +2026,9 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     ? (metrics.totals.resultado / metrics.totals.faturamento) * 100 : 0;
 
   const dashRows = metrics?.rows || [];
+  const curYear = periodStart.slice(0, 4);
+  const prevYear = String(Number(curYear) - 1);
+  const ipca12m = indicadores?.inflacao?.ipca_12m?.valor ?? null; // % acumulado 12m (correção da inflação)
   const leitura = useMemo(
     () => (metrics ? gerarLeitura(metrics.rows, metrics.totals, periodLabel) : []),
     [metrics, periodLabel],
@@ -2172,7 +2260,7 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
             {(isFetching || isFetchingFunc) && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </div>
           <div data-pdf-chart>
-            <CompBarCard title="Faturamento por loja" subtitle={`Por loja · ${periodLabel}`} caption="Linha tracejada = média do grupo. Quem está acima/abaixo da média." info="Soma das vendas (valor total) por loja, igual à página Vendas." rows={dashRows} valueKey="faturamento" color="#039855" height={300} />
+            <CompBarCard title="Faturamento por loja" subtitle={`${curYear} × ${prevYear} · ${periodLabel}`} caption={`Verde = ${curYear}; laranja (atrás) = mesmo período em ${prevYear}.${ipca12m != null ? ` Linha tracejada = ${prevYear} corrigido pela inflação (IPCA 12m ${ipca12m.toFixed(1).replace(".", ",")}%) = o que ${curYear} precisava faturar p/ manter o valor real.` : ""}`} info="Soma das vendas (valor total) por loja. Compara o período selecionado com o mesmo período do ano anterior; a linha mostra o faturamento do ano anterior corrigido pela inflação (IPCA 12 meses)." rows={dashRows} valueKey="faturamento" color="#039855" height={300} compare={{ byId: fatPrevById, label: prevYear, curLabel: curYear, color: "#F79009", inflPct: ipca12m }} legend={[{ label: curYear, color: "#039855" }, { label: prevYear, color: "#F79009" }, ...(ipca12m != null ? [{ label: `Meta ${curYear} c/ inflação`, color: "#1D2939" }] : [])]} />
           </div>
 
           {/* Ponto de equilíbrio × Lucro líquido (2 linhas) — logo abaixo do faturamento */}
