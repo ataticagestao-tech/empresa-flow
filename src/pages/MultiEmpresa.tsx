@@ -25,7 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, Cell, ReferenceLine, LabelList,
-  PieChart, Pie,
+  PieChart, Pie, LineChart, Line,
 } from "recharts";
 import {
   Building2, Plus, Trash2, Edit2, RefreshCw, ArrowRightLeft,
@@ -1591,6 +1591,76 @@ function DespesaMargemCard({ despesas, faturamento, periodLabel }: { despesas: D
   );
 }
 
+// ── Ponto de equilíbrio × Lucro líquido por loja (2 linhas) ──
+
+function PontoEquilibrioLucroCard({ rows, periodLabel }: { rows: GrupoCompanyRow[]; periodLabel: string }) {
+  const data = rows
+    .map((r) => ({
+      nome: r.nome,
+      pe: r.peFinanceiro != null && r.peFinanceiro > 0 ? r.peFinanceiro : null,
+      lucro: r.faturamento - r.imposto - r.custo - r.despesaOp, // lucro líquido (competência, igual à DRE)
+      faturamento: r.faturamento,
+    }))
+    .filter((d) => d.faturamento > 0 || d.lucro !== 0)
+    .sort((a, b) => b.faturamento - a.faturamento);
+
+  const lucroTotal = data.reduce((s, d) => s + d.lucro, 0);
+  const noLucro = data.filter((d) => d.lucro > 0).length;
+  const comPE = data.filter((d) => d.pe != null).length;
+  const acimaPE = data.filter((d) => d.pe != null && d.faturamento >= (d.pe as number)).length;
+  const stats: CardStat[] = [
+    { label: "Lucro líq. (grupo)", value: fmt(lucroTotal), color: lucroTotal >= 0 ? "#039855" : "#E53E3E" },
+    { label: "Lojas no lucro", value: `${noLucro}/${data.length}` },
+    { label: "Acima do P.E.", value: comPE ? `${acimaPE}/${comPE}` : "—" },
+  ];
+  const legend: CardLegend[] = [
+    { label: "Ponto de equilíbrio", color: "#B54708" },
+    { label: "Lucro líquido", color: "#1570EF" },
+  ];
+
+  const tip = (props: { active?: boolean; label?: string | number; payload?: Array<{ payload?: { nome?: string; pe?: number | null; lucro?: number; faturamento?: number } }> }) => {
+    if (!props.active || !props.payload?.length) return null;
+    const p = props.payload[0]?.payload;
+    if (!p) return null;
+    const acima = p.pe != null && (p.faturamento || 0) >= p.pe;
+    return (
+      <div style={TOOLTIP_STYLE}>
+        <div style={{ fontWeight: 700, color: "#1D2939", marginBottom: 4 }}>{p.nome}</div>
+        <div style={{ color: TXT2 }}>Faturamento: <b style={{ color: "#1D2939" }}>{fmt(p.faturamento || 0)}</b></div>
+        <div style={{ color: "#B54708" }}>Ponto de equilíbrio: <b>{p.pe != null ? fmt(p.pe) : "—"}</b></div>
+        <div style={{ color: (p.lucro || 0) >= 0 ? "#039855" : "#E53E3E" }}>Lucro líquido: <b>{fmt(p.lucro || 0)}</b></div>
+        {p.pe != null && <div style={{ color: acima ? "#039855" : "#B54708", marginTop: 2 }}>{acima ? "Acima do ponto de equilíbrio ✓" : "Abaixo do ponto de equilíbrio"}</div>}
+      </div>
+    );
+  };
+
+  return (
+    <CompCard
+      title="Ponto de equilíbrio × Lucro líquido"
+      subtitle={`Por loja · ${periodLabel}`}
+      info="Ponto de equilíbrio = faturamento mínimo para não dar prejuízo (custos fixos ÷ margem de contribuição). Lucro líquido = Receita − Impostos − Custos − Despesas (competência)."
+      caption="Loja faturando acima do ponto de equilíbrio dá lucro. A linha azul (lucro líquido) abaixo de zero = prejuízo no período."
+      stats={stats} legend={legend} height={300}
+    >
+      {data.length === 0 ? (
+        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2 }}>Sem dados no período</div>
+      ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+            <XAxis dataKey="nome" interval={0} height={56} tick={<WrappedAxisTick />} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} tickMargin={8} />
+            <YAxis tick={{ fontSize: 9, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} width={44} tickFormatter={yTickFmt} />
+            <ReTooltip content={tip} cursor={{ stroke: "#CBD2DA", strokeWidth: 1 }} />
+            <ReferenceLine y={0} stroke="#475569" strokeWidth={1} strokeDasharray="2 2" />
+            <Line type="monotone" dataKey="pe" name="Ponto de equilíbrio" stroke="#B54708" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3, fill: "#B54708" }} connectNulls={false} />
+            <Line type="monotone" dataKey="lucro" name="Lucro líquido" stroke="#1570EF" strokeWidth={2.25} dot={{ r: 3, fill: "#1570EF" }} />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </CompCard>
+  );
+}
+
 // ── Leitura do mês (frases automáticas) + Ranking semáforo ──
 
 type LeituraTone = "good" | "warn" | "bad" | "info" | "star";
@@ -2095,6 +2165,11 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
           </div>
           <div data-pdf-chart>
             <CompBarCard title="Faturamento por loja" subtitle={`Por loja · ${periodLabel}`} caption="Linha tracejada = média do grupo. Quem está acima/abaixo da média." info="Soma das vendas (valor total) por loja, igual à página Vendas." rows={dashRows} valueKey="faturamento" color="#039855" height={300} />
+          </div>
+
+          {/* Ponto de equilíbrio × Lucro líquido (2 linhas) — logo abaixo do faturamento */}
+          <div data-pdf-chart>
+            <PontoEquilibrioLucroCard rows={dashRows} periodLabel={periodLabel} />
           </div>
 
           {/* 1º DRE comparativa — lojas lado a lado (detalhada por categoria) */}
