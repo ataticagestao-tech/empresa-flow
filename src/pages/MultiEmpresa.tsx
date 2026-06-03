@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useIndicadores } from "@/hooks/useIndicadores";
 import { useToast } from "@/components/ui/use-toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
@@ -24,12 +25,13 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, Cell, ReferenceLine, LabelList,
+  PieChart, Pie,
 } from "recharts";
 import {
   Building2, Plus, Trash2, Edit2, RefreshCw, ArrowRightLeft,
   Loader2, FileText, BarChart3, GitMerge, ArrowLeft, ChevronRight,
   Eye, ChevronDown, Info, TrendingUp, TrendingDown, Wallet, Landmark,
-  ArrowDownLeft, ArrowUpRight,
+  ArrowDownLeft, ArrowUpRight, Activity, Users, CreditCard, Receipt, Coins,
 } from "lucide-react";
 
 // ── Types ──
@@ -447,16 +449,39 @@ function cpNoPeriodo(
   return !!dataVencimento && dataVencimento >= start && dataVencimento <= end;
 }
 
-type CpClasse = "excluir" | "custo" | "despesa";
+type CpClasse = "excluir" | "imposto" | "custo" | "despesa";
 
-/** Custo (CMV/custo direto) vs Despesa (operacional+outras) vs Excluir (ativo/receita). */
-function classificaCpClasse(accountType: string | null | undefined, dreGroup: string | null | undefined): CpClasse {
+/** Imposto sobre vendas (dedução da receita): Simples Nacional, DAS/DARF, ISS/ICMS, tributos.
+ * NÃO inclui encargos de folha (FGTS/INSS), que são despesa de pessoal. */
+function isImpostoVendas(name: string | null | undefined, dreGroup: string | null | undefined): boolean {
+  if (normalizeTxt(dreGroup).includes("deduc")) return true;
+  const n = normalizeTxt(name);
+  if (!n || n.includes("fgts") || n.includes("inss")) return false;
+  return n.includes("simples nacional") || n.includes("darf") || n.includes("das/darf")
+    || n.includes("imposto sobre") || n.includes("tributos");
+}
+
+/** Imposto s/ vendas (dedução) vs Custo (CMV/maquininha) vs Despesa (operacional) vs Excluir. */
+function classificaCpClasse(accountType: string | null | undefined, dreGroup: string | null | undefined, name?: string | null): CpClasse {
   const at = (accountType || "").toLowerCase();
   const norm = normalizeTxt(dreGroup);
   if (at === "asset" || at === "liability" || at === "equity" || at === "revenue") return "excluir";
   if (norm.includes("nao dre")) return "excluir";
+  if (isImpostoVendas(name, dreGroup)) return "imposto";       // dedução da receita
+  if (isTaxaCartao(name)) return "custo";                      // MDR/maquininha = custo variável de vender
   if (at === "cost" || norm.includes("custo") || norm.includes("cmv") || norm.includes("csp")) return "custo";
   return "despesa";
+}
+
+/** Conta de taxa de cartão/maquininha (a "taxa lançada na DRE"). Casa os nomes reais do
+ * plano de contas: "Taxa da Maquininha - MDR …", "Taxas de Maquininha / Antecipação",
+ * "Taxas de operadora / maquininha". */
+function isTaxaCartao(name: string | null | undefined): boolean {
+  const n = normalizeTxt(name);
+  if (!n) return false;
+  if (n.includes("maquininha") || n.includes("maquina") || n.includes("mdr")) return true;
+  const temTaxa = n.includes("taxa") || n.includes("tarifa");
+  return temTaxa && (n.includes("operadora") || n.includes("cart") || n.includes("adquir") || n.includes("antecipac"));
 }
 
 /** 'YYYY-MM' do mês seguinte ao último do período (limite superior generoso da competência). */
@@ -472,6 +497,7 @@ interface GrupoCompanyRow {
   despesa: number; // KPI: total CP por vencimento no período (compatível com o card atual)
   custo: number; // CP classe custo (competência)
   despesaOp: number; // CP classe despesa operacional/outras (competência)
+  imposto: number; // CP classe imposto sobre vendas / dedução (competência)
   resultado: number; // faturamento − despesa (KPI)
   caixa: number;
   cr_aberto: number;
@@ -480,6 +506,7 @@ interface GrupoCompanyRow {
   caixaGerado: number; // entradas pagas − saídas pagas no período
   credito: number; // vendas no cartão de crédito (valor_total)
   debito: number; // vendas no cartão de débito (valor_total)
+  taxasCartao: number; // CP lançada em contas de taxa de maquininha/MDR no período (a "taxa na DRE")
 }
 
 interface GrupoVendaPonto {
@@ -488,10 +515,23 @@ interface GrupoVendaPonto {
   valor: number;
 }
 
+interface DespesaCategoria {
+  nome: string;
+  valor: number;
+}
+
+interface DreCategoria {
+  nome: string; // nome da conta contábil
+  classe: "imposto" | "custo" | "despesa";
+  porEmpresa: Record<string, number>; // company_id → valor (competência)
+}
+
 interface GrupoDashboardData {
   rows: GrupoCompanyRow[];
   totals: ConsolidadoTotals;
   vendasDiarias: GrupoVendaPonto[];
+  despesasPorCategoria: DespesaCategoria[]; // grupo-todo, maior → menor (custo + despesa operacional)
+  dreCategorias: DreCategoria[]; // categorias da DRE (custo/despesa) com valor por empresa
 }
 
 /**
@@ -505,7 +545,7 @@ async function calcGrupoDashboard(
   periodEnd: string,
 ): Promise<GrupoDashboardData> {
   const zeroTotals: ConsolidadoTotals = { faturamento: 0, despesa: 0, resultado: 0, caixa: 0, cr_aberto: 0, cp_aberto: 0 };
-  if (companyIds.length === 0) return { rows: [], totals: zeroTotals, vendasDiarias: [] };
+  if (companyIds.length === 0) return { rows: [], totals: zeroTotals, vendasDiarias: [], despesasPorCategoria: [], dreCategorias: [] };
 
   // Paginação (Supabase corta em ~1000 linhas; somamos TODAS as empresas numa query só).
   const fetchAll = async (build: (from: number, to: number) => any, pageSize = 1000) => {
@@ -579,17 +619,24 @@ async function calcGrupoDashboard(
   const naoTransfer = (r: any) => !(r.conta_contabil_id && transferIds.has(r.conta_contabil_id));
 
   interface Acc {
-    faturamento: number; despesa: number; custo: number; despesaOp: number;
+    faturamento: number; despesa: number; custo: number; despesaOp: number; imposto: number;
     caixa: number; cr_aberto: number; cp_aberto: number; credito: number; debito: number;
     entradas: number; saidas: number; custoFixo: number; custoVar: number; naoDesemb: number;
+    taxasCartao: number;
   }
   const base: Record<string, Acc> = {};
   companyIds.forEach((id) => {
     base[id] = {
-      faturamento: 0, despesa: 0, custo: 0, despesaOp: 0, caixa: 0, cr_aberto: 0, cp_aberto: 0,
+      faturamento: 0, despesa: 0, custo: 0, despesaOp: 0, imposto: 0, caixa: 0, cr_aberto: 0, cp_aberto: 0,
       credito: 0, debito: 0, entradas: 0, saidas: 0, custoFixo: 0, custoVar: 0, naoDesemb: 0,
+      taxasCartao: 0,
     };
   });
+  // Despesa por categoria (grupo-todo) p/ o gráfico "o que consome a margem".
+  const despCat = new Map<string, number>();
+  // Despesa por categoria POR EMPRESA + classe (custo/despesa) p/ a DRE detalhada.
+  const dreCatByCompany = new Map<string, Map<string, number>>(); // company_id → (categoria → valor)
+  const catClasse = new Map<string, "imposto" | "custo" | "despesa">();
 
   // Vendas → faturamento, crédito/débito, série diária
   const vendasMap = new Map<string, number>(); // "company|date" → valor
@@ -623,10 +670,25 @@ async function calcGrupoDashboard(
 
     // Atribuição por competência p/ Custo / Despesa operacional / PE
     if (valor === 0 || !cpNoPeriodo(r.competencia, r.data_vencimento, periodStart, periodEnd)) return;
+    if (naoTransfer(r) === false) return;
     if (isExcluidoDoResultado(acc?.account_type, acc?.dre_group)) return;
 
-    if (classificaCpClasse(acc?.account_type, acc?.dre_group) === "custo") b.custo += valor;
+    const classe = classificaCpClasse(acc?.account_type, acc?.dre_group, acc?.name);
+    if (classe === "excluir") return;
+    if (classe === "imposto") b.imposto += valor;
+    else if (classe === "custo") b.custo += valor;
     else b.despesaOp += valor;
+
+    // Taxa de cartão lançada na DRE (subconjunto da despesa) — alimenta o painel de taxas.
+    if (isTaxaCartao(acc?.name)) b.taxasCartao += valor;
+
+    // Despesa por categoria: grupo-todo (gráfico) + por empresa (DRE detalhada).
+    const catNome = (acc?.name || "Sem categoria").trim();
+    despCat.set(catNome, (despCat.get(catNome) || 0) + valor);
+    catClasse.set(catNome, classe);
+    let perCompCat = dreCatByCompany.get(r.company_id);
+    if (!perCompCat) { perCompCat = new Map(); dreCatByCompany.set(r.company_id, perCompCat); }
+    perCompCat.set(catNome, (perCompCat.get(catNome) || 0) + valor);
 
     const manual = acc?.expense_nature;
     const nat = manual === "fixa" || manual === "variavel"
@@ -657,9 +719,10 @@ async function calcGrupoDashboard(
     }
     return {
       company_id, nome: "",
-      faturamento: b.faturamento, despesa: b.despesa, custo: b.custo, despesaOp: b.despesaOp,
+      faturamento: b.faturamento, despesa: b.despesa, custo: b.custo, despesaOp: b.despesaOp, imposto: b.imposto,
       resultado: b.faturamento - b.despesa, caixa: b.caixa, cr_aberto: b.cr_aberto, cp_aberto: b.cp_aberto,
       peFinanceiro, caixaGerado: b.entradas - b.saidas, credito: b.credito, debito: b.debito,
+      taxasCartao: b.taxasCartao,
     };
   }).sort((a, b) => b.faturamento - a.faturamento);
 
@@ -680,7 +743,26 @@ async function calcGrupoDashboard(
     return { company_id, date, valor };
   });
 
-  return { rows, totals, vendasDiarias };
+  const despesasPorCategoria: DespesaCategoria[] = [...despCat.entries()]
+    .map(([nome, valor]) => ({ nome, valor }))
+    .filter((d) => d.valor > 0)
+    .sort((a, b) => b.valor - a.valor);
+
+  // DRE detalhada: categorias (conta contábil) com valor por empresa + classe.
+  // Ordem dos blocos: Impostos → Custos → Despesas; dentro de cada bloco, do maior pro menor.
+  const ordemClasse = { imposto: 0, custo: 1, despesa: 2 } as const;
+  const dreCategorias: DreCategoria[] = [...catClasse.entries()]
+    .map(([nome, classe]) => {
+      const porEmpresa: Record<string, number> = {};
+      let total = 0;
+      dreCatByCompany.forEach((m, cid) => { const v = m.get(nome) || 0; if (v) { porEmpresa[cid] = v; total += v; } });
+      return { nome, classe, porEmpresa, total };
+    })
+    .filter((c) => c.total > 0)
+    .sort((a, b) => (a.classe === b.classe ? b.total - a.total : ordemClasse[a.classe] - ordemClasse[b.classe]))
+    .map(({ nome, classe, porEmpresa }) => ({ nome, classe, porEmpresa }));
+
+  return { rows, totals, vendasDiarias, despesasPorCategoria, dreCategorias };
 }
 
 // ── Componentes de gráfico (comparativos do grupo) ──
@@ -728,7 +810,7 @@ interface CardLegend { label: string; color: string; }
 function KpiTile({
   icon: Icon, iconBg, iconColor, label, info, value, valueColor, sub,
 }: {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: React.ElementType;
   iconBg: string; iconColor: string; label: string; info?: string;
   value: string; valueColor?: string; sub?: string;
 }) {
@@ -1093,6 +1175,422 @@ function CompGroupedBarCard({ title, subtitle, info, caption, rows }: { title: s
   );
 }
 
+// ── Funcionários por empresa (agregado p/ "faturamento por funcionário") ──
+
+interface FuncAgg { clt: number; pj: number; autonomo: number; estagio: number; temporario: number; total: number; }
+type FuncByCompany = Record<string, FuncAgg>;
+const FUNC_TIPO_LABEL: Record<string, string> = { clt: "CLT", pj: "PJ", autonomo: "Autônomo", estagio: "Estágio", temporario: "Temporário" };
+
+const pctTxt = (v: number, d = 1) => `${v.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
+
+// ── 1º DRE comparativa: lojas lado a lado (1 período) ──
+
+/** DRE por competência DETALHADA por categoria (conta contábil), com uma coluna por loja
+ * selecionada + TOTAL. Custos e Despesas abrem nas suas categorias. Lojas ligam/desligam. */
+function DREComparativaCard({ rows, categorias, periodLabel }: { rows: GrupoCompanyRow[]; categorias: DreCategoria[]; periodLabel: string }) {
+  // Rastreamos as DEselecionadas: assim toda loja nova já entra ligada por padrão.
+  const [excluidas, setExcluidas] = useState<Set<string>>(new Set());
+  const [detalhar, setDetalhar] = useState(true); // abre detalhado por categoria
+  const isOn = (id: string) => !excluidas.has(id);
+  const toggle = (id: string) =>
+    setExcluidas((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const sel = rows.filter((r) => isOn(r.company_id));
+  const total = sel.reduce(
+    (a, r) => ({ faturamento: a.faturamento + r.faturamento, custo: a.custo + r.custo, despesaOp: a.despesaOp + r.despesaOp, imposto: a.imposto + r.imposto }),
+    { faturamento: 0, custo: 0, despesaOp: 0, imposto: 0 },
+  );
+  type DreLin = { faturamento: number; custo: number; despesaOp: number; imposto: number };
+  const receitaLiq = (r: DreLin) => r.faturamento - r.imposto;
+  const resultadoDe = (r: DreLin) => r.faturamento - r.imposto - r.custo - r.despesaOp;
+  const margemDe = (res: number, f: number) => (f > 0 ? (res / f) * 100 : 0);
+
+  const impostos = categorias.filter((c) => c.classe === "imposto");
+  const custos = categorias.filter((c) => c.classe === "custo");
+  const despesas = categorias.filter((c) => c.classe === "despesa");
+  const catTotalSel = (c: DreCategoria) => sel.reduce((s, r) => s + (c.porEmpresa[r.company_id] || 0), 0);
+
+  const colCount = sel.length + 2; // DRE + lojas + TOTAL
+
+  // Linha principal. tipo: rec = Receita; neg = dedução/custo/despesa; sub = subtotal (Receita líquida); res = Resultado.
+  const renderLinha = (label: string, valor: (r: DreLin) => number, tipo: "rec" | "neg" | "sub" | "res") => (
+    <tr key={label} className={`border-b border-[#F1F3F5] ${tipo === "res" ? "bg-[#FAFAFA]" : ""}`}>
+      <td className={`px-3 py-1.5 sticky left-0 ${tipo === "res" ? "bg-[#FAFAFA] font-bold text-[#1D2939]" : "bg-white"} ${tipo === "rec" || tipo === "neg" || tipo === "sub" ? "font-semibold text-[#1D2939]" : ""}`}>{label}</td>
+      {sel.map((r) => {
+        const v = valor(r);
+        const color = tipo === "res" ? (v >= 0 ? "#1570EF" : "#E53E3E") : tipo === "neg" ? "#B54708" : "#1D2939";
+        return <td key={r.company_id} className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums" style={{ color, fontWeight: tipo === "res" ? 700 : 600 }}>{tipo === "neg" ? `(${fmt(v)})` : fmt(v)}</td>;
+      })}
+      {(() => {
+        const v = valor(total);
+        const color = tipo === "res" ? (v >= 0 ? "#1570EF" : "#E53E3E") : tipo === "neg" ? "#B54708" : "#1D2939";
+        return <td className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums bg-[#F6F2EB]" style={{ color, fontWeight: 700 }}>{tipo === "neg" ? `(${fmt(v)})` : fmt(v)}</td>;
+      })()}
+    </tr>
+  );
+
+  // Linha de categoria (indentada, sob Custos/Despesas)
+  const renderCatRow = (c: DreCategoria) => {
+    const tSel = catTotalSel(c);
+    if (tSel <= 0) return null;
+    return (
+      <tr key={c.classe + "|" + c.nome} className="border-b border-[#F7F7F7]">
+        <td className="px-3 py-1 sticky left-0 bg-white truncate" style={{ paddingLeft: 28, color: "#667085", fontSize: 12.5, maxWidth: 260 }} title={c.nome}>{c.nome}</td>
+        {sel.map((r) => {
+          const v = c.porEmpresa[r.company_id] || 0;
+          return <td key={r.company_id} className="text-right px-3 py-1 whitespace-nowrap tabular-nums" style={{ color: v ? "#98623A" : "#CBD2DA", fontSize: 12.5 }}>{v ? `(${fmt(v)})` : "—"}</td>;
+        })}
+        <td className="text-right px-3 py-1 whitespace-nowrap tabular-nums bg-[#FBF8F3]" style={{ color: "#98623A", fontSize: 12.5, fontWeight: 600 }}>{`(${fmt(tSel)})`}</td>
+      </tr>
+    );
+  };
+
+  return (
+    <Card className="overflow-hidden p-0" data-pdf-chart>
+      <div className="px-5 py-3.5 flex items-start justify-between gap-3" style={{ backgroundColor: NAVY }}>
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 14, letterSpacing: "-0.01em", textTransform: "uppercase" }}>DRE comparativa — lojas lado a lado</h3>
+            <span title="Demonstrativo de Resultado por competência. Receita = vendas; Custos/Despesas = contas a pagar classificadas no plano de contas, abertas por categoria. Marque/desmarque lojas e troque o período no topo." className="inline-flex cursor-help"><Info size={13} className="text-white/60" /></span>
+          </div>
+          <div className="text-white/65" style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>{periodLabel} · regime de competência · {sel.length} de {rows.length} loja(s)</div>
+        </div>
+        <button
+          onClick={() => setDetalhar((d) => !d)}
+          className="self-center rounded-lg text-[12px] font-medium px-2.5 py-1.5 whitespace-nowrap"
+          style={{ background: detalhar ? "#fff" : "transparent", color: detalhar ? NAVY : "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.25)" }}
+          title="Mostrar/ocultar as categorias dentro de Custos e Despesas"
+        >
+          {detalhar ? "Ocultar categorias" : "Detalhar categorias"}
+        </button>
+      </div>
+      <div className="bg-white px-5 py-4 flex flex-col gap-3">
+        {/* Chips de seleção de lojas */}
+        <div className="flex flex-wrap gap-2">
+          {rows.map((r) => (
+            <button
+              key={r.company_id}
+              onClick={() => toggle(r.company_id)}
+              className="px-2.5 py-1 rounded-full text-[12px] font-medium border transition-colors"
+              style={isOn(r.company_id)
+                ? { background: "#071D41", color: "#fff", borderColor: "#071D41" }
+                : { background: "#fff", color: TXT2, borderColor: "#D0D5DD" }}
+              title={isOn(r.company_id) ? "Clique para tirar da comparação" : "Clique para incluir"}
+            >
+              {r.nome}
+            </button>
+          ))}
+        </div>
+
+        {sel.length === 0 ? (
+          <div style={{ padding: "32px 0", textAlign: "center", fontSize: 13, color: TXT2 }}>Selecione ao menos uma loja.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="text-sm" style={{ minWidth: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr className="text-[12px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD]">
+                  <th className="text-left px-3 py-2.5 sticky left-0 bg-white" style={{ minWidth: 200 }}>DRE</th>
+                  {sel.map((r) => (
+                    <th key={r.company_id} className="text-right px-3 py-2.5 whitespace-nowrap" style={{ minWidth: 120 }} title={r.nome}>{shortName(r.nome)}</th>
+                  ))}
+                  <th className="text-right px-3 py-2.5 whitespace-nowrap bg-[#F6F2EB]" style={{ minWidth: 120 }}>TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {renderLinha("Receita", (r) => r.faturamento, "rec")}
+                {/* Impostos sobre vendas (dedução) — só aparece se houver */}
+                {impostos.some((c) => catTotalSel(c) > 0) && <>
+                  {renderLinha("(−) Impostos s/ vendas", (r) => r.imposto, "neg")}
+                  {detalhar && impostos.map(renderCatRow)}
+                  {renderLinha("= Receita líquida", (r) => receitaLiq(r), "sub")}
+                </>}
+                {renderLinha("(−) Custos", (r) => r.custo, "neg")}
+                {detalhar && (custos.some((c) => catTotalSel(c) > 0)
+                  ? custos.map(renderCatRow)
+                  : <tr key="sem-custo"><td colSpan={colCount} className="px-3 py-1 sticky left-0 bg-white" style={{ paddingLeft: 28, color: "#98A2B3", fontSize: 12 }}>Sem custos classificados no período</td></tr>)}
+                {renderLinha("(−) Despesas", (r) => r.despesaOp, "neg")}
+                {detalhar && (despesas.some((c) => catTotalSel(c) > 0)
+                  ? despesas.map(renderCatRow)
+                  : <tr key="sem-desp"><td colSpan={colCount} className="px-3 py-1 sticky left-0 bg-white" style={{ paddingLeft: 28, color: "#98A2B3", fontSize: 12 }}>Sem despesas classificadas no período</td></tr>)}
+                {renderLinha("= Resultado", (r) => resultadoDe(r), "res")}
+                {/* Margem % */}
+                <tr className="border-b border-[#F1F3F5]">
+                  <td className="px-3 py-1.5 sticky left-0 bg-white text-[#475467]">Margem %</td>
+                  {sel.map((r) => {
+                    const mg = margemDe(resultadoDe(r), r.faturamento);
+                    return <td key={r.company_id} className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums" style={{ color: mg >= 0 ? "#039855" : "#E53E3E", fontWeight: 600 }}>{pctTxt(mg)}</td>;
+                  })}
+                  {(() => {
+                    const mg = margemDe(resultadoDe(total), total.faturamento);
+                    return <td className="text-right px-3 py-1.5 whitespace-nowrap tabular-nums bg-[#F6F2EB]" style={{ color: mg >= 0 ? "#039855" : "#E53E3E", fontWeight: 700 }}>{pctTxt(mg)}</td>;
+                  })()}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p style={{ fontSize: 11.5, color: TXT2, lineHeight: 1.35 }}>Receita pelas vendas; Impostos sobre vendas, Custos e Despesas pelas contas a pagar classificadas no plano de contas (regime de competência), abertas por categoria. Marque/desmarque lojas acima; o período vem do seletor no topo.</p>
+      </div>
+    </Card>
+  );
+}
+
+// ── 2º Geração de caixa: painel de explicação (ao lado do gráfico) ──
+
+function CaixaExplicacaoPanel({ rows, periodLabel }: { rows: GrupoCompanyRow[]; periodLabel: string }) {
+  const totalGerado = rows.reduce((s, r) => s + r.caixaGerado, 0);
+  const queimaram = rows.filter((r) => r.caixaGerado < 0).sort((a, b) => a.caixaGerado - b.caixaGerado);
+  const geraram = rows.filter((r) => r.caixaGerado > 0).sort((a, b) => b.caixaGerado - a.caixaGerado);
+  const melhor = geraram[0];
+
+  return (
+    <Card className="overflow-hidden p-0 h-full">
+      <div className="px-5 py-3.5" style={{ backgroundColor: NAVY }}>
+        <h3 className="font-extrabold text-white m-0" style={{ fontSize: 14, letterSpacing: "-0.01em", textTransform: "uppercase" }}>Como ler a geração de caixa</h3>
+        <div className="text-white/65" style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>{periodLabel} · regime de caixa</div>
+      </div>
+      <div className="bg-white px-5 py-4 flex flex-col gap-3" style={{ fontSize: 13.5, color: "#1D2939", lineHeight: 1.5 }}>
+        <p style={{ color: TXT2 }}>
+          <b style={{ color: "#1D2939" }}>Geração de caixa</b> = tudo que <b>entrou</b> (recebimentos pagos) menos tudo que <b>saiu</b> (pagamentos), no período. É dinheiro de verdade na conta — diferente do resultado (que é por competência). Transferências entre contas não contam.
+        </p>
+        <div className="flex items-start gap-2.5">
+          <span style={{ fontSize: 15 }}>{totalGerado >= 0 ? "✅" : "🔴"}</span>
+          <span>O grupo {totalGerado >= 0 ? "gerou" : "queimou"} <b style={{ color: totalGerado >= 0 ? "#039855" : "#E53E3E" }}>{fmt(Math.abs(totalGerado))}</b> de caixa no período.</span>
+        </div>
+        {melhor && (
+          <div className="flex items-start gap-2.5">
+            <span style={{ fontSize: 15 }}>🏆</span>
+            <span>Quem mais gerou caixa: <b>{melhor.nome}</b> ({fmt(melhor.caixaGerado)}).</span>
+          </div>
+        )}
+        {queimaram.length > 0 ? (
+          <div className="flex items-start gap-2.5">
+            <span style={{ fontSize: 15 }}>⚠️</span>
+            <span>{queimaram.length} {queimaram.length > 1 ? "lojas queimaram" : "loja queimou"} caixa (gastou mais do que entrou): <b>{queimaram.slice(0, 3).map((r) => r.nome).join(", ")}{queimaram.length > 3 ? "…" : ""}</b>. Vale checar prazos de recebimento e despesas concentradas.</span>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2.5">
+            <span style={{ fontSize: 15 }}>✅</span>
+            <span>Nenhuma loja queimou caixa no período.</span>
+          </div>
+        )}
+        <p style={{ fontSize: 11.5, color: TXT2, marginTop: "auto", paddingTop: 6 }}>No gráfico ao lado: barra verde = gerou caixa; barra vermelha = queimou.</p>
+      </div>
+    </Card>
+  );
+}
+
+// ── 3º Crédito × Débito (pizza) por loja + valor em taxas (lançado na DRE) ──
+
+function CredDebPizzaCard({ rows, periodLabel }: { rows: GrupoCompanyRow[]; periodLabel: string }) {
+  const comCartao = rows.filter((r) => r.credito > 0 || r.debito > 0);
+  const [companyId, setCompanyId] = useState<string>("");
+  const sel = comCartao.find((r) => r.company_id === companyId) || comCartao[0];
+
+  const totalCartao = sel ? sel.credito + sel.debito : 0;
+  const taxa = sel?.taxasCartao ?? 0;
+  const taxaPct = totalCartao > 0 ? (taxa / totalCartao) * 100 : 0;
+  const pieData = sel ? [
+    { name: "Crédito", value: sel.credito, color: "#1570EF" },
+    { name: "Débito", value: sel.debito, color: "#039855" },
+  ].filter((d) => d.value > 0) : [];
+
+  return (
+    <Card className="overflow-hidden p-0" data-pdf-chart>
+      <div className="px-5 py-3.5 flex items-start justify-between gap-3" style={{ backgroundColor: NAVY }}>
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 14, letterSpacing: "-0.01em", textTransform: "uppercase" }}>Crédito × Débito por loja</h3>
+            <span title="Vendas no cartão (pela forma de pagamento). O valor em taxas é a taxa de maquininha/MDR lançada na DRE da loja no período." className="inline-flex cursor-help"><Info size={13} className="text-white/60" /></span>
+          </div>
+          <div className="text-white/65" style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>{periodLabel} · escolha a loja</div>
+        </div>
+        {comCartao.length > 0 && (
+          <select
+            value={sel?.company_id || ""}
+            onChange={(e) => setCompanyId(e.target.value)}
+            className="rounded-lg text-[12px] font-medium px-2.5 py-1.5 self-center"
+            style={{ background: "#fff", color: NAVY, border: "1px solid rgba(255,255,255,0.25)", maxWidth: 180 }}
+          >
+            {comCartao.map((r) => (<option key={r.company_id} value={r.company_id}>{r.nome}</option>))}
+          </select>
+        )}
+      </div>
+      <div className="bg-white px-5 py-4">
+        {comCartao.length === 0 || !sel ? (
+          <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2 }}>Nenhuma venda no cartão no período</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            {/* Esquerda: pizza */}
+            <div style={{ height: 240 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={88} paddingAngle={2} stroke="#fff" strokeWidth={2}>
+                    {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Pie>
+                  <ReTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n: string) => [`${fmt(v)} (${pctTxt(totalCartao > 0 ? (v / totalCartao) * 100 : 0, 0)})`, n]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-6" style={{ fontSize: 12, color: TXT2, marginTop: 4 }}>
+                <span className="inline-flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: "#1570EF", borderRadius: 2 }} />Crédito</span>
+                <span className="inline-flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />Débito</span>
+              </div>
+            </div>
+            {/* Direita: taxas da loja */}
+            <div className="flex flex-col gap-3">
+              <div style={{ fontSize: 9.5, color: TXT2, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>Valor em taxas — {sel.nome}</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#B54708", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{fmt(taxa)}</div>
+              <div style={{ fontSize: 12, color: TXT2 }}>
+                {taxa > 0 ? <>≈ <b style={{ color: "#1D2939" }}>{pctTxt(taxaPct)}</b> do faturado no cartão</> : "Nenhuma taxa de cartão lançada na DRE desta loja no período."}
+              </div>
+              <div className="flex flex-col gap-1.5 pt-1" style={{ borderTop: "1px solid #F1F3F5" }}>
+                {[
+                  { l: "Crédito", v: sel.credito, c: "#1570EF" },
+                  { l: "Débito", v: sel.debito, c: "#039855" },
+                  { l: "Total no cartão", v: totalCartao, c: "#1D2939" },
+                ].map((row) => (
+                  <div key={row.l} className="flex items-center justify-between" style={{ fontSize: 12.5 }}>
+                    <span className="inline-flex items-center gap-1.5" style={{ color: TXT2 }}><span style={{ width: 8, height: 8, background: row.c, borderRadius: 2 }} />{row.l}</span>
+                    <span style={{ fontWeight: 600, color: "#1D2939", fontVariantNumeric: "tabular-nums" }}>{fmt(row.v)}</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: TXT2, lineHeight: 1.35, marginTop: 2 }}>Taxa = contas a pagar lançadas em "Taxa da Maquininha / MDR / Operadora" no período.</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ── 5º Faturamento por funcionário (produtividade por loja) ──
+
+function FaturamentoPorFuncionarioCard({ rows, funcByCompany, loading }: { rows: GrupoCompanyRow[]; funcByCompany: FuncByCompany; loading?: boolean }) {
+  const data = rows
+    .map((r) => {
+      const f = funcByCompany[r.company_id];
+      const total = f?.total || 0;
+      return { nome: r.nome, valor: total > 0 ? r.faturamento / total : 0, total, comp: f, faturamento: r.faturamento };
+    })
+    .filter((d) => d.total > 0 && d.faturamento > 0)
+    .sort((a, b) => b.valor - a.valor);
+
+  const totFunc = Object.values(funcByCompany).reduce((s, f) => s + (f?.total || 0), 0);
+  const vals = data.map((d) => d.valor);
+  const stats: CardStat[] = [
+    { label: "Func. (grupo)", value: String(totFunc) },
+    { label: "Maior/func.", value: vals.length ? fmt(Math.max(...vals)) : "—", color: "#039855" },
+    { label: "Menor/func.", value: vals.length ? fmt(Math.min(...vals)) : "—", color: "#B54708" },
+  ];
+
+  const renderTip = (props: { active?: boolean; payload?: Array<{ payload?: { nome?: string; valor?: number; total?: number; comp?: FuncAgg; faturamento?: number } }> }) => {
+    if (!props.active || !props.payload?.length) return null;
+    const p = props.payload[0]?.payload;
+    if (!p) return null;
+    const comp = p.comp;
+    const partes = comp ? (["clt", "autonomo", "pj", "estagio", "temporario"] as const)
+      .filter((k) => (comp[k] || 0) > 0)
+      .map((k) => `${FUNC_TIPO_LABEL[k]}: ${comp[k]}`) : [];
+    return (
+      <div style={TOOLTIP_STYLE}>
+        <div style={{ fontWeight: 700, color: "#1D2939", marginBottom: 4 }}>{p.nome}</div>
+        <div style={{ color: "#039855", fontWeight: 600 }}>{fmt(p.valor || 0)} / funcionário</div>
+        <div style={{ color: TXT2, marginTop: 2 }}>{p.total} funcionário(s) · {fmt(p.faturamento || 0)}</div>
+        {partes.length > 0 && <div style={{ color: TXT2, marginTop: 2 }}>{partes.join(" · ")}</div>}
+      </div>
+    );
+  };
+
+  return (
+    <CompCard
+      title="Faturamento por funcionário"
+      subtitle="Produtividade por loja · faturamento ÷ nº de funcionários"
+      info="Faturamento da loja dividido pelo número de funcionários ativos (CLT, autônomo, PJ, estágio, temporário). Quanto maior, mais cada pessoa rende."
+      caption="Conta funcionários ativos (não desligados). Lojas sem funcionário cadastrado ficam de fora. Passe o mouse para ver a composição por tipo de contrato."
+      stats={stats} height={260}
+    >
+      {loading ? (
+        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2 }}>Carregando funcionários…</div>
+      ) : data.length === 0 ? (
+        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2, textAlign: "center", padding: "0 16px" }}>Cadastre funcionários nas lojas (com tipo de contrato) para ver o faturamento por pessoa.</div>
+      ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 4 }} barCategoryGap="18%">
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+            <XAxis dataKey="nome" interval={0} height={56} tick={<WrappedAxisTick />} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} tickMargin={8} />
+            <YAxis tick={{ fontSize: 9, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} width={40} tickFormatter={yTickFmt} />
+            <ReTooltip content={renderTip} cursor={{ fill: "rgba(6, 95, 70, 0.06)" }} />
+            <Bar dataKey="valor" radius={[4, 4, 0, 0]} fill="#0E7490" maxBarSize={64} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </CompCard>
+  );
+}
+
+// ── 6º Despesa que mais consome a margem (categorias do grupo) ──
+
+function DespesaMargemCard({ despesas, faturamento, periodLabel }: { despesas: DespesaCategoria[]; faturamento: number; periodLabel: string }) {
+  const TOP = 8;
+  const top = despesas.slice(0, TOP);
+  const outras = despesas.slice(TOP).reduce((s, d) => s + d.valor, 0);
+  const data = [
+    ...top.map((d) => ({ nome: d.nome, valor: d.valor, pct: faturamento > 0 ? (d.valor / faturamento) * 100 : 0 })),
+    ...(outras > 0 ? [{ nome: "Outras categorias", valor: outras, pct: faturamento > 0 ? (outras / faturamento) * 100 : 0 }] : []),
+  ];
+  const totalDesp = despesas.reduce((s, d) => s + d.valor, 0);
+  const consumoPct = faturamento > 0 ? (totalDesp / faturamento) * 100 : 0;
+  const margemPct = faturamento > 0 ? 100 - consumoPct : 0;
+
+  const maior = data[0];
+  const stats: CardStat[] = [
+    { label: "Consome do faturamento", value: pctTxt(consumoPct), color: "#B54708" },
+    { label: "Sobra de margem", value: pctTxt(margemPct), color: margemPct >= 0 ? "#039855" : "#E53E3E" },
+    { label: "Maior vilã", value: maior ? `${pctTxt(maior.pct)}` : "—" },
+  ];
+
+  const shortCat = (n: string) => (n.length > 26 ? n.slice(0, 25) + "…" : n);
+  const renderTip = (props: { active?: boolean; payload?: Array<{ payload?: { nome?: string; valor?: number; pct?: number } }> }) => {
+    if (!props.active || !props.payload?.length) return null;
+    const p = props.payload[0]?.payload;
+    if (!p) return null;
+    return (
+      <div style={TOOLTIP_STYLE}>
+        <div style={{ fontWeight: 700, color: "#1D2939", marginBottom: 2 }}>{p.nome}</div>
+        <div style={{ color: "#B54708", fontWeight: 600 }}>{fmt(p.valor || 0)}</div>
+        <div style={{ color: TXT2, marginTop: 2 }}>{pctTxt(p.pct || 0)} do faturamento</div>
+      </div>
+    );
+  };
+
+  return (
+    <CompCard
+      title="O que mais consome a margem"
+      subtitle={`Maiores categorias de despesa do grupo · ${periodLabel}`}
+      info="Soma das contas a pagar por categoria do plano de contas (custo + despesa, por competência). Mostra onde o faturamento está indo embora."
+      caption={`As despesas consomem ${pctTxt(consumoPct)} do faturamento, sobrando ${pctTxt(margemPct)} de margem. Cada barra é uma categoria; quanto maior, mais come da margem.`}
+      stats={stats} height={Math.max(220, data.length * 34 + 24)}
+    >
+      {data.length === 0 ? (
+        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: TXT2 }}>Sem despesas no período</div>
+      ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, left: 8, bottom: 4 }} barCategoryGap="22%">
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
+            <XAxis type="number" tick={{ fontSize: 9, fill: TXT2, fontWeight: 500 }} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} tickFormatter={yTickFmt} />
+            <YAxis type="category" dataKey="nome" tick={{ fontSize: 10.5, fill: "#475467" }} width={150} axisLine={{ stroke: AXIS, strokeWidth: 1 }} tickLine={{ stroke: AXIS }} tickFormatter={shortCat} />
+            <ReTooltip content={renderTip} cursor={{ fill: "rgba(181, 71, 8, 0.06)" }} />
+            <Bar dataKey="valor" radius={[0, 4, 4, 0]} fill="#B54708" maxBarSize={26}>
+              <LabelList dataKey="pct" position="right" formatter={(v: number) => pctTxt(v, 0)} style={{ fontSize: 10, fill: TXT2, fontWeight: 600 }} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </CompCard>
+  );
+}
+
 // ── Leitura do mês (frases automáticas) + Ranking semáforo ──
 
 type LeituraTone = "good" | "warn" | "bad" | "info" | "star";
@@ -1203,6 +1701,8 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
   const [mesEspecifico, setMesEspecifico] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
   const [addOpen, setAddOpen] = useState(false);
   const [addCompanyId, setAddCompanyId] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null); // capturamos os gráficos daqui p/ o PDF
 
   const { periodStart, periodEnd, periodLabel } = useMemo(() => {
     const t = new Date();
@@ -1252,19 +1752,98 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     queryKey: ["grupo_dash_v2", grupoId, companyIds.join(","), periodStart, periodEnd],
     enabled: companyIds.length > 0,
     queryFn: async () => {
-      const { rows, totals, vendasDiarias } = await calcGrupoDashboard(db, companyIds, periodStart, periodEnd);
-      return { rows: rows.map((r) => ({ ...r, nome: nomeEmpresa(r.company_id) })), totals, vendasDiarias };
+      const { rows, totals, vendasDiarias, despesasPorCategoria, dreCategorias } = await calcGrupoDashboard(db, companyIds, periodStart, periodEnd);
+      return { rows: rows.map((r) => ({ ...r, nome: nomeEmpresa(r.company_id) })), totals, vendasDiarias, despesasPorCategoria, dreCategorias };
     },
   });
 
+  // Funcionários ativos por empresa (p/ "faturamento por funcionário")
+  const { data: funcByCompany = {}, isFetching: isFetchingFunc } = useQuery<FuncByCompany>({
+    queryKey: ["grupo_func", grupoId, companyIds.join(",")],
+    enabled: companyIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await db.from("employees")
+        .select("company_id, tipo_contrato, ativo, data_demissao")
+        .in("company_id", companyIds);
+      const acc: FuncByCompany = {};
+      companyIds.forEach((id) => { acc[id] = { clt: 0, pj: 0, autonomo: 0, estagio: 0, temporario: 0, total: 0 }; });
+      (data || []).forEach((e: any) => {
+        if (e.ativo === false || e.data_demissao) return; // só funcionários ativos
+        const a = acc[e.company_id];
+        if (!a) return;
+        const t = (e.tipo_contrato || "clt") as keyof FuncAgg;
+        if (t in a && t !== "total") (a[t] as number) += 1;
+        a.total += 1;
+      });
+      return acc;
+    },
+  });
+
+  // Crescimento do grupo (12m vs 12m anteriores) p/ comparar com o mercado (IBGE)
+  const { indicadores } = useIndicadores();
+  const { data: crescGrupo } = useQuery<number | null>({
+    queryKey: ["grupo_cresc24", grupoId, companyIds.join(",")],
+    enabled: companyIds.length > 0,
+    staleTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      const fim = new Date();
+      const meses: string[] = [];
+      for (let i = 23; i >= 0; i--) meses.push(`${new Date(fim.getFullYear(), fim.getMonth() - i, 1).getFullYear()}-${String(new Date(fim.getFullYear(), fim.getMonth() - i, 1).getMonth() + 1).padStart(2, "0")}`);
+      const start = `${meses[0]}-01`;
+      const end = toISO(new Date(fim.getFullYear(), fim.getMonth() + 1, 0));
+      // Soma vendas (valor_total, sem filtro de status — bate com o KPI Faturamento) por mês, todas as empresas.
+      const all: any[] = [];
+      let from = 0;
+      for (let guard = 0; guard < 2000; guard++) {
+        const { data, error } = await db.from("vendas")
+          .select("valor_total, data_venda")
+          .in("company_id", companyIds).is("deleted_at", null)
+          .gte("data_venda", start).lte("data_venda", end)
+          .order("id").range(from, from + 999);
+        if (error) break;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < 1000) break;
+        from += 1000;
+      }
+      const map: Record<string, number> = {};
+      all.forEach((v: any) => { const ym = (v.data_venda || "").slice(0, 7); map[ym] = (map[ym] || 0) + Number(v.valor_total || 0); });
+      const pts = meses.map((m) => map[m] || 0).map((v, i) => ({ v, i })).filter((x) => x.v > 0);
+      if (pts.length < 6) return null;
+      const last = pts.filter((x) => x.i >= 12);
+      const prior = pts.filter((x) => x.i < 12);
+      if (last.length >= 3 && prior.length >= 3) {
+        const aL = last.reduce((s, x) => s + x.v, 0) / last.length;
+        const aP = prior.reduce((s, x) => s + x.v, 0) / prior.length;
+        return aP > 0 ? ((aL - aP) / aP) * 100 : null;
+      }
+      const half = Math.floor(pts.length / 2);
+      const aO = pts.slice(0, half).reduce((s, x) => s + x.v, 0) / half;
+      const aR = pts.slice(pts.length - half).reduce((s, x) => s + x.v, 0) / half;
+      return aO > 0 ? ((aR - aO) / aO) * 100 : null;
+    },
+  });
+  // Mercado: volume do comércio varejista (PMC/IBGE), variação 12 meses. Default p/ grupos de loja.
+  const mercadoCresc = indicadores?.setorial?.pmc_varejo?.valor ?? null;
+
   const handleAddMember = async () => {
     if (!addCompanyId) return;
-    try {
-      await db.from("grupos_empresas").insert({ grupo_id: grupoId, company_id: addCompanyId });
-      setAddOpen(false); setAddCompanyId("");
-      refetchMembers();
-      toast({ title: "Empresa adicionada ao grupo" });
-    } catch { toast({ title: "Erro ao adicionar empresa", variant: "destructive" }); }
+    // supabase-js NÃO lança erro: o erro vem no objeto resolvido. Sem checar isso,
+    // uma falha (RLS/duplicado) virava "sucesso" falso e a empresa não aparecia.
+    const { error } = await db.from("grupos_empresas").insert({ grupo_id: grupoId, company_id: addCompanyId });
+    if (error) {
+      const dup = error.code === "23505" || /duplicate|unique/i.test(error.message || "");
+      toast({
+        title: dup ? "Essa empresa já está no grupo" : "Não consegui adicionar a empresa",
+        description: dup ? undefined : (error.message || "Tente de novo."),
+        variant: "destructive",
+      });
+      return;
+    }
+    setAddOpen(false); setAddCompanyId("");
+    await refetchMembers();
+    toast({ title: "Empresa adicionada ao grupo" });
   };
 
   const handleRemoveMember = async (id: string, nome: string) => {
@@ -1275,8 +1854,9 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
       variant: "destructive",
     });
     if (!ok) return;
-    await db.from("grupos_empresas").delete().eq("id", id);
-    refetchMembers();
+    const { error } = await db.from("grupos_empresas").delete().eq("id", id);
+    if (error) { toast({ title: "Não consegui remover", description: error.message, variant: "destructive" }); return; }
+    await refetchMembers();
   };
 
   const margem = metrics && metrics.totals.faturamento > 0
@@ -1288,8 +1868,9 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     [metrics, periodLabel],
   );
 
-  const exportarPDF = () => {
-    if (!metrics) return;
+  const exportarPDF = async () => {
+    if (!metrics || exporting) return;
+    setExporting(true);
     const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const W = 210, H = 297, M = 18, FOOTER_H = 14, contentW = W - M * 2;
     const nome = grupo?.nome || "Grupo";
@@ -1312,12 +1893,15 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     const t = metrics.totals;
 
     // ── KPIs (2 linhas × 3 colunas) ──
+    const crescStr = crescGrupo == null
+      ? "—"
+      : `${crescGrupo >= 0 ? "+" : ""}${crescGrupo.toFixed(1)}%${mercadoCresc != null ? ` (merc. ${mercadoCresc >= 0 ? "+" : ""}${mercadoCresc.toFixed(1)}%)` : ""}`;
     const kpis: [string, string][] = [
       ["Faturamento", fmt(t.faturamento)],
-      ["Despesas", fmt(t.despesa)],
+      ["Despesa", fmt(t.despesa)],
       [`Resultado (${margem.toFixed(1)}%)`, fmt(t.resultado)],
+      ["Cresc. vs mercado", crescStr],
       ["Caixa total", fmt(t.caixa)],
-      ["CR em aberto", fmt(t.cr_aberto)],
       ["CP em aberto", fmt(t.cp_aberto)],
     ];
     const colW = contentW / 3;
@@ -1393,6 +1977,38 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     doc.text(fmt(t.despesa), colDespR - 2, y + 4.7, { align: "right" });
     doc.text(fmt(t.resultado), colResR - 2, y + 4.7, { align: "right" });
 
+    // ── Gráficos de apoio (captura visual do que está na tela via html2canvas) ──
+    // Os números acima saem como texto nítido; os gráficos não dá pra redesenhar
+    // em jsPDF, então tiramos um "print" de cada card e anexamos como imagem.
+    try {
+      const chartNodes = pageRef.current
+        ? Array.from(pageRef.current.querySelectorAll<HTMLElement>("[data-pdf-chart]"))
+        : [];
+      if (chartNodes.length > 0) {
+        const html2canvas = (await import("html2canvas")).default;
+        doc.addPage(); y = drawHeader();
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(7, 29, 65);
+        doc.text("Gráficos de apoio", M, y); y += 6;
+        for (const node of chartNodes) {
+          const canvas = await html2canvas(node, {
+            scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false,
+            scrollX: 0, scrollY: -window.scrollY,
+          });
+          const imgData = canvas.toDataURL("image/png");
+          let imgW = contentW;
+          let imgH = (canvas.height / canvas.width) * imgW;
+          const maxH = H - 36 - FOOTER_H; // área útil abaixo do cabeçalho
+          if (imgH > maxH) { imgH = maxH; imgW = (canvas.width / canvas.height) * imgH; }
+          if (y + imgH > H - FOOTER_H) { doc.addPage(); y = drawHeader(); }
+          const x = M + (contentW - imgW) / 2; // centraliza se mais estreito que a área útil
+          doc.addImage(imgData, "PNG", x, y, imgW, imgH);
+          y += imgH + 6;
+        }
+      }
+    } catch {
+      toast({ title: "Não consegui capturar os gráficos; PDF salvo só com os números.", variant: "destructive" });
+    }
+
     // ── Rodapé com paginação ──
     const totalPages = doc.getNumberOfPages();
     for (let p = 1; p <= totalPages; p++) {
@@ -1405,10 +2021,11 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
 
     const safe = nome.replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_+|_+$/g, "");
     doc.save(`Consolidado_${safe}_${periodLabel.replace(/\s+/g, "_")}.pdf`);
+    setExporting(false);
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={pageRef} className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -1431,8 +2048,9 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
           {periodo === "mes_especifico" && (
             <Input type="month" className="w-[150px]" value={mesEspecifico} onChange={(e) => setMesEspecifico(e.target.value)} />
           )}
-          <Button variant="outline" onClick={exportarPDF} disabled={!metrics || companyIds.length === 0} title="Exportar este consolidado em PDF">
-            <FileText className="h-4 w-4 mr-2" /> Exportar PDF
+          <Button variant="outline" onClick={exportarPDF} disabled={!metrics || companyIds.length === 0 || exporting} title="Exportar o consolidado completo (KPIs, leitura, tabela e gráficos) em PDF">
+            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+            {exporting ? "Gerando PDF…" : "Exportar PDF"}
           </Button>
         </div>
       </div>
@@ -1449,35 +2067,56 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
           {(() => {
             const t = metrics?.totals || { faturamento: 0, despesa: 0, resultado: 0, caixa: 0, cr_aberto: 0, cp_aberto: 0 };
             const pctDesp = t.faturamento > 0 ? `${((t.despesa / t.faturamento) * 100).toFixed(0)}% do faturamento` : "no período";
+            const fmtPct1 = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+            const crescVal = crescGrupo == null ? "—" : fmtPct1(crescGrupo);
+            const crescColor = crescGrupo == null ? "#98A2B3" : crescGrupo >= 0 ? "#039855" : "#E53E3E";
+            let crescSub = "12m vs 12m anteriores";
+            if (mercadoCresc != null && crescGrupo != null) {
+              const diff = crescGrupo - mercadoCresc;
+              const comp = Math.abs(diff) < 1 ? "em linha com o" : diff > 0 ? "acima do" : "abaixo do";
+              crescSub = `${comp} varejo (${fmtPct1(mercadoCresc)})`;
+            } else if (mercadoCresc != null) {
+              crescSub = `mercado/varejo ${fmtPct1(mercadoCresc)}`;
+            }
             return (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <KpiTile icon={TrendingUp} iconBg="#ECFDF5" iconColor="#059669" label="Faturamento" value={fmt(t.faturamento)} valueColor="#039855" sub={`em ${periodLabel.toLowerCase()}`} info="Soma das vendas (valor total) do grupo no período." />
-                <KpiTile icon={TrendingDown} iconBg="#FEF2F2" iconColor="#B91C1C" label="Despesas" value={fmt(t.despesa)} valueColor="#DC2626" sub={pctDesp} info="Contas a pagar por vencimento no período (valor cheio). Exclui transferências." />
+                <KpiTile icon={TrendingDown} iconBg="#FEF2F2" iconColor="#B91C1C" label="Despesa" value={fmt(t.despesa)} valueColor="#DC2626" sub={pctDesp} info="Contas a pagar por vencimento no período (valor cheio). Exclui transferências." />
                 <KpiTile icon={Wallet} iconBg={t.resultado >= 0 ? "#ECFDF5" : "#FEF2F2"} iconColor={t.resultado >= 0 ? "#059669" : "#B91C1C"} label="Resultado" value={fmt(t.resultado)} valueColor={t.resultado >= 0 ? "#039855" : "#E53E3E"} sub={`${margem.toFixed(1)}% de margem`} info="Faturamento − Despesas do período (competência)." />
-                <KpiTile icon={Landmark} iconBg="#F2F4F7" iconColor="#475467" label="Caixa Total" value={fmt(t.caixa)} sub="saldo atual das contas" info="Saldo somado das contas bancárias das empresas do grupo." />
-                <KpiTile icon={ArrowDownLeft} iconBg="#ECFDF3" iconColor="#039855" label="CR em aberto" value={fmt(t.cr_aberto)} valueColor="#059669" sub="total a receber" info="Contas a receber em aberto (aberto/parcial/vencido). Exclui transferências." />
-                <KpiTile icon={ArrowUpRight} iconBg="#FFFAEB" iconColor="#B45309" label="CP em aberto" value={fmt(t.cp_aberto)} valueColor="#B45309" sub="total a pagar" info="Contas a pagar em aberto (aberto/parcial/vencido). Exclui transferências." />
+                <KpiTile icon={Activity} iconBg="#EFF8FF" iconColor="#1570EF" label="Crescimento vs mercado" value={crescVal} valueColor={crescColor} sub={crescSub} info="Crescimento do faturamento do grupo (últimos 12 meses vs 12 anteriores) comparado ao volume do comércio varejista (IBGE/PMC, 12 meses)." />
               </div>
             );
           })()}
 
-          {/* Leitura do mês — o que os números dizem, em palavras */}
-          <LeituraCard leitura={leitura} periodLabel={periodLabel} />
-
-          {/* Gráficos de apoio (cada um responde uma pergunta) */}
+          {/* Faturamento por loja — largura total */}
           <div className="flex items-center gap-2 pt-1">
-            <h3 className="font-semibold text-[15px]">Gráficos de apoio</h3>
-            {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            <h3 className="font-semibold text-[15px]">Análises do grupo</h3>
+            {(isFetching || isFetchingFunc) && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <CompBarCard title="Faturamento por loja" subtitle={`Por loja · ${periodLabel}`} caption="Linha tracejada = média do grupo. Quem está acima/abaixo da média." info="Soma das vendas (valor total) por loja, igual à página Vendas." rows={dashRows} valueKey="faturamento" color="#039855" />
-            <CompBarCard title="Geração de caixa por loja" subtitle={`Por loja · ${periodLabel}`} caption="Verde = gerou caixa; vermelho = queimou (gastou mais do que entrou)." info="Entradas pagas − saídas pagas no período (regime de caixa, exclui transferências)." rows={dashRows} valueKey="caixaGerado" />
-            <CompGroupedBarCard title="Custo × Despesa por loja" subtitle={`Por loja · ${periodLabel}`} caption="Custo = CMV/custo direto; Despesa = operacional. Para onde vai o dinheiro de cada loja (por competência)." info="Onde cada loja gasta." rows={dashRows} />
-            <CredDebCard rows={dashRows} subtitle={`Por loja · ${periodLabel}`} />
+          <div data-pdf-chart>
+            <CompBarCard title="Faturamento por loja" subtitle={`Por loja · ${periodLabel}`} caption="Linha tracejada = média do grupo. Quem está acima/abaixo da média." info="Soma das vendas (valor total) por loja, igual à página Vendas." rows={dashRows} valueKey="faturamento" color="#039855" height={300} />
           </div>
 
-          {/* Vendas no tempo (Dia/Semana/Mês) */}
-          <VendasTempoCard vendasDiarias={metrics?.vendasDiarias || []} rows={dashRows} nomeEmpresa={nomeEmpresa} />
+          {/* 1º DRE comparativa — lojas lado a lado (detalhada por categoria) */}
+          <DREComparativaCard rows={dashRows} categorias={metrics?.dreCategorias || []} periodLabel={periodLabel} />
+
+          {/* 2º Geração de caixa (1/2) + explicação (1/2) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div data-pdf-chart><CompBarCard title="Geração de caixa por loja" subtitle={`Por loja · ${periodLabel}`} caption="Verde = gerou caixa; vermelho = queimou (gastou mais do que entrou)." info="Entradas pagas − saídas pagas no período (regime de caixa, exclui transferências)." rows={dashRows} valueKey="caixaGerado" /></div>
+            <CaixaExplicacaoPanel rows={dashRows} periodLabel={periodLabel} />
+          </div>
+
+          {/* 3º Crédito × Débito (pizza) por loja + taxas */}
+          <CredDebPizzaCard rows={dashRows} periodLabel={periodLabel} />
+
+          {/* 4º Vendas por dia — quem vende mais e quem vende menos */}
+          <div data-pdf-chart><VendasTempoCard vendasDiarias={metrics?.vendasDiarias || []} rows={dashRows} nomeEmpresa={nomeEmpresa} /></div>
+
+          {/* 5º Faturamento por funcionário */}
+          <div data-pdf-chart><FaturamentoPorFuncionarioCard rows={dashRows} funcByCompany={funcByCompany} loading={isFetchingFunc && Object.keys(funcByCompany).length === 0} /></div>
+
+          {/* 6º Despesa que mais consome a margem */}
+          <div data-pdf-chart><DespesaMargemCard despesas={metrics?.despesasPorCategoria || []} faturamento={metrics?.totals.faturamento || 0} periodLabel={periodLabel} /></div>
 
           {/* Tabela por empresa — padrão de planilha */}
           <Card className="overflow-hidden p-0">
@@ -1580,7 +2219,12 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
           <SheetHeader><SheetTitle>Adicionar empresa ao grupo</SheetTitle></SheetHeader>
           <div className="space-y-4 mt-6">
             {empresasDisponiveis.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Todas as suas empresas já estão neste grupo.</p>
+              <div className="text-sm text-muted-foreground space-y-2">
+                <p>{companies.length === 0
+                  ? "Nenhuma empresa disponível na sua conta ainda."
+                  : "Todas as suas empresas já estão neste grupo."}</p>
+                <p className="text-xs">Só aparecem aqui as empresas vinculadas ao seu usuário. Se faltar alguma loja, ela precisa primeiro estar cadastrada e liberada para você.</p>
+              </div>
             ) : (
               <>
                 <div>
@@ -1593,6 +2237,7 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1.5">{empresasDisponiveis.length} empresa(s) disponível(is) para adicionar.</p>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>Cancelar</Button>
@@ -1730,16 +2375,19 @@ function ConsolidadoTab({ userId }: { userId?: string }) {
   const handleSave = async () => {
     if (!userId || !form.nome.trim()) return;
     setSaving(true);
-    try {
-      if (editGrupo) {
-        await db.from("grupos_empresariais").update({ nome: form.nome, descricao: form.descricao || null }).eq("id", editGrupo.id);
-      } else {
-        await db.from("grupos_empresariais").insert({ owner_id: userId, nome: form.nome, descricao: form.descricao || null });
-      }
-      setShowForm(false); setForm({ nome: "", descricao: "" }); setEditGrupo(null);
-      refetch();
-      toast({ title: editGrupo ? "Grupo atualizado" : "Grupo criado" });
-    } catch { toast({ title: "Erro ao salvar", variant: "destructive" }); } finally { setSaving(false); }
+    const payload = { nome: form.nome.trim(), descricao: form.descricao || null };
+    const { error } = editGrupo
+      ? await db.from("grupos_empresariais").update(payload).eq("id", editGrupo.id)
+      : await db.from("grupos_empresariais").insert({ owner_id: userId, ...payload });
+    setSaving(false);
+    if (error) {
+      const dup = error.code === "23505" || /duplicate|unique/i.test(error.message || "");
+      toast({ title: dup ? "Já existe um grupo com esse nome" : "Erro ao salvar", description: dup ? undefined : error.message, variant: "destructive" });
+      return;
+    }
+    setShowForm(false); setForm({ nome: "", descricao: "" }); setEditGrupo(null);
+    refetch();
+    toast({ title: editGrupo ? "Grupo atualizado" : "Grupo criado" });
   };
 
   const handleDelete = async (id: string) => {
