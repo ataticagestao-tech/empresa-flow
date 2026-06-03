@@ -4,6 +4,9 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { PontoEquilibrioCard } from "@/components/dashboard/PontoEquilibrioCard";
 import { ComparativoMensalCard } from "@/components/dashboard/ComparativoMensalCard";
+import { CicloCaixaCard } from "@/components/dashboard/CicloCaixaCard";
+import { LiquidezCard } from "@/components/dashboard/LiquidezCard";
+import { MargensCard } from "@/components/dashboard/MargensCard";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { ContextoIndicadores } from "@/components/dashboard/ContextoIndicadores";
 import {
@@ -123,6 +126,9 @@ export default function Indicadores() {
                         <ContextoIndicadores companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
                         <PontoEquilibrioCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
                         <ComparativoMensalCard companyId={cId} />
+                        <MargensCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
+                        <CicloCaixaCard companyId={cId} periodStart={periodStart} periodEnd={periodEnd} />
+                        <LiquidezCard companyId={cId} periodEnd={periodEnd} />
                     </div>
                 )}
             </div>

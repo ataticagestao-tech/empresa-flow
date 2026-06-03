@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth, subMonths, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchMargensRaw } from "@/modules/finance/presentation/hooks/useMargens";
@@ -8,7 +8,7 @@ import { fetchMargensRaw } from "@/modules/finance/presentation/hooks/useMargens
  * Contexto da página de Indicadores (UMA empresa).
  *
  * Reúne os números que dão sentido aos 4 indicadores ANTES deles:
- *  - kpis        : faturamento / despesa total / resultado do período + geração de caixa (resultado acumulado até o fim do período).
+ *  - kpis        : faturamento / despesa total / resultado do período + saldo em caixa (posição atual).
  *  - serie       : faturamento × despesa × resultado dos últimos `meses` meses (gráfico de barras+linha).
  *  - composicao  : decomposição do resultado do período (Receita − Custo − Despesa Op. − Outras).
  *
@@ -21,8 +21,7 @@ export interface ContextoKpis {
   faturamento: number;
   despesaTotal: number;
   resultado: number;
-  /** Resultado acumulado: o que restou no período + saldo (resultado) dos meses anteriores, até o fim do período. */
-  geracaoCaixa: number;
+  saldoCaixa: number;
 }
 
 export interface ContextoSeriePonto {
@@ -34,10 +33,6 @@ export interface ContextoSeriePonto {
 
 export interface ContextoComposicao {
   receita: number;
-  /** Taxa de cartão (dedução da receita bruta). */
-  taxaCartao: number;
-  /** receita − taxaCartao. */
-  receitaLiquida: number;
   custo: number;
   despesaOperacional: number;
   outras: number;
@@ -60,8 +55,6 @@ export interface UseContextoIndicadoresParams {
 
 const EMPTY_COMPOSICAO: ContextoComposicao = {
   receita: 0,
-  taxaCartao: 0,
-  receitaLiquida: 0,
   custo: 0,
   despesaOperacional: 0,
   outras: 0,
@@ -70,7 +63,7 @@ const EMPTY_COMPOSICAO: ContextoComposicao = {
 };
 
 const EMPTY: ContextoIndicadoresData = {
-  kpis: { faturamento: 0, despesaTotal: 0, resultado: 0, geracaoCaixa: 0 },
+  kpis: { faturamento: 0, despesaTotal: 0, resultado: 0, saldoCaixa: 0 },
   serie: [],
   composicao: EMPTY_COMPOSICAO,
 };
@@ -92,8 +85,18 @@ function mesPeriodo(d: Date): { start: string; end: string } | null {
   return { start: format(ini, "yyyy-MM-dd"), end: format(fim, "yyyy-MM-dd") };
 }
 
-/** Data bem antiga só para abranger todo o histórico no acumulado. */
-const INICIO_HISTORICO = "2000-01-01";
+/** Soma o saldo atual de todas as contas bancárias da empresa (posição atual). */
+async function fetchSaldoCaixa(db: any, companyId: string): Promise<number> {
+  const { data, error } = await db
+    .from("v_saldo_contas_bancarias")
+    .select("saldo_atual")
+    .eq("company_id", companyId);
+  if (error) throw error;
+  return ((data || []) as Array<{ saldo_atual: number | null }>).reduce(
+    (acc, r) => acc + (Number(r.saldo_atual) || 0),
+    0,
+  );
+}
 
 export function useContextoIndicadores({
   companyId,
@@ -112,12 +115,10 @@ export function useContextoIndicadores({
 
       // ── Composição do período atual ──
       const raw = await fetchMargensRaw(db, companyId, periodStart, periodEnd);
-      const despesaTotal = raw.taxaCartao + raw.custo + raw.despesaOperacional + raw.outras;
+      const despesaTotal = raw.custo + raw.despesaOperacional + raw.outras;
       const resultado = raw.receita - despesaTotal;
       const composicao: ContextoComposicao = {
         receita: raw.receita,
-        taxaCartao: raw.taxaCartao,
-        receitaLiquida: raw.receita - raw.taxaCartao,
         custo: raw.custo,
         despesaOperacional: raw.despesaOperacional,
         outras: raw.outras,
@@ -125,38 +126,30 @@ export function useContextoIndicadores({
         resultado,
       };
 
-      // ── Série mensal: janela de `meses` TERMINANDO no mês do filtro (sem passar de hoje) ──
-      // Acompanha o filtro do topo da tela: a tendência encerra no período selecionado.
+      // ── Série mensal (últimos `meses`, do mais antigo ao corrente) ──
       const hoje = new Date();
-      const fimPeriodo = parseISO(periodEnd);
-      const ancora = fimPeriodo > hoje ? hoje : fimPeriodo;
       const mesesDates: Date[] = [];
-      for (let i = meses - 1; i >= 0; i--) mesesDates.push(subMonths(ancora, i));
+      for (let i = meses - 1; i >= 0; i--) mesesDates.push(subMonths(hoje, i));
 
-      // Série + acumulado de todo o histórico até o fim do período, em paralelo.
-      const [serie, rawAcum] = await Promise.all([
-        Promise.all(
-          mesesDates.map(async (d): Promise<ContextoSeriePonto> => {
-            const label = mesLabel(d);
-            const per = mesPeriodo(d);
-            if (!per) return { mes: label, faturamento: 0, despesa: 0, resultado: 0 };
-            const r = await fetchMargensRaw(db, companyId, per.start, per.end);
-            const desp = r.taxaCartao + r.custo + r.despesaOperacional + r.outras;
-            return { mes: label, faturamento: r.receita, despesa: desp, resultado: r.receita - desp };
-          }),
-        ),
-        fetchMargensRaw(db, companyId, INICIO_HISTORICO, periodEnd),
-      ]);
+      const serie = await Promise.all(
+        mesesDates.map(async (d): Promise<ContextoSeriePonto> => {
+          const label = mesLabel(d);
+          const per = mesPeriodo(d);
+          if (!per) return { mes: label, faturamento: 0, despesa: 0, resultado: 0 };
+          const r = await fetchMargensRaw(db, companyId, per.start, per.end);
+          const desp = r.custo + r.despesaOperacional + r.outras;
+          return { mes: label, faturamento: r.receita, despesa: desp, resultado: r.receita - desp };
+        }),
+      );
 
-      // ── Geração de caixa = resultado acumulado (o que restou no período + saldo dos meses anteriores) ──
-      const geracaoCaixa =
-        rawAcum.receita - (rawAcum.taxaCartao + rawAcum.custo + rawAcum.despesaOperacional + rawAcum.outras);
+      // ── Saldo em caixa (posição atual) ──
+      const saldoCaixa = await fetchSaldoCaixa(db, companyId);
 
       const kpis: ContextoKpis = {
         faturamento: composicao.receita,
         despesaTotal,
         resultado,
-        geracaoCaixa,
+        saldoCaixa,
       };
 
       return { kpis, serie, composicao };
