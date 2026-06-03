@@ -126,6 +126,13 @@ IMPORTANTE:
 - Pra FOLHA DE PAGAMENTO formal (mês inteiro de vários funcionários), peça pra usar a tela de Folha no sistema, NÃO lance CP avulsa
 - Se ele já passou tudo numa única mensagem, pule perguntas e confirme tudo de uma vez
 
+IMAGENS (o usuário pode anexar uma foto no chat):
+- Nota fiscal / recibo / boleto / cupom de DESPESA → leia valor, fornecedor/credor, vencimento e descrição e siga o FLUXO DE LANÇAR CP. Se for um comprovante de algo que ele vai RECEBER, use o fluxo de CR.
+- Documento de cadastro (cartão CNPJ, RG, ficha, contrato) → extraia nome/razão social e CPF/CNPJ e siga criar_fornecedor (PJ/empresa) ou criar_funcionario (CLT/temporário/estágio).
+- Folha de ponto ou planilha manuscrita → leia e resuma os dados (nome, dias, horas/faltas). Pra registrar ponto formal de verdade, oriente a usar a tela de Ponto Eletrônico no sistema.
+- SEMPRE diga em texto o que você leu na imagem (valores, nomes, datas) ANTES de pedir confirmação, pra ele conferir se a leitura ficou certa.
+- Se a imagem estiver ilegível ou não for nada disso, descreva o que vê e pergunte o que ele quer fazer. Nunca invente dados que não dá pra ler.
+
 Use ferramentas quando precisar de dados reais ou para executar ações. Quando o usuário só conversar ("oi", "tudo bem"), responda sem ferramenta.`;
 
 // ── TOOLS DEFINITIONS (mesmas do agente-orquestrador) ──
@@ -308,15 +315,27 @@ serve(async (req: Request) => {
     }
 
     // 2. Lê o corpo
-    let payload: { message?: string; empresa_id?: string };
+    let payload: {
+        message?: string;
+        empresa_id?: string;
+        image?: { data?: string; media_type?: string };
+    };
     try {
         payload = await req.json();
     } catch {
         return jsonResp({ error: "JSON inválido" }, 400);
     }
     const message = (payload.message || "").trim();
-    if (!message) {
+    const image =
+        payload.image && typeof payload.image.data === "string" && payload.image.data.length > 0
+            ? { data: payload.image.data, media_type: payload.image.media_type || "image/jpeg" }
+            : null;
+    if (!message && !image) {
         return jsonResp({ error: "Mensagem vazia" }, 400);
+    }
+    // Guarda contra payload absurdo (base64 ~ 1.37x os bytes; ~10MB de imagem).
+    if (image && image.data.length > 14_000_000) {
+        return jsonResp({ response: "Essa imagem ficou grande demais. Manda uma versão menor?" });
     }
 
     const service = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
@@ -363,13 +382,30 @@ serve(async (req: Request) => {
     const dataAtual = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
     const contextoSistema = `\n\nCONTEXTO AUTOMÁTICO (não compartilhe IDs com o usuário):\n- nome do usuário: ${contexto.full_name}\n- data atual: ${dataAtual}\n- empresa ativa (id): ${contexto.empresa_ativa_id}\n- empresas disponíveis: ${empresas.map((e) => `${e.nome_fantasia} (id=${e.company_id})`).join(" | ")}`;
 
+    // Quando vem imagem, o conteúdo da mensagem do user vira um array com o
+    // bloco de visão + o texto (caption/contexto). Sem imagem, segue string.
+    const textoUser =
+        (message || "Segue a imagem anexada. Veja o que dá pra fazer com ela.") + contextoSistema;
+    const userContent: unknown = image
+        ? [
+            { type: "image", source: { type: "base64", media_type: image.media_type, data: image.data } },
+            { type: "text", text: textoUser },
+        ]
+        : message + contextoSistema;
+
     const messages: any[] = [
         ...historico,
-        { role: "user", content: message + contextoSistema },
+        { role: "user", content: userContent },
     ];
 
     // salva msg do user (texto original, sem o contexto)
-    await salvarMensagem(service, user.id, empresaAtivaId, "user", message);
+    await salvarMensagem(
+        service,
+        user.id,
+        empresaAtivaId,
+        "user",
+        image ? `[imagem] ${message}`.trim() : message,
+    );
 
     // 6. loop tool_use ↔ tool_result até resposta final
     let respostaFinal = "";
@@ -378,8 +414,10 @@ serve(async (req: Request) => {
         try {
             claudeResp = await chamarClaude(messages);
         } catch (e: any) {
-            console.error("[chat-web] Erro Claude:", e?.message);
-            return jsonResp({ response: "Tive um problema técnico aqui. Tenta de novo em 1 minuto?" });
+            const detalhe = String(e?.message || e).slice(0, 400);
+            console.error("[chat-web] Erro Claude:", detalhe);
+            // DIAGNÓSTICO TEMPORÁRIO: surfaca o motivo técnico no chat.
+            return jsonResp({ response: `⚠️ Erro técnico: ${detalhe}`, erro_tecnico: detalhe });
         }
 
         const stopReason = claudeResp.stop_reason;
