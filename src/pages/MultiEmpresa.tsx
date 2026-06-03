@@ -820,12 +820,12 @@ function KpiTile({
         <div style={{ width: 32, height: 32, borderRadius: 8, background: iconBg, color: iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Icon size={16} strokeWidth={2.25} />
         </div>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1D2939", letterSpacing: "-0.015em", lineHeight: 1.15, display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#1D2939", letterSpacing: "-0.015em", lineHeight: 1.15, display: "inline-flex", alignItems: "center", gap: 6 }}>
           {label}
           {info && <span title={info} style={{ display: "inline-flex", cursor: "help" }}><Info size={12} style={{ color: "#98A2B3" }} /></span>}
         </div>
       </div>
-      <div style={{ fontSize: "clamp(14px, 1.15vw, 19px)", fontWeight: 800, color: valueColor || "#1D2939", lineHeight: 1.1, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{value}</div>
+      <div style={{ fontSize: "clamp(18px, 1.8vw, 28px)", fontWeight: 800, color: valueColor || "#1D2939", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{value}</div>
       {sub && <div style={{ fontSize: 12, color: "#98A2B3", marginTop: 2 }}>{sub}</div>}
     </div>
   );
