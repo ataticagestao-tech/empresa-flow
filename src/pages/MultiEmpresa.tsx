@@ -1764,12 +1764,12 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await db.from("employees")
-        .select("company_id, tipo_contrato, ativo, data_demissao")
+        .select("company_id, tipo_contrato, status, data_demissao")
         .in("company_id", companyIds);
       const acc: FuncByCompany = {};
       companyIds.forEach((id) => { acc[id] = { clt: 0, pj: 0, autonomo: 0, estagio: 0, temporario: 0, total: 0 }; });
       (data || []).forEach((e: any) => {
-        if (e.ativo === false || e.data_demissao) return; // só funcionários ativos
+        if (e.status === "demitido" || e.data_demissao) return; // conta ativos/afastados, ignora desligados
         const a = acc[e.company_id];
         if (!a) return;
         const t = (e.tipo_contrato || "clt") as keyof FuncAgg;
