@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -473,10 +474,15 @@ export default function OrdensCompra() {
                 <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                Nenhuma ordem de compra encontrada
-              </div>
+              <EmptyState
+                icon={ShoppingCart}
+                title="Nenhuma ordem de compra ainda"
+                description="Para montar uma ordem de compra você precisa de fornecedores e produtos cadastrados."
+                actions={[
+                  { label: "+ Cadastrar fornecedor", to: "/fornecedores", variant: "outline" },
+                  { label: "+ Cadastrar produto", to: "/operacional", variant: "outline" },
+                ]}
+              />
             ) : (
               <div className="bg-white overflow-x-auto rounded-b-lg">
                 <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleOcCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>

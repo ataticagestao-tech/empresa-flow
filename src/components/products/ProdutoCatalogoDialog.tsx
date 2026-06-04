@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Package, X, Search, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatBRL } from "@/lib/format";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export interface CatalogoProduto {
   id: string;
@@ -91,8 +92,15 @@ export function ProdutoCatalogoDialog({
             <div className="flex items-center justify-center py-8 gap-2 text-[#999] text-sm">
               <Loader2 size={16} className="animate-spin" /> Carregando catálogo...
             </div>
+          ) : (produtos?.length ?? 0) === 0 ? (
+            <EmptyState
+              icon={Package}
+              title="Você ainda não tem produtos"
+              description="Cadastre seus produtos e serviços no Operacional para usá-los nas vendas."
+              actions={[{ label: "+ Cadastrar produto", to: "/operacional", onClick: onClose }]}
+            />
           ) : filtrados.length === 0 ? (
-            <div className="text-center py-8 text-[#999] text-sm">Nenhum produto encontrado</div>
+            <div className="text-center py-8 text-[#999] text-sm">Nenhum produto encontrado para “{term}”.</div>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-[#F6F2EB] sticky top-0">

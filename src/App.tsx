@@ -26,6 +26,7 @@ const CompanyDashboard = lazy(() => import("./pages/CompanyDashboard"));
 const Indicadores = lazy(() => import("./pages/Indicadores"));
 const RadarLegislativo = lazy(() => import("./pages/RadarLegislativo"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
+const Cadastros = lazy(() => import("./pages/Cadastros"));
 const Empresas = lazy(() => import("./pages/Empresas"));
 const Clientes = lazy(() => import("./pages/Clientes"));
 const Fornecedores = lazy(() => import("./pages/Fornecedores"));
@@ -73,7 +74,6 @@ const DRE = lazy(() => import("./pages/DRE"));
 const EstoqueProdutos = lazy(() => import("./pages/EstoqueProdutos"));
 const OrdensCompra = lazy(() => import("./pages/OrdensCompra"));
 const Inventario = lazy(() => import("./pages/Inventario"));
-const Documentos = lazy(() => import("./pages/Documentos"));
 const MultiEmpresa = lazy(() => import("./pages/MultiEmpresa"));
 const ContratosRecorrentes = lazy(() => import("./pages/ContratosRecorrentes"));
 const EmpresaResumo = lazy(() => import("./pages/EmpresaResumo"));
@@ -88,7 +88,6 @@ const MapeamentoContabil = lazy(() => import("./pages/MapeamentoContabil"));
 const NfseEmissao = lazy(() => import("./pages/NfseEmissao"));
 const NfseConfiguracoes = lazy(() => import("./pages/NfseConfiguracoes"));
 const PrevisaoImpostos = lazy(() => import("./pages/PrevisaoImpostos"));
-const PainelGerencial = lazy(() => import("./pages/PainelGerencial"));
 const AreaContador = lazy(() => import("./pages/AreaContador"));
 const VendaSistema = lazy(() => import("./pages/VendaSistema"));
 const Checkout = lazy(() => import("./pages/Checkout"));
@@ -205,6 +204,7 @@ const App = () => (
                     <Route path="/indicadores" element={<Indicadores />} />
                     <Route path="/radar-legislativo" element={<RadarLegislativo />} />
                     <Route path="/financeiro" element={<Financeiro />} />
+                    <Route path="/cadastros" element={<Cadastros />} />
                     <Route path="/empresas" element={<Empresas />} />
                     <Route path="/empresas/:id" element={<EmpresaResumo />} />
                     <Route path="/clientes" element={<Clientes />} />
@@ -241,15 +241,12 @@ const App = () => (
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="/contratos-recorrentes" element={<ContratosRecorrentes />} />
                     <Route path="/regua-cobranca" element={<ReguaCobranca />} />
-                    <Route path="/painel-gerencial" element={<PainelGerencial />} />
                     <Route path="/dre" element={<DRE />} />
                     <Route path="/demonstrativos/dfc" element={<FluxoCaixa />} />
                     <Route path="/demonstrativos/mapeamento" element={<MapeamentoContabil />} />
                     <Route path="/estoque" element={<EstoqueProdutos />} />
                     <Route path="/ordens-compra" element={<OrdensCompra />} />
                     <Route path="/inventario" element={<Inventario />} />
-                    <Route path="/documentos" element={<Documentos />} />
-                    <Route path="/documentos/*" element={<Documentos />} />
                     <Route path="/multiempresa" element={<MultiEmpresa />} />
                     <Route path="/multiempresa/*" element={<MultiEmpresa />} />
                     <Route path="/nfse" element={<NfseEmissao />} />

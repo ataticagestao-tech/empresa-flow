@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -443,9 +444,13 @@ export default function Inventario() {
                     })}
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={visibleInvCols.length || 1} className="text-center py-12 text-muted-foreground">
-                          <ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                          Nenhum inventário encontrado
+                        <td colSpan={visibleInvCols.length || 1}>
+                          <EmptyState
+                            icon={ClipboardCheck}
+                            title="Nenhum inventário ainda"
+                            description="O inventário confere a contagem dos seus produtos. Cadastre produtos no Operacional para contá-los aqui."
+                            actions={[{ label: "+ Cadastrar produto", to: "/operacional", variant: "outline" }]}
+                          />
                         </td>
                       </tr>
                     )}

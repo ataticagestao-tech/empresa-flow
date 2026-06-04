@@ -13,4 +13,13 @@ export interface Product {
     is_active: boolean;
     created_at: string;
     account_id?: string | null;
+    conta_contabil_id?: string | null;
+    // Estoque
+    unidade_medida?: string | null;
+    tipo_produto?: string | null;
+    estoque_minimo?: number | null;
+    estoque_maximo?: number | null;
+    localizacao?: string | null;
+    controla_validade?: boolean | null;
+    controla_lote?: boolean | null;
 }

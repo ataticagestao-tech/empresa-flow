@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ProductSheet } from "@/components/products/ProductSheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -55,18 +57,6 @@ export default function EstoqueProdutos() {
   const [saidaQtd, setSaidaQtd] = useState("");
   const [saidaTipo, setSaidaTipo] = useState("consumo");
   const [saidaMotivo, setSaidaMotivo] = useState("");
-
-  // Form fields
-  const [fCode, setFCode] = useState("");
-  const [fDesc, setFDesc] = useState("");
-  const [fUnidade, setFUnidade] = useState("un");
-  const [fTipo, setFTipo] = useState("insumo");
-  const [fPreco, setFPreco] = useState("");
-  const [fEstoqueMin, setFEstoqueMin] = useState("");
-  const [fEstoqueMax, setFEstoqueMax] = useState("");
-  const [fLocalizacao, setFLocalizacao] = useState("");
-  const [fValidade, setFValidade] = useState(false);
-  const [fLote, setFLote] = useState(false);
 
   // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
   const COL_ORDER = ['code', 'description', 'estoque', 'minimo', 'custo', 'status', 'acoes'];
@@ -171,50 +161,13 @@ export default function EstoqueProdutos() {
 
   function openNew() {
     setEditingProduct(null);
-    setFCode(""); setFDesc(""); setFUnidade("un"); setFTipo("insumo");
-    setFPreco(""); setFEstoqueMin(""); setFEstoqueMax(""); setFLocalizacao("");
-    setFValidade(false); setFLote(false);
     setIsSheetOpen(true);
   }
 
   function openEdit(p: Produto) {
     setEditingProduct(p);
-    setFCode(p.code || ""); setFDesc(p.description || ""); setFUnidade(p.unidade_medida || "un");
-    setFTipo(p.tipo_produto || "insumo"); setFPreco(String(p.price || ""));
-    setFEstoqueMin(String(p.estoque_minimo || "")); setFEstoqueMax(String(p.estoque_maximo || ""));
-    setFLocalizacao(p.localizacao || ""); setFValidade(p.controla_validade);
-    setFLote(p.controla_lote);
     setIsSheetOpen(true);
   }
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedCompany?.id) throw new Error("Sem empresa");
-      const payload: Record<string, any> = {
-        company_id: selectedCompany.id,
-        code: fCode || null,
-        description: fDesc,
-        unidade_medida: fUnidade,
-        tipo_produto: fTipo,
-        price: fPreco ? Number(fPreco) : 0,
-        estoque_minimo: fEstoqueMin ? Number(fEstoqueMin) : 0,
-        estoque_maximo: fEstoqueMax ? Number(fEstoqueMax) : null,
-        localizacao: fLocalizacao || null,
-        controla_validade: fValidade,
-        controla_lote: fLote,
-        is_active: true,
-      };
-      if (editingProduct) payload.id = editingProduct.id;
-      const { error } = await db.from("products").upsert(payload);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Produto salvo!" });
-      queryClient.invalidateQueries({ queryKey: ["estoque_produtos"] });
-      setIsSheetOpen(false);
-    },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
 
   const saidaMutation = useMutation({
     mutationFn: async () => {
@@ -360,10 +313,12 @@ export default function EstoqueProdutos() {
                 <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                Nenhum produto encontrado
-              </div>
+              <EmptyState
+                icon={Package}
+                title="Nenhum produto por aqui"
+                description="Os produtos do estoque são cadastrados no Operacional. Cadastre lá e eles aparecem aqui."
+                actions={[{ label: "+ Cadastrar produto", to: "/operacional" }]}
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
@@ -434,55 +389,12 @@ export default function EstoqueProdutos() {
           </CardContent>
         </Card>
 
-        {/* Sheet: Novo/Editar Produto */}
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetContent className="sm:max-w-[500px] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>{editingProduct ? "Editar Produto" : "Novo Produto"}</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Código</Label><Input value={fCode} onChange={e => setFCode(e.target.value)} placeholder="MAT-001" /></div>
-                <div>
-                  <Label>Tipo</Label>
-                  <Select value={fTipo} onValueChange={setFTipo}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="insumo">Insumo</SelectItem>
-                      <SelectItem value="produto">Produto</SelectItem>
-                      <SelectItem value="ativo">Ativo</SelectItem>
-                      <SelectItem value="embalagem">Embalagem</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div><Label>Descrição *</Label><Input value={fDesc} onChange={e => setFDesc(e.target.value)} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Unidade</Label><Input value={fUnidade} onChange={e => setFUnidade(e.target.value)} placeholder="un, cx, fr" /></div>
-                <div><Label>Preço Venda</Label><Input type="number" value={fPreco} onChange={e => setFPreco(e.target.value)} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Estoque Mínimo</Label><Input type="number" value={fEstoqueMin} onChange={e => setFEstoqueMin(e.target.value)} /></div>
-                <div><Label>Estoque Máximo</Label><Input type="number" value={fEstoqueMax} onChange={e => setFEstoqueMax(e.target.value)} /></div>
-              </div>
-              <div><Label>Localização</Label><Input value={fLocalizacao} onChange={e => setFLocalizacao(e.target.value)} placeholder="Sala 3, Prateleira A" /></div>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={fValidade} onChange={e => setFValidade(e.target.checked)} /> Controla Validade
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={fLote} onChange={e => setFLote(e.target.checked)} /> Controla Lote
-                </label>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsSheetOpen(false)} className="flex-1">Cancelar</Button>
-                <Button onClick={() => saveMutation.mutate()} disabled={!fDesc || saveMutation.isPending} className="flex-1">
-                  {saveMutation.isPending ? "Salvando..." : "Salvar"}
-                </Button>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+        {/* Cadastro/edição de produto — MESMO popup de Produtos & Departamentos */}
+        <ProductSheet
+          isOpen={isSheetOpen}
+          onClose={() => { setIsSheetOpen(false); setEditingProduct(null); }}
+          product={editingProduct as any}
+        />
 
         {/* Sheet: Registrar Saída */}
         <Sheet open={saidaOpen} onOpenChange={setSaidaOpen}>

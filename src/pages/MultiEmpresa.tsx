@@ -240,27 +240,7 @@ export default function MultiEmpresa() {
 
         <PagePanel title="Multi-empresa">
 
-        <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit">
-          {[
-            { key: "consolidado", label: "Consolidado", icon: Building2 },
-            { key: "transferencias", label: "Transferências", icon: ArrowRightLeft },
-            { key: "relatorios", label: "Relatórios", icon: BarChart3 },
-          ].map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                tab === key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className="h-4 w-4" /> {label}
-            </button>
-          ))}
-        </div>
-
-        {tab === "consolidado" && <ConsolidadoTab userId={user?.id} />}
-        {tab === "transferencias" && <TransferenciasTab userId={user?.id} />}
-        {tab === "relatorios" && <RelatoriosTab userId={user?.id} />}
+        <ConsolidadoTab userId={user?.id} />
         </PagePanel>
       </div>
     </AppLayout>

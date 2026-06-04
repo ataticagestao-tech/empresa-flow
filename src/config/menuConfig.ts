@@ -25,7 +25,6 @@ import {
   TableProperties,
   Target,
   Bell,
-  FolderOpen,
   Upload,
   Clock,
   GitMerge,
@@ -38,6 +37,7 @@ import {
   UserPlus,
   Banknote,
   MessageCircle,
+  LayoutGrid,
   LucideIcon
 } from "lucide-react";
 import type { ModuleId } from "@/config/entitlements";
@@ -73,19 +73,26 @@ export interface MenuGroup {
 }
 
 export const menuGroups: MenuGroup[] = [
+  // Dashboard = guarda-chuva da visão de topo: Visão Geral + Indicadores + Multi-empresa (subcategorias)
   {
     id: 'dashboard',
+    labelKey: 'menu.dashboard',
+    icon: LayoutDashboard,
     items: [
-      { titleKey: 'menu.dashboard', icon: LayoutDashboard, url: '/dashboard' }
+      { titleKey: 'Visão Geral', icon: LayoutDashboard, url: '/dashboard', isHardcoded: true },
+      { titleKey: 'Indicadores', icon: TrendingUp, url: '/indicadores', isHardcoded: true },
+      { titleKey: 'Multi-empresa', icon: GitMerge, url: '/multiempresa', isHardcoded: true, module: 'multiempresa' },
     ]
   },
+  // ① CADASTRAR — configura uma vez e reutiliza no sistema todo
   {
     id: 'cadastros',
     labelKey: 'Cadastros',
     icon: ClipboardList,
     isHardcodedLabel: true,
-    section: 'Gestão',
+    section: 'Cadastrar',
     items: [
+      { titleKey: 'Central de Cadastros', icon: LayoutGrid, url: '/cadastros', isHardcoded: true },
       { titleKey: 'menu.companies', icon: Building2, url: '/empresas' },
       { titleKey: 'Pessoas', icon: Users, isHardcoded: true, children: [
         { titleKey: 'Clientes', icon: Users, url: '/clientes', isHardcoded: true },
@@ -97,31 +104,37 @@ export const menuGroups: MenuGroup[] = [
         { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
         { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' },
       ] },
-      { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },
+      { titleKey: 'Produtos & Departamentos', icon: Package, url: '/operacional', isHardcoded: true },
     ]
   },
+  // Precificação logo depois dos cadastros (configura custos e preços)
+  {
+    id: 'precificacao',
+    labelKey: 'Precificação',
+    icon: Target,
+    isHardcodedLabel: true,
+    module: 'precificacao',
+    section: 'Cadastrar',
+    items: [
+      { titleKey: 'Ficha Técnica', icon: ClipboardList, url: '/ficha-tecnica', isHardcoded: true },
+      { titleKey: 'Composição de Custo', icon: Layers, url: '/composicao-custo', isHardcoded: true },
+      { titleKey: 'Margem de Desconto', icon: Percent, url: '/margens-desconto', isHardcoded: true },
+      { titleKey: 'Tabela de Preços', icon: TableProperties, url: '/tabela-precos', isHardcoded: true },
+      { titleKey: 'Markup', icon: Target, url: '/markup-simulador', isHardcoded: true },
+    ]
+  },
+  // ② OPERAR — o dia a dia (lançar, emitir, gerir)
   {
     id: 'financeiro',
     labelKey: 'menu.finance',
     icon: DollarSign,
-    section: 'Gestão',
+    section: 'Operar (dia a dia)',
     items: [
       { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true },
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true, ownerOnly: true },
-      // Exemplo de submenu em cascata:
-      { titleKey: 'Demonstrativos', icon: FileText, isHardcoded: true, children: [
-        { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
-        { titleKey: 'Fluxo de Caixa', icon: Banknote, url: '/demonstrativos/dfc', isHardcoded: true },
-        { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true, module: 'relatorios' },
-      ] },
-      { titleKey: 'Cobrança', icon: Bell, isHardcoded: true, children: [
-        { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true, module: 'cobranca' },
-        { titleKey: 'Conciliação Bancária', icon: CheckSquare, url: '/conciliacao', isHardcoded: true },
-        { titleKey: 'Recebíveis de Cartão', icon: CreditCard, url: '/recebiveis-cartao', isHardcoded: true },
-      ] },
     ]
   },
   {
@@ -130,7 +143,7 @@ export const menuGroups: MenuGroup[] = [
     icon: Receipt,
     isHardcodedLabel: true,
     module: 'fiscal',
-    section: 'Gestão',
+    section: 'Operar (dia a dia)',
     items: [
       { titleKey: 'Area do Contador', icon: Briefcase, url: '/area-contador', isHardcoded: true },
       { titleKey: 'NFSe', icon: Receipt, isHardcoded: true, children: [
@@ -147,7 +160,7 @@ export const menuGroups: MenuGroup[] = [
     icon: Briefcase,
     isHardcodedLabel: true,
     module: 'rh',
-    section: 'Gestão',
+    section: 'Operar (dia a dia)',
     // Ordem segue o fluxo de lançamento: vínculos → ponto → ausências → folha → encargos
     items: [
       { titleKey: 'Admissoes e Demissoes', icon: UserPlus, url: '/admissoes-demissoes', isHardcoded: true },
@@ -163,66 +176,44 @@ export const menuGroups: MenuGroup[] = [
     icon: Package,
     isHardcodedLabel: true,
     module: 'estoque',
-    section: 'Operações',
+    section: 'Operar (dia a dia)',
     items: [
       { titleKey: 'Estoque', icon: Package, url: '/estoque', isHardcoded: true },
       { titleKey: 'Ordens de Compra', icon: ShoppingCart, url: '/ordens-compra', isHardcoded: true },
       { titleKey: 'Inventário', icon: ClipboardList, url: '/inventario', isHardcoded: true },
     ]
   },
+  // ③ CONCILIAR — bater com o banco e cobrar
   {
-    id: 'precificacao',
-    labelKey: 'Precificação',
-    icon: Target,
+    id: 'conciliar',
+    labelKey: 'Conciliação',
+    icon: CheckSquare,
     isHardcodedLabel: true,
-    module: 'precificacao',
-    section: 'Operações',
+    section: 'Conciliar',
     items: [
-      { titleKey: 'Ficha Técnica', icon: ClipboardList, url: '/ficha-tecnica', isHardcoded: true },
-      { titleKey: 'Composição de Custo', icon: Layers, url: '/composicao-custo', isHardcoded: true },
-      { titleKey: 'Margem de Desconto', icon: Percent, url: '/margens-desconto', isHardcoded: true },
-      { titleKey: 'Tabela de Preços', icon: TableProperties, url: '/tabela-precos', isHardcoded: true },
-      { titleKey: 'Markup', icon: Target, url: '/markup-simulador', isHardcoded: true },
+      { titleKey: 'Conciliação Bancária', icon: CheckSquare, url: '/conciliacao', isHardcoded: true },
+      { titleKey: 'Recebíveis de Cartão', icon: CreditCard, url: '/recebiveis-cartao', isHardcoded: true },
+      { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true, module: 'cobranca' },
     ]
   },
+  // ④ ANALISAR — fechar o mês e entender os números.
+  // Projeção é SUBCATEGORIA de Análise: vira um submenu em cascata dentro do grupo.
   {
-    id: 'documentos',
-    labelKey: 'Documentos',
-    icon: FolderOpen,
+    id: 'analise',
+    labelKey: 'Análise',
+    icon: FileText,
     isHardcodedLabel: true,
-    module: 'documentos',
-    section: 'Operações',
+    section: 'Analisar',
     items: [
-      { titleKey: 'Explorador', icon: FolderOpen, url: '/documentos', isHardcoded: true },
-      { titleKey: 'Upload', icon: Upload, url: '/documentos/upload', isHardcoded: true },
-      { titleKey: 'Vencimentos', icon: Clock, url: '/documentos/vencimentos', isHardcoded: true },
-    ]
-  },
-  {
-    id: 'projecao',
-    labelKey: 'Projeção',
-    icon: TrendingUp,
-    isHardcodedLabel: true,
-    module: 'projecao',
-    section: 'Análise & Grupo',
-    items: [
-      { titleKey: 'Fluxo de Caixa Projetado', icon: TrendingUp, url: '/fluxo-caixa-projetado', isHardcoded: true },
-      { titleKey: 'Orçamento', icon: Calculator, url: '/orcamento', isHardcoded: true },
-      { titleKey: 'Previsão de Receitas', icon: DollarSign, url: '/previsao-receitas', isHardcoded: true },
-      { titleKey: 'Cenários', icon: GitBranch, url: '/cenarios', isHardcoded: true },
-    ]
-  },
-  {
-    id: 'multiempresa',
-    labelKey: 'Multi-empresa',
-    icon: GitMerge,
-    isHardcodedLabel: true,
-    module: 'multiempresa',
-    section: 'Análise & Grupo',
-    items: [
-      { titleKey: 'Consolidado', icon: GitMerge, url: '/multiempresa', isHardcoded: true },
-      { titleKey: 'Transferências', icon: ArrowLeftRight, url: '/multiempresa/transferencias', isHardcoded: true },
-      { titleKey: 'Relatórios', icon: FileText, url: '/multiempresa/relatorios', isHardcoded: true },
+      { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
+      { titleKey: 'Fluxo de Caixa', icon: Banknote, url: '/demonstrativos/dfc', isHardcoded: true },
+      { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true, module: 'relatorios' },
+      { titleKey: 'Projeção', icon: TrendingUp, isHardcoded: true, module: 'projecao', children: [
+        { titleKey: 'Fluxo de Caixa Projetado', icon: TrendingUp, url: '/fluxo-caixa-projetado', isHardcoded: true },
+        { titleKey: 'Orçamento', icon: Calculator, url: '/orcamento', isHardcoded: true },
+        { titleKey: 'Previsão de Receitas', icon: DollarSign, url: '/previsao-receitas', isHardcoded: true },
+        { titleKey: 'Cenários', icon: GitBranch, url: '/cenarios', isHardcoded: true },
+      ] },
     ]
   },
   {
@@ -244,6 +235,24 @@ export const menuGroups: MenuGroup[] = [
     ]
   },
 ];
+
+/**
+ * Placas orientativas por grupo — frase curta exibida sob o rótulo na sidebar,
+ * dizendo o que o usuário faz naquela etapa. Chave = id do grupo.
+ */
+export const GROUP_HINTS: Record<string, string> = {
+  cadastros: 'configure uma vez e reutilize',
+  financeiro: 'lance vendas, contas e recibos',
+  fiscal: 'emita notas e cuide dos impostos',
+  rh: 'admita, registre ponto e pague a folha',
+  estoque: 'produtos, compras e inventário',
+  precificacao: 'monte custos e preços',
+  conciliar: 'bata o sistema com o banco',
+  analise: 'feche o mês e leia os números',
+  projecao: 'projete o caixa e planeje',
+  multiempresa: 'consolide o grupo',
+  admin: 'usuários, planos e configurações',
+};
 
 export const footerMenu: MenuItem[] = [
   { titleKey: 'menu.settings', icon: Settings, url: '/configuracoes', adminOnly: true },

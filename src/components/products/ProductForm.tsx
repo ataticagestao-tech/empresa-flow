@@ -93,6 +93,14 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     const [codigoGerado, setCodigoGerado] = useState(product?.code || "");
     const [preco, setPreco] = useState("");
     const [custo, setCusto] = useState("");
+    // Estoque
+    const [unidade, setUnidade] = useState("un");
+    const [classificacao, setClassificacao] = useState("produto");
+    const [estoqueMin, setEstoqueMin] = useState("");
+    const [estoqueMax, setEstoqueMax] = useState("");
+    const [localizacao, setLocalizacao] = useState("");
+    const [controlaValidade, setControlaValidade] = useState(false);
+    const [controlaLote, setControlaLote] = useState(false);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -121,6 +129,13 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             setCodigoGerado(product.code || "");
             setPreco(numberToMoeda(product.price));
             setCusto(numberToMoeda(product.cost_price));
+            setUnidade(product.unidade_medida || "un");
+            setClassificacao(product.tipo_produto || "produto");
+            setEstoqueMin(product.estoque_minimo != null ? String(product.estoque_minimo) : "");
+            setEstoqueMax(product.estoque_maximo != null ? String(product.estoque_maximo) : "");
+            setLocalizacao(product.localizacao || "");
+            setControlaValidade(!!product.controla_validade);
+            setControlaLote(!!product.controla_lote);
             form.reset({
                 description: product.description,
                 type: product.activity || "produto",
@@ -191,6 +206,13 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 cest: values.cest || null,
                 is_active: values.is_active === "ativo",
                 conta_contabil_id: contaContabilValue,
+                unidade_medida: unidade || null,
+                tipo_produto: classificacao || null,
+                estoque_minimo: estoqueMin ? Number(estoqueMin) : 0,
+                estoque_maximo: estoqueMax ? Number(estoqueMax) : null,
+                localizacao: localizacao || null,
+                controla_validade: controlaValidade,
+                controla_lote: controlaLote,
             };
 
             const doSave = async (p: Record<string, any>) => {
@@ -212,6 +234,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["products"] });
+            queryClient.invalidateQueries({ queryKey: ["estoque_produtos"] });
             toast.success(product ? "Produto atualizado!" : "Produto criado!");
             onSuccess();
         },
@@ -458,6 +481,53 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         </FormItem>
                     )}
                 />
+
+                {/* ─── Estoque ─── */}
+                <div className="pt-3 border-t border-[#eee]">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#98A2B3] mb-3">Estoque</p>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">Unidade</label>
+                            <Input value={unidade} onChange={(e) => setUnidade(e.target.value)} placeholder="un, cx, kg" className="text-[13px]" />
+                        </div>
+                        <div>
+                            <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">Classificação</label>
+                            <Select value={classificacao} onValueChange={setClassificacao}>
+                                <SelectTrigger className="text-[13px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="produto">Produto</SelectItem>
+                                    <SelectItem value="insumo">Insumo</SelectItem>
+                                    <SelectItem value="ativo">Ativo</SelectItem>
+                                    <SelectItem value="embalagem">Embalagem</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">Localização</label>
+                            <Input value={localizacao} onChange={(e) => setLocalizacao(e.target.value)} placeholder="Sala 3, Prat. A" className="text-[13px]" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mt-3">
+                        <div>
+                            <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">Estoque mínimo</label>
+                            <Input type="number" value={estoqueMin} onChange={(e) => setEstoqueMin(e.target.value)} placeholder="0" className="text-[13px]" />
+                        </div>
+                        <div>
+                            <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">Estoque máximo</label>
+                            <Input type="number" value={estoqueMax} onChange={(e) => setEstoqueMax(e.target.value)} placeholder="—" className="text-[13px]" />
+                        </div>
+                        <div className="flex items-end gap-4 pb-1.5">
+                            <label className="flex items-center gap-2 cursor-pointer text-[13px]">
+                                <input type="checkbox" checked={controlaValidade} onChange={(e) => setControlaValidade(e.target.checked)} className="accent-[#059669]" />
+                                Validade
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer text-[13px]">
+                                <input type="checkbox" checked={controlaLote} onChange={(e) => setControlaLote(e.target.checked)} className="accent-[#059669]" />
+                                Lote
+                            </label>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Botões */}
                 <div className="flex justify-end gap-2 pt-4 border-t border-[#eee]">
