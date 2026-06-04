@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -443,10 +444,10 @@ export default function Fornecedores() {
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <label className={LB}>Tipo Pessoa</label>
-                                                <select value={formData.tipo_pessoa} onChange={e => set("tipo_pessoa", e.target.value)} className={IC}>
+                                                <SearchableSelect value={formData.tipo_pessoa} onChange={e => set("tipo_pessoa", e.target.value)} className={IC}>
                                                     <option value="PJ">Pessoa Jurídica</option>
                                                     <option value="PF">Pessoa Física</option>
-                                                </select>
+                                                </SearchableSelect>
                                             </div>
                                         </div>
 
@@ -473,14 +474,14 @@ export default function Fornecedores() {
                                             <div className="flex flex-col gap-1">
                                                 <label className={LB}>CNAE</label>
                                                 {cnaeOpcoes.length > 0 ? (
-                                                    <select value={formData.cnae} onChange={e => {
+                                                    <SearchableSelect value={formData.cnae} onChange={e => {
                                                         const code = e.target.value;
                                                         const found = cnaeOpcoes.find(o => o.codigo === code);
                                                         setFormData(f => ({ ...f, cnae: code, cnae_descricao: found?.descricao || f.cnae_descricao }));
                                                     }} className={IC}>
                                                         <option value="">—</option>
                                                         {cnaeOpcoes.map(o => <option key={o.codigo} value={o.codigo}>{o.codigo}</option>)}
-                                                    </select>
+                                                    </SearchableSelect>
                                                 ) : (
                                                     <input value={formData.cnae} onChange={e => set("cnae", e.target.value)} className={IC} placeholder="0000000" />
                                                 )}
@@ -536,20 +537,20 @@ export default function Fornecedores() {
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <label className={LB}>UF</label>
-                                                <select value={formData.endereco_estado} onChange={e => set("endereco_estado", e.target.value)} className={IC}>
+                                                <SearchableSelect value={formData.endereco_estado} onChange={e => set("endereco_estado", e.target.value)} className={IC}>
                                                     <option value="">—</option>
                                                     {UFS.map(u => <option key={u} value={u}>{u}</option>)}
-                                                </select>
+                                                </SearchableSelect>
                                             </div>
                                         </div>
 
                                         <div className="grid grid-cols-4 gap-4 pt-2 border-t border-[#EAECF0]">
                                             <div className="flex flex-col gap-1">
                                                 <label className={LB}>Banco</label>
-                                                <select value={formData.dados_bancarios_banco} onChange={e => set("dados_bancarios_banco", e.target.value)} className={IC}>
+                                                <SearchableSelect value={formData.dados_bancarios_banco} onChange={e => set("dados_bancarios_banco", e.target.value)} className={IC}>
                                                     <option value="">—</option>
                                                     {BANCOS_BR.map(b => <option key={b} value={b}>{b}</option>)}
-                                                </select>
+                                                </SearchableSelect>
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <label className={LB}>Agência</label>
@@ -561,12 +562,12 @@ export default function Fornecedores() {
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <label className={LB}>Tipo Conta</label>
-                                                <select value={formData.dados_bancarios_tipo} onChange={e => set("dados_bancarios_tipo", e.target.value)} className={IC}>
+                                                <SearchableSelect value={formData.dados_bancarios_tipo} onChange={e => set("dados_bancarios_tipo", e.target.value)} className={IC}>
                                                     <option value="">—</option>
                                                     <option value="corrente">Corrente</option>
                                                     <option value="poupanca">Poupança</option>
                                                     <option value="pix">PIX</option>
-                                                </select>
+                                                </SearchableSelect>
                                             </div>
                                         </div>
 
@@ -583,10 +584,10 @@ export default function Fornecedores() {
                                         <div className="flex items-center justify-between pt-2 border-t border-[#EAECF0]">
                                             <div className="flex items-center gap-3">
                                                 <label className={LB}>Status</label>
-                                                <select value={formData.is_active ? "ativo" : "inativo"} onChange={e => set("is_active", e.target.value === "ativo")} className={`${IC} max-w-[140px]`}>
+                                                <SearchableSelect value={formData.is_active ? "ativo" : "inativo"} onChange={e => set("is_active", e.target.value === "ativo")} className={`${IC} max-w-[140px]`}>
                                                     <option value="ativo">Ativo</option>
                                                     <option value="inativo">Inativo</option>
-                                                </select>
+                                                </SearchableSelect>
                                             </div>
                                             <button onClick={handleSave} disabled={saving}
                                                 className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">

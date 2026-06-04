@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useQuery } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
@@ -2164,7 +2165,7 @@ export default function ContasPagar() {
                 />
               </div>
               {/* Período */}
-              <select
+              <SearchableSelect
                 value={datePreset}
                 onChange={e => applyDatePreset(e.target.value)}
                 className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
@@ -2176,9 +2177,9 @@ export default function ContasPagar() {
                 <option value="trimestre">Trimestre</option>
                 <option value="todos">Todas as datas</option>
                 <option value="personalizado">Personalizado</option>
-              </select>
+              </SearchableSelect>
               {/* Status */}
-              <select
+              <SearchableSelect
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
                 className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
@@ -2187,9 +2188,9 @@ export default function ContasPagar() {
                 <option value="aberto">Em aberto</option>
                 <option value="vencidos">Vencidos</option>
                 <option value="pagos">Pagos</option>
-              </select>
+              </SearchableSelect>
               {/* Setor */}
-              <select
+              <SearchableSelect
                 value={sectorFilter}
                 onChange={e => setSectorFilter(e.target.value)}
                 className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
@@ -2198,7 +2199,7 @@ export default function ContasPagar() {
                 {centrosCusto.map(cc => (
                   <option key={cc.id} value={cc.id}>{cc.descricao}</option>
                 ))}
-              </select>
+              </SearchableSelect>
               {/* Limpar */}
               {(searchTerm || statusFilter !== 'todos' || sectorFilter !== 'todos' || datePreset !== 'mes_atual') && (
                 <button
@@ -2650,7 +2651,7 @@ export default function ContasPagar() {
 
                 <div>
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Forma pagamento *</label>
-                  <select
+                  <SearchableSelect
                     value={payForm.formaPagamento}
                     onChange={(e) => setPayForm({ ...payForm, formaPagamento: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
@@ -2659,12 +2660,12 @@ export default function ContasPagar() {
                     {FORMAS_PAGAMENTO.map((f) => (
                       <option key={f} value={f}>{f}</option>
                     ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 <div>
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{payForm.formaPagamento === 'Cartao de credito' ? 'Cartao de credito *' : 'Conta bancaria *'}</label>
-                  <select
+                  <SearchableSelect
                     value={payForm.contaBancariaId}
                     onChange={(e) => setPayForm({ ...payForm, contaBancariaId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
@@ -2676,7 +2677,7 @@ export default function ContasPagar() {
                       .map((ba) => (
                         <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
                       ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -2809,7 +2810,7 @@ export default function ContasPagar() {
 
                 <div>
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Forma pagamento *</label>
-                  <select
+                  <SearchableSelect
                     value={batchForm.formaPagamento}
                     onChange={(e) => setBatchForm({ ...batchForm, formaPagamento: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
@@ -2818,12 +2819,12 @@ export default function ContasPagar() {
                     {FORMAS_PAGAMENTO.map((f) => (
                       <option key={f} value={f}>{f}</option>
                     ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 <div>
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{batchForm.formaPagamento === 'Cartao de credito' ? 'Cartao de credito *' : 'Conta bancaria *'}</label>
-                  <select
+                  <SearchableSelect
                     value={batchForm.contaBancariaId}
                     onChange={(e) => setBatchForm({ ...batchForm, contaBancariaId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
@@ -2835,7 +2836,7 @@ export default function ContasPagar() {
                       .map((ba) => (
                         <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
                       ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 <div className="flex items-center justify-end pt-2" style={{ borderTop: '1px solid rgba(26,46,74,0.10)', gap: 8, paddingTop: 16 }}>
@@ -2886,7 +2887,7 @@ export default function ContasPagar() {
 
                 <div>
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Conta contabil</label>
-                  <select
+                  <SearchableSelect
                     value={batchCategorize.contaContabilId}
                     onChange={(e) => setBatchCategorize({ ...batchCategorize, contaContabilId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
@@ -2896,12 +2897,12 @@ export default function ContasPagar() {
                     {chartAccounts.map((ca) => (
                       <option key={ca.id} value={ca.id}>{ca.code} - {ca.name}</option>
                     ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 <div>
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Centro de custo</label>
-                  <select
+                  <SearchableSelect
                     value={batchCategorize.centroCustoId}
                     onChange={(e) => setBatchCategorize({ ...batchCategorize, centroCustoId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
@@ -2911,7 +2912,7 @@ export default function ContasPagar() {
                     {centrosCusto.map((cc) => (
                       <option key={cc.id} value={cc.id}>{cc.codigo} - {cc.descricao}</option>
                     ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 <div className="flex items-center justify-end pt-2" style={{ borderTop: '1px solid rgba(26,46,74,0.10)', gap: 8, paddingTop: 16 }}>
@@ -3034,7 +3035,7 @@ export default function ContasPagar() {
                       </button>
                     ))}
                   </div>
-                  <select
+                  <SearchableSelect
                     value={newForm.credorId}
                     onChange={(e) => {
                       const id = e.target.value
@@ -3054,7 +3055,7 @@ export default function ContasPagar() {
                     {newForm.credorTipo === 'fornecedor' && suppliers.map((s) => (<option key={s.id} value={s.id}>{s.razao_social}</option>))}
                     {newForm.credorTipo === 'funcionario' && employees.map((e) => (<option key={e.id} value={e.id}>{e.nome_completo || e.name}</option>))}
                     {newForm.credorTipo === 'cliente' && clients.map((c) => (<option key={c.id} value={c.id}>{c.razao_social}</option>))}
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 {/* Valor + Vencimento */}
@@ -3111,7 +3112,7 @@ export default function ContasPagar() {
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Centro de custo</label>
-                    <select
+                    <SearchableSelect
                       value={newForm.centroCustoId}
                       onChange={(e) => { setCentroTouched(true); setNewForm({ ...newForm, centroCustoId: e.target.value }) }}
                       className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
@@ -3119,7 +3120,7 @@ export default function ContasPagar() {
                     >
                       <option value="">Nenhum</option>
                       {centrosCusto.map((cc) => (<option key={cc.id} value={cc.id}>{cc.codigo} - {cc.descricao}</option>))}
-                    </select>
+                    </SearchableSelect>
                   </div>
                 </div>
 
@@ -3197,12 +3198,12 @@ export default function ContasPagar() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Recorrência</label>
-                          <select value={newForm.recorrencia} onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })} className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition" style={{ color: '#1D2939', height: 38 }}>
+                          <SearchableSelect value={newForm.recorrencia} onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })} className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition" style={{ color: '#1D2939', height: 38 }}>
                             <option value="sem">Sem recorrência</option>
                             <option value="mensal">Mensal</option>
                             <option value="trimestral">Trimestral</option>
                             <option value="anual">Anual</option>
-                          </select>
+                          </SearchableSelect>
                         </div>
                         {newForm.recorrencia !== 'sem' && (
                           <div>

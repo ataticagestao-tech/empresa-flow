@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -158,10 +159,10 @@ export default function CentrosCusto() {
               </div>
               <div className="flex flex-col gap-1 max-w-xs">
                 <label className={LB}>Setor Pai</label>
-                <select value={formData.pai_id} onChange={e => set("pai_id", e.target.value)} className={IC}>
+                <SearchableSelect value={formData.pai_id} onChange={e => set("pai_id", e.target.value)} className={IC}>
                   <option value="">Nenhum (raiz)</option>
                   {centros.filter(c => c.id !== editingId).map(c => <option key={c.id} value={c.id}>{c.codigo} — {c.descricao}</option>)}
-                </select>
+                </SearchableSelect>
               </div>
               <div className="flex gap-3">
                 <button onClick={handleSave} disabled={saving} className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">

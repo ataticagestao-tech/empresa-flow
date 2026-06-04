@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -443,11 +444,11 @@ export default function ContasBancarias() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className={LB}>Tipo de Conta <span className="text-[#E53E3E]">*</span></label>
-                  <select value={formData.type} onChange={e => set("type", e.target.value)} className={IC}>
+                  <SearchableSelect value={formData.type} onChange={e => set("type", e.target.value)} className={IC}>
                     <option value="checking">Conta Corrente</option><option value="savings">Conta Poupança</option>
                     <option value="cash">Caixa Interno</option><option value="investment">Conta Investimento</option>
                     <option value="cartao_credito">Cartão de Crédito</option>
-                  </select>
+                  </SearchableSelect>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className={LB}>Banco</label>
@@ -546,14 +547,14 @@ export default function ContasBancarias() {
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className={LB}>Auto-conciliar ao importar?</label>
-                      <select
+                      <SearchableSelect
                         value={formData.auto_conciliacao_policy}
                         onChange={e => set("auto_conciliacao_policy", e.target.value)}
                         className={IC}
                       >
                         <option value="off">Não — só importar</option>
                         <option value="rule_only">Sim, só via regra de alta confiança</option>
-                      </select>
+                      </SearchableSelect>
                       <p className="text-[11px] text-[#68748D] mt-1">
                         "Alta confiança" = regra Alta + ação auto-conciliar.
                       </p>
@@ -637,9 +638,9 @@ export default function ContasBancarias() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1"><label className={LB}>Nome</label><input value={cartaoForm.nome} onChange={e => setCartaoForm(f => ({...f, nome: e.target.value}))} className={IC} placeholder="Ex: Nubank Empresarial" /></div>
                   <div className="flex flex-col gap-1"><label className={LB}>Bandeira</label>
-                    <select value={cartaoForm.bandeira} onChange={e => setCartaoForm(f => ({...f, bandeira: e.target.value}))} className={IC}>
+                    <SearchableSelect value={cartaoForm.bandeira} onChange={e => setCartaoForm(f => ({...f, bandeira: e.target.value}))} className={IC}>
                       <option>Visa</option><option>Mastercard</option><option>Elo</option><option>Amex</option>
-                    </select>
+                    </SearchableSelect>
                   </div>
                   <div className="flex flex-col gap-1"><label className={LB}>Final (4 dígitos)</label><input value={cartaoForm.final} onChange={e => setCartaoForm(f => ({...f, final: e.target.value.slice(0,4)}))} maxLength={4} className={IC} /></div>
                 </div>
@@ -649,10 +650,10 @@ export default function ContasBancarias() {
                   <div className="flex flex-col gap-1"><label className={LB}>Dia Vencimento</label><input type="number" min={1} max={31} value={cartaoForm.dia_vencimento} onChange={e => setCartaoForm(f => ({...f, dia_vencimento: e.target.value}))} className={IC} /></div>
                 </div>
                 <div className="flex flex-col gap-1"><label className={LB}>Conta Bancária Vinculada</label>
-                  <select value={cartaoForm.conta_vinculada} onChange={e => setCartaoForm(f => ({...f, conta_vinculada: e.target.value}))} className={IC}>
+                  <SearchableSelect value={cartaoForm.conta_vinculada} onChange={e => setCartaoForm(f => ({...f, conta_vinculada: e.target.value}))} className={IC}>
                     <option value="">Independente</option>
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  </SearchableSelect>
                 </div>
                 <button onClick={addCartao} className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md">Adicionar Cartão</button>
               </div>
@@ -714,10 +715,10 @@ export default function ContasBancarias() {
               {/* Select account */}
               <div className="flex flex-col gap-1 max-w-md">
                 <label className={LB}>Conta Bancaria</label>
-                <select value={taxaContaSelecionada} onChange={e => handleSelectContaTaxa(e.target.value)} className={IC}>
+                <SearchableSelect value={taxaContaSelecionada} onChange={e => handleSelectContaTaxa(e.target.value)} className={IC}>
                   <option value="">Selecione uma conta...</option>
                   {activeAccounts.map(a => <option key={a.id} value={a.id}>{a.name} {a.banco ? `(${a.banco})` : ""}</option>)}
-                </select>
+                </SearchableSelect>
               </div>
 
               {taxaContaSelecionada && (
@@ -793,7 +794,7 @@ export default function ContasBancarias() {
                         <div className="grid grid-cols-3 gap-4">
                           <div className="flex flex-col gap-1">
                             <label className={LB}>Meio de Pagamento <span className="text-[#E53E3E]">*</span></label>
-                            <select value={taxaForm.meio_pagamento} onChange={e => setTx("meio_pagamento", e.target.value)}
+                            <SearchableSelect value={taxaForm.meio_pagamento} onChange={e => setTx("meio_pagamento", e.target.value)}
                               className={IC} disabled={!!editingTaxaId}>
                               {MEIOS_PAGAMENTO.map(m => (
                                 <option key={m.value} value={m.value}
@@ -801,7 +802,7 @@ export default function ContasBancarias() {
                                   {m.label} {!editingTaxaId && taxas.some(t => t.meio_pagamento === m.value) ? "(ja configurado)" : ""}
                                 </option>
                               ))}
-                            </select>
+                            </SearchableSelect>
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className={LB}>Taxa (%) <span className="text-[#E53E3E]">*</span></label>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
@@ -1503,12 +1504,12 @@ export default function PainelGerencial() {
               ><Calendar className="h-3 w-3 inline mr-1" />Personalizado</button>
             </div>
             {periodoTipo === "mes" ? (
-              <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)}
+              <SearchableSelect value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)}
                 className="h-8 px-3 text-xs border border-[#EAECF0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#059669]/20">
                 {mesesOpcoes.map((m) => (
                   <option key={m} value={m}>{format(parse(m + "-01", "yyyy-MM-dd", new Date()), "MMMM yyyy", { locale: ptBR })}</option>
                 ))}
-              </select>
+              </SearchableSelect>
             ) : (
               <div className="flex items-center gap-1.5">
                 <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)}

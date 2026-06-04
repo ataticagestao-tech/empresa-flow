@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -430,13 +431,13 @@ export default function ProdutosDepartamentos() {
                             <p className="text-[12px] text-[#555]">Produtos com o mesmo código não serão duplicados.</p>
                             <div className="flex flex-col gap-1">
                                 <label className={LB}>Loja de origem *</label>
-                                <select value={selectedOrigemId} onChange={e => setSelectedOrigemId(e.target.value)}
+                                <SearchableSelect value={selectedOrigemId} onChange={e => setSelectedOrigemId(e.target.value)}
                                     className="border border-[#ccc] rounded-md px-3 py-2 text-sm focus:border-[#059669] focus:outline-none">
                                     <option value="">Selecione...</option>
                                     {companies?.filter((c: any) => c.id !== selectedCompany?.id).map((c: any) => (
                                         <option key={c.id} value={c.id}>{c.razao_social || c.nome_fantasia || c.id}</option>
                                     ))}
-                                </select>
+                                </SearchableSelect>
                             </div>
                             <div className="flex justify-end gap-2 pt-2 border-t border-[#EAECF0]">
                                 <button onClick={() => { setIsCopyModalOpen(false); setSelectedOrigemId(""); }}

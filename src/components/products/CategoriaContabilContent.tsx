@@ -3,7 +3,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface Produto {
     id: string;
@@ -22,6 +37,50 @@ interface ChartAccount {
 }
 
 const LB = "text-[11px] font-bold uppercase tracking-wider text-[#1D2939]";
+
+/** Dropdown de conta contábil com busca: digite código ou nome e a lista filtra. */
+function ContaCombobox({ value, contas, onChange, placeholder = "— sem categoria —" }: {
+    value: string | null;
+    contas: ChartAccount[];
+    onChange: (id: string | null) => void;
+    placeholder?: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const selected = value ? contas.find(c => c.id === value) : null;
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <button type="button" role="combobox" aria-expanded={open}
+                    className={`w-full flex items-center justify-between gap-2 border border-[#ccc] rounded-md px-2 py-1.5 text-sm text-left focus:border-[#059669] focus:outline-none ${selected ? "text-[#1D2939]" : "text-[#999]"}`}>
+                    <span className="truncate">{selected ? `${selected.code} - ${selected.name}` : placeholder}</span>
+                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0" align="start">
+                <Command>
+                    <CommandInput placeholder="Digite código ou nome..." className="h-9" />
+                    <CommandList>
+                        <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
+                        <CommandGroup>
+                            <CommandItem value="— sem categoria —"
+                                onSelect={() => { onChange(null); setOpen(false); }}>
+                                <Check className={`mr-2 h-4 w-4 ${!value ? "opacity-100" : "opacity-0"}`} />
+                                — sem categoria —
+                            </CommandItem>
+                            {contas.map(c => (
+                                <CommandItem key={c.id} value={`${c.code} ${c.name}`}
+                                    onSelect={() => { onChange(c.id); setOpen(false); }}>
+                                    <Check className={`mr-2 h-4 w-4 shrink-0 ${value === c.id ? "opacity-100" : "opacity-0"}`} />
+                                    <span className="truncate">{c.code} - {c.name}</span>
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
 
 export function CategoriaContabilContent() {
     const { activeClient } = useAuth();
@@ -196,19 +255,17 @@ export function CategoriaContabilContent() {
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className={LB}>Mostrar</label>
-                    <select value={filtro} onChange={e => setFiltro(e.target.value as any)}
-                        className="border border-[#ccc] rounded-md px-3 py-2 text-sm focus:border-[#059669] focus:outline-none">
+                    <SearchableSelect value={filtro} onChange={e => setFiltro(e.target.value as any)}
+                        className="border border-[#ccc] rounded-md px-3 py-2 text-sm bg-white focus:border-[#059669] focus:outline-none">
                         <option value="sem_categoria">Apenas sem categoria</option>
                         <option value="todos">Todos os produtos</option>
-                    </select>
+                    </SearchableSelect>
                 </div>
                 <div className="flex flex-col gap-1 min-w-[280px]">
                     <label className={LB}>Aplicar em massa (filtrados)</label>
-                    <select value={bulkContaId} onChange={e => setBulkContaId(e.target.value)}
-                        className="border border-[#ccc] rounded-md px-3 py-2 text-sm focus:border-[#059669] focus:outline-none">
-                        <option value="">— escolha categoria —</option>
-                        {contas.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
-                    </select>
+                    <ContaCombobox value={bulkContaId || null} contas={contas}
+                        onChange={id => setBulkContaId(id || "")}
+                        placeholder="— escolha categoria —" />
                 </div>
                 <button onClick={aplicarEmMassa} disabled={!bulkContaId || filtered.length === 0}
                     className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-40 self-end">
@@ -243,12 +300,8 @@ export function CategoriaContabilContent() {
                                         <td className="px-3 py-2 text-[#555] tabular-nums whitespace-nowrap">{p.code || "—"}</td>
                                         <td className="px-3 py-2 text-[#1D2939]">{p.description}</td>
                                         <td className="px-3 py-2">
-                                            <select value={atual || ""}
-                                                onChange={e => setPendentes(prev => ({ ...prev, [p.id]: e.target.value || null }))}
-                                                className="w-full border border-[#ccc] rounded-md px-2 py-1.5 text-sm focus:border-[#059669] focus:outline-none">
-                                                <option value="">— sem categoria —</option>
-                                                {contas.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
-                                            </select>
+                                            <ContaCombobox value={atual} contas={contas}
+                                                onChange={id => setPendentes(prev => ({ ...prev, [p.id]: id }))} />
                                         </td>
                                     </tr>
                                 );

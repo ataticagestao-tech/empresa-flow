@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
@@ -169,9 +170,9 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
       <div className="flex items-end gap-4 flex-wrap">
         <div className="flex flex-col gap-1">
           <label className={LB}>Mês</label>
-          <select value={mes} onChange={(e) => { setMes(Number(e.target.value)); setFaltas(0); setDiasManuais(new Set()); }} className={IC_EDIT} style={{ width: 150 }}>
+          <SearchableSelect value={mes} onChange={(e) => { setMes(Number(e.target.value)); setFaltas(0); setDiasManuais(new Set()); }} className={IC_EDIT} style={{ width: 150 }}>
             {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
         <div className="flex flex-col gap-1">
           <label className={LB}>Ano</label>
@@ -179,9 +180,9 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         </div>
         <div className="flex flex-col gap-1">
           <label className={LB}>Regime</label>
-          <select value={regime} onChange={(e) => { setRegime(e.target.value as RegimeTrabalho); setDiasManuais(new Set()); }} className={IC_EDIT} style={{ width: 140 }}>
+          <SearchableSelect value={regime} onChange={(e) => { setRegime(e.target.value as RegimeTrabalho); setDiasManuais(new Set()); }} className={IC_EDIT} style={{ width: 140 }}>
             {REGIMES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
       </div>
 

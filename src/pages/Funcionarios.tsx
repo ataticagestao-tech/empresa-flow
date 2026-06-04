@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Copy } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -879,17 +880,17 @@ export default function Funcionarios() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Tipo Contrato</label>
-                        <select value={formData.tipo_contrato} onChange={e => set("tipo_contrato", e.target.value)} className={ic("tipo_contrato")}>
+                        <SearchableSelect value={formData.tipo_contrato} onChange={e => set("tipo_contrato", e.target.value)} className={ic("tipo_contrato")}>
                           <option value="">Selecione</option>
                           <option value="clt">CLT</option><option value="pj">PJ</option><option value="autonomo">Autônomo</option><option value="estagio">Estágio</option>
-                        </select>
+                        </SearchableSelect>
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Centro de Custo</label>
-                        <select value={formData.centro_custo_id} onChange={e => set("centro_custo_id", e.target.value)} className={ic("centro_custo_id")}>
+                        <SearchableSelect value={formData.centro_custo_id} onChange={e => set("centro_custo_id", e.target.value)} className={ic("centro_custo_id")}>
                           <option value="">Selecione</option>
                           {centrosCusto.map((c: any) => <option key={c.id} value={c.id}>{c.codigo ? `${c.codigo} — ` : ""}{c.descricao}</option>)}
-                        </select>
+                        </SearchableSelect>
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Data Admissão</label>
@@ -922,10 +923,10 @@ export default function Funcionarios() {
                     <div className="grid grid-cols-4 gap-4">
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Banco</label>
-                        <select value={formData.banco_folha} onChange={e => set("banco_folha", e.target.value)} className={ic("banco_folha")}>
+                        <SearchableSelect value={formData.banco_folha} onChange={e => set("banco_folha", e.target.value)} className={ic("banco_folha")}>
                           <option value="">Selecione</option>
                           {BANCOS_BR.map(b => <option key={b} value={b}>{b}</option>)}
-                        </select>
+                        </SearchableSelect>
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Agência</label>
@@ -937,9 +938,9 @@ export default function Funcionarios() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Tipo de Conta</label>
-                        <select value={formData.tipo_conta_folha} onChange={e => set("tipo_conta_folha", e.target.value)} className={ic("tipo_conta_folha")}>
+                        <SearchableSelect value={formData.tipo_conta_folha} onChange={e => set("tipo_conta_folha", e.target.value)} className={ic("tipo_conta_folha")}>
                           <option value="">Selecione</option><option value="corrente">Corrente</option><option value="poupanca">Poupança</option><option value="pix">PIX</option>
-                        </select>
+                        </SearchableSelect>
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
@@ -948,9 +949,9 @@ export default function Funcionarios() {
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className={LB}>Status</label>
-                      <select value={formData.status} onChange={e => set("status", e.target.value)} className={`${IC} max-w-[200px]`}>
+                      <SearchableSelect value={formData.status} onChange={e => set("status", e.target.value)} className={`${IC} max-w-[200px]`}>
                         <option value="ativo">Ativo</option><option value="inativo">Inativo</option><option value="ferias">Férias</option><option value="afastado">Afastado</option><option value="demitido">Demitido</option>
-                      </select>
+                      </SearchableSelect>
                     </div>
                     <button onClick={handleSave} disabled={saving} className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
                       {saving ? "Salvando..." : isCreating ? "Cadastrar" : "Salvar Alterações"}
@@ -1139,9 +1140,9 @@ export default function Funcionarios() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex flex-col gap-1"><label className={LB}>Salário Base (R$)</label><input type="number" value={calcSalario || ""} onChange={e => setCalcSalario(Number(e.target.value))} className={IC} placeholder="0,00" /></div>
                       <div className="flex flex-col gap-1"><label className={LB}>Dependentes</label>
-                        <select value={calcDependentes} onChange={e => setCalcDependentes(Number(e.target.value))} className={IC}>
+                        <SearchableSelect value={calcDependentes} onChange={e => setCalcDependentes(Number(e.target.value))} className={IC}>
                           {[0,1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
-                        </select>
+                        </SearchableSelect>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-6">

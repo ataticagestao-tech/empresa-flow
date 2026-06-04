@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { KpiCard, KpiCardGrid } from "@/components/ui/kpi-card";
@@ -174,10 +175,10 @@ export default function Orcamento() {
             <div className="animate-fade-in" style={{ fontFamily: "var(--font-base)" }}>
                 <PagePanel title="Orçamento" subtitle={format(monthStart, "MMMM yyyy", { locale: ptBR })}>
                     <div className="flex flex-wrap items-center gap-2 justify-end">
-                        <select value={currentMonth} onChange={e => setCurrentMonth(e.target.value)}
+                        <SearchableSelect value={currentMonth} onChange={e => setCurrentMonth(e.target.value)}
                             style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #EAECF0", fontSize: 13 }}>
                             {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                        </select>
+                        </SearchableSelect>
                     </div>
 
                 <KpiCardGrid>
@@ -315,7 +316,7 @@ export default function Orcamento() {
                             {!editCategory && (
                                 <div className="space-y-2">
                                     <Label>Categoria</Label>
-                                    <select className="w-full border rounded-md p-2 text-sm" onChange={e => {
+                                    <SearchableSelect className="w-full border rounded-md p-2 text-sm" onChange={e => {
                                         const cat = categories.find((c: any) => c.id === e.target.value);
                                         if (cat) setEditCategory(cat);
                                     }}>
@@ -323,7 +324,7 @@ export default function Orcamento() {
                                         {categories.map((c: any) => (
                                             <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
                                         ))}
-                                    </select>
+                                    </SearchableSelect>
                                 </div>
                             )}
                             {editCategory && (

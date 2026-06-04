@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Link } from 'react-router-dom'
 import { addMonths, format } from 'date-fns'
 import {
@@ -471,18 +472,18 @@ export default function PrevisaoImpostos() {
                 <div key={i} className="flex items-center gap-2">
                   <input value={l.nome} onChange={e => setLinha(i, { nome: e.target.value })} placeholder="Ex.: Procedimentos"
                     className="flex-1 border border-gray-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:border-[#059669]" />
-                  <select value={l.cnae} onChange={e => pickCnae(i, e.target.value)} style={{ width: 150 }}
+                  <SearchableSelect value={l.cnae} onChange={e => pickCnae(i, e.target.value)} style={{ width: 150 }}
                     className="border border-gray-200 rounded-md px-1 py-1.5 text-xs bg-white focus:outline-none focus:border-[#059669]">
                     <option value="">— CNAE —</option>
                     {cnaeLib.map(c => <option key={c.id} value={c.codigo}>{c.codigo}</option>)}
-                  </select>
+                  </SearchableSelect>
                   <input type="number" value={l.pct || ''} onChange={e => setLinha(i, { pct: Number(e.target.value) })} style={{ width: 70 }}
                     className="border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right focus:outline-none focus:border-[#059669]" />
                   {regime === 'simples' && (
-                    <select value={l.anexo} onChange={e => setLinha(i, { anexo: e.target.value })} style={{ width: 70 }}
+                    <SearchableSelect value={l.anexo} onChange={e => setLinha(i, { anexo: e.target.value })} style={{ width: 70 }}
                       className="border border-gray-200 rounded-md px-1 py-1.5 text-sm bg-white focus:outline-none focus:border-[#059669]">
                       {ANEXOS.map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
+                    </SearchableSelect>
                   )}
                   {regime === 'presumido' && (
                     <>
@@ -545,10 +546,10 @@ export default function PrevisaoImpostos() {
             </button>
 
             <div className="flex items-center gap-2 ml-3 pl-3 border-l border-gray-200">
-              <select value={mesCalc} onChange={e => setMesCalc(Number(e.target.value))}
+              <SearchableSelect value={mesCalc} onChange={e => setMesCalc(Number(e.target.value))}
                 className="text-sm border border-gray-200 rounded-lg px-2 py-2 bg-white focus:outline-none focus:border-[#059669]">
                 {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-              </select>
+              </SearchableSelect>
               <button onClick={() => provisionar(compAlvo)} disabled={calculating}
                 title="Cálculo automático pelo regime tributário (Fator R / anexo). Para alíquota fixa, use o card 'Cálculo por alíquota' acima."
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
@@ -676,7 +677,7 @@ export default function PrevisaoImpostos() {
             <div className="p-4 border-b border-gray-100 grid grid-cols-[120px_1fr_70px_90px_90px_70px_auto] gap-2 items-end">
               <div><label className="text-[11px] text-gray-400 uppercase">Código</label><input value={novoCnae.codigo} onChange={e => setNovoCnae(v => ({ ...v, codigo: e.target.value }))} placeholder="0000-0/00" className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm" /></div>
               <div><label className="text-[11px] text-gray-400 uppercase">Descrição</label><input value={novoCnae.descricao} onChange={e => setNovoCnae(v => ({ ...v, descricao: e.target.value }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm" /></div>
-              <div><label className="text-[11px] text-gray-400 uppercase">Anexo</label><select value={novoCnae.anexo} onChange={e => setNovoCnae(v => ({ ...v, anexo: e.target.value }))} className="w-full border border-gray-200 rounded-md px-1 py-1.5 text-sm bg-white">{ANEXOS.map(a => <option key={a} value={a}>{a}</option>)}</select></div>
+              <div><label className="text-[11px] text-gray-400 uppercase">Anexo</label><SearchableSelect value={novoCnae.anexo} onChange={e => setNovoCnae(v => ({ ...v, anexo: e.target.value }))} className="w-full border border-gray-200 rounded-md px-1 py-1.5 text-sm bg-white">{ANEXOS.map(a => <option key={a} value={a}>{a}</option>)}</SearchableSelect></div>
               <div><label className="text-[11px] text-gray-400 uppercase">Pres. IRPJ</label><input type="number" value={novoCnae.presIrpj} onChange={e => setNovoCnae(v => ({ ...v, presIrpj: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
               <div><label className="text-[11px] text-gray-400 uppercase">Pres. CSLL</label><input type="number" value={novoCnae.presCsll} onChange={e => setNovoCnae(v => ({ ...v, presCsll: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
               <div><label className="text-[11px] text-gray-400 uppercase">ISS %</label><input type="number" value={novoCnae.iss} onChange={e => setNovoCnae(v => ({ ...v, iss: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -514,23 +515,23 @@ export default function PlanoContas() {
         </div>
         <div className="flex flex-col gap-1">
           <label className={LB}>Tipo</label>
-          <select value={editForm.account_type} onChange={e => setEdit("account_type", e.target.value)} className={IC}>
+          <SearchableSelect value={editForm.account_type} onChange={e => setEdit("account_type", e.target.value)} className={IC}>
             <option value="revenue">Receita</option><option value="expense">Despesa</option><option value="cost">Custo</option>
             <option value="asset">Ativo</option><option value="liability">Passivo</option><option value="equity">PL</option>
-          </select>
+          </SearchableSelect>
         </div>
         <div className="flex flex-col gap-1">
           <label className={LB}>Natureza</label>
-          <select value={editForm.account_nature} onChange={e => setEdit("account_nature", e.target.value)} className={IC}>
+          <SearchableSelect value={editForm.account_nature} onChange={e => setEdit("account_nature", e.target.value)} className={IC}>
             <option value="debit">Devedora</option><option value="credit">Credora</option>
-          </select>
+          </SearchableSelect>
         </div>
         <div className="flex flex-col gap-1">
           <label className={LB}>Grupo DRE</label>
-          <select value={editForm.dre_group} onChange={e => setEdit("dre_group", e.target.value)} className={IC}>
+          <SearchableSelect value={editForm.dre_group} onChange={e => setEdit("dre_group", e.target.value)} className={IC}>
             <option value="">Nenhum</option>
             {DRE_GROUPS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -727,27 +728,27 @@ export default function PlanoContas() {
               </div>
               <div className="grid grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1"><label className={LB}>Tipo</label>
-                  <select value={newConta.account_type} onChange={e => setNew("account_type", e.target.value)} className={IC}>
+                  <SearchableSelect value={newConta.account_type} onChange={e => setNew("account_type", e.target.value)} className={IC}>
                     <option value="revenue">Receita</option><option value="expense">Despesa</option><option value="cost">Custo</option>
                     <option value="asset">Ativo</option><option value="liability">Passivo</option><option value="equity">PL</option>
-                  </select>
+                  </SearchableSelect>
                 </div>
                 <div className="flex flex-col gap-1"><label className={LB}>Natureza</label>
-                  <select value={newConta.account_nature} onChange={e => setNew("account_nature", e.target.value)} className={IC}>
+                  <SearchableSelect value={newConta.account_nature} onChange={e => setNew("account_nature", e.target.value)} className={IC}>
                     <option value="debit">Devedora</option><option value="credit">Credora</option>
-                  </select>
+                  </SearchableSelect>
                 </div>
                 <div className="flex flex-col gap-1"><label className={LB}>Grupo DRE</label>
-                  <select value={newConta.dre_group} onChange={e => setNew("dre_group", e.target.value)} className={IC}>
+                  <SearchableSelect value={newConta.dre_group} onChange={e => setNew("dre_group", e.target.value)} className={IC}>
                     <option value="">Nenhum</option>
                     {DRE_GROUPS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-                  </select>
+                  </SearchableSelect>
                 </div>
                 <div className="flex flex-col gap-1"><label className={LB}>Conta Pai</label>
-                  <select value={newConta.parent_code} onChange={e => setNew("parent_code", e.target.value)} className={IC}>
+                  <SearchableSelect value={newConta.parent_code} onChange={e => setNew("parent_code", e.target.value)} className={IC}>
                     <option value="">Nenhuma</option>
                     {contas.filter(c => c.level <= 2).map(c => <option key={c.id} value={c.code}>{c.code} — {c.name}</option>)}
-                  </select>
+                  </SearchableSelect>
                 </div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
