@@ -27,6 +27,7 @@ const Indicadores = lazy(() => import("./pages/Indicadores"));
 const RadarLegislativo = lazy(() => import("./pages/RadarLegislativo"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const Cadastros = lazy(() => import("./pages/Cadastros"));
+const Implantacao = lazy(() => import("./pages/Implantacao"));
 const Empresas = lazy(() => import("./pages/Empresas"));
 const Clientes = lazy(() => import("./pages/Clientes"));
 const Fornecedores = lazy(() => import("./pages/Fornecedores"));
@@ -205,6 +206,7 @@ const App = () => (
                     <Route path="/radar-legislativo" element={<RadarLegislativo />} />
                     <Route path="/financeiro" element={<Financeiro />} />
                     <Route path="/cadastros" element={<Cadastros />} />
+                    <Route path="/implantacao" element={<Implantacao />} />
                     <Route path="/empresas" element={<Empresas />} />
                     <Route path="/empresas/:id" element={<EmpresaResumo />} />
                     <Route path="/clientes" element={<Clientes />} />

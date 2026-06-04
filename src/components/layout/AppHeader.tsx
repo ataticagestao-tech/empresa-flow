@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Plus, Moon, Sun, LogOut, Settings, Building2 } from "lucide-react";
+import { ArrowLeft, Plus, Moon, Sun, LogOut, Settings, Building2, ListChecks } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { COMMAND_PALETTE_OPEN_EVENT } from "@/components/CommandPalette";
@@ -106,6 +106,9 @@ export function AppHeader() {
             )}
             <DropdownMenuItem onSelect={() => navigate("/empresas")}>
               <Building2 className="mr-2 h-4 w-4" /> Minhas empresas
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => navigate("/implantacao")}>
+              <ListChecks className="mr-2 h-4 w-4" /> Implantação
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => navigate("/configuracoes")}>
               <Settings className="mr-2 h-4 w-4" /> Configurações

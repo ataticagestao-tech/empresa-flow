@@ -1,8 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useImplantacao } from "@/hooks/useImplantacao";
 import { Sparkles, X, ChevronRight, CheckCircle2, Circle } from "lucide-react";
 
 const STORAGE_KEY_HIDDEN = "start_here_button_hidden";
@@ -19,7 +18,6 @@ const STORAGE_KEY_HIDDEN = "start_here_button_hidden";
  *   - Usuário fechou via X (persiste por empresa)
  */
 export function StartHereButton() {
-  const { activeClient, user } = useAuth();
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,52 +30,7 @@ export function StartHereButton() {
     try { return localStorage.getItem(hiddenKey) === "true"; } catch { return false; }
   });
 
-  const db = activeClient as any;
-  const { data: status } = useQuery({
-    queryKey: ["onboarding_checklist", companyId],
-    enabled: !!companyId && !!user,
-    staleTime: 30_000,
-    queryFn: async () => {
-      const [coa, banks, cust, sup, emp, vendas, cr, cp, bt] = await Promise.all([
-        db.from("chart_of_accounts").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        db.from("bank_accounts").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        db.from("customers").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        db.from("suppliers").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        db.from("vendas").select("id", { count: "exact", head: true }).eq("company_id", companyId).is("deleted_at", null),
-        db.from("contas_receber").select("id", { count: "exact", head: true }).eq("company_id", companyId).is("deleted_at", null),
-        db.from("contas_pagar").select("id", { count: "exact", head: true }).eq("company_id", companyId).is("deleted_at", null),
-        db.from("bank_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-      ]);
-      return {
-        chartOfAccounts: (coa.count ?? 0) > 0,
-        bankAccount: (banks.count ?? 0) > 0,
-        cadastros: ((cust.count ?? 0) + (sup.count ?? 0) + (emp.count ?? 0)) > 0,
-        primeiraVenda: (vendas.count ?? 0) > 0,
-        primeiroLancamento: ((cr.count ?? 0) + (cp.count ?? 0)) > 0,
-        primeiraConciliacao: (bt.count ?? 0) > 0,
-      };
-    },
-  });
-
-  const steps = useMemo(() => {
-    const s = status ?? {
-      chartOfAccounts: false, bankAccount: false, cadastros: false,
-      primeiraVenda: false, primeiroLancamento: false, primeiraConciliacao: false,
-    };
-    return [
-      { key: "empresa", label: "Empresa cadastrada", route: "/empresas", done: true },
-      { key: "plano_contas", label: "Plano de contas", route: "/plano-contas", done: s.chartOfAccounts },
-      { key: "conta_bancaria", label: "Conta bancária", route: "/contas-bancarias", done: s.bankAccount },
-      { key: "cadastros", label: "Cliente, fornecedor ou funcionário", route: "/clientes", done: s.cadastros },
-      { key: "lancamento", label: "Primeira venda ou despesa", route: "/vendas", done: s.primeiraVenda || s.primeiroLancamento },
-      { key: "conciliacao", label: "Importar extrato e conciliar", route: "/conciliacao", done: s.primeiraConciliacao },
-    ];
-  }, [status]);
-
-  const doneCount = steps.filter(s => s.done).length;
-  const total = steps.length;
-  const allDone = doneCount === total;
+  const { steps, doneCount, total, allDone, isLoading } = useImplantacao(companyId);
   const remaining = total - doneCount;
 
   const hideFab = () => {
@@ -94,7 +47,7 @@ export function StartHereButton() {
     location.pathname.startsWith("/venda");
 
   if (!companyId) return null;
-  if (!status) return null;
+  if (isLoading) return null;
   if (allDone) return null;
   if (hidden) return null;
   if (hiddenRoute) return null;
@@ -180,7 +133,7 @@ export function StartHereButton() {
                     textDecoration: step.done ? "line-through" : "none",
                   }}
                 >
-                  {step.label}
+                  {step.title}
                 </span>
                 {!step.done && <ChevronRight size={14} style={{ color: "#98A2B3", flexShrink: 0 }} />}
               </button>
@@ -195,13 +148,13 @@ export function StartHereButton() {
             }}
           >
             <button
-              onClick={() => { setPopOpen(false); navigate("/dashboard"); }}
+              onClick={() => { setPopOpen(false); navigate("/implantacao"); }}
               style={{
                 background: "transparent", border: "none", padding: 0,
                 fontSize: 12, fontWeight: 600, color: "#059669", cursor: "pointer",
               }}
             >
-              Ver no dashboard →
+              Ver checklist completo →
             </button>
             <button
               onClick={hideFab}
