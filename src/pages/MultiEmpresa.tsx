@@ -208,9 +208,24 @@ function ColunasMenu({
 }
 
 export default function MultiEmpresa() {
-  const { user } = useAuth();
+  const { user, activeClient } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [showManage, setShowManage] = useState(false);
+
+  // Grupos do usuário (pra entrar direto no consolidado do 1º grupo)
+  const { data: gruposTop, isLoading: gruposLoading } = useQuery({
+    queryKey: ["multiempresa_grupos_top", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await (activeClient as any)
+        .from("grupos_empresariais")
+        .select("id, nome")
+        .eq("owner_id", user!.id)
+        .order("nome");
+      return (data || []) as { id: string; nome: string }[];
+    },
+  });
 
   const path = location.pathname;
 
@@ -225,15 +240,36 @@ export default function MultiEmpresa() {
     );
   }
 
+  const primeiroGrupoId = (gruposTop || [])[0]?.id;
+  // Entra DIRETO no consolidado do grupo; "Gerenciar grupos" (←) mostra a lista.
+  const mostrarConsolidado = !showManage && !!primeiroGrupoId;
+
   return (
     <AppLayout title="Multi-empresa">
       {/* Mesma faixa de abas do Dashboard/Indicadores — consistência da seção */}
       <div style={{ marginBottom: 12 }}>
         <DashboardTabs active="multiempresa" />
       </div>
-      <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]">
-        <ConsolidadoTab userId={user?.id} />
-      </div>
+      {gruposLoading ? (
+        <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 min-h-[calc(100vh-190px)] flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : mostrarConsolidado ? (
+        <GrupoDashboard grupoId={primeiroGrupoId} userId={user?.id} onBack={() => setShowManage(true)} />
+      ) : (
+        <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]">
+          {!!primeiroGrupoId && (
+            <button
+              type="button"
+              onClick={() => setShowManage(false)}
+              className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#059669] hover:underline"
+            >
+              <ArrowLeft className="h-4 w-4" /> Voltar ao consolidado
+            </button>
+          )}
+          <ConsolidadoTab userId={user?.id} />
+        </div>
+      )}
     </AppLayout>
   );
 }
