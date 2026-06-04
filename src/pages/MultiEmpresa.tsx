@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PagePanel } from "@/components/layout/PagePanel";
+import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,15 +217,6 @@ export default function MultiEmpresa() {
   // Dashboard consolidado de um grupo específico: /multiempresa/grupo/:id
   const grupoMatch = path.match(/\/multiempresa\/grupo\/([^/]+)/);
 
-  const activeTab = path.includes("/transferencias")
-    ? "transferencias"
-    : path.includes("/relatorios")
-    ? "relatorios"
-    : "consolidado";
-
-  const [tab, setTab] = useState(activeTab);
-  useEffect(() => { setTab(activeTab); }, [activeTab]);
-
   if (grupoMatch) {
     return (
       <AppLayout>
@@ -236,12 +227,12 @@ export default function MultiEmpresa() {
 
   return (
     <AppLayout title="Multi-empresa">
-      <div>
-
-        <PagePanel title="Multi-empresa">
-
+      {/* Mesma faixa de abas do Dashboard/Indicadores — consistência da seção */}
+      <div style={{ marginBottom: 12 }}>
+        <DashboardTabs active="multiempresa" />
+      </div>
+      <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]">
         <ConsolidadoTab userId={user?.id} />
-        </PagePanel>
       </div>
     </AppLayout>
   );
