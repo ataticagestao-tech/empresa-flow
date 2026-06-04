@@ -72,7 +72,7 @@ const formSchema = z.object({
     description: z.string().min(1, "Nome é obrigatório"),
     type: z.string().min(1, "Tipo é obrigatório"),
     family: z.string().optional(),
-    account_id: z.string().optional(),
+    account_id: z.string().min(1, "Selecione a categoria (conta contábil)").refine((v) => v !== NONE, "Selecione a categoria (conta contábil)"),
     taxation_type: z.string().optional(),
     ncm: z.string().optional(),
     cest: z.string().optional(),
@@ -338,7 +338,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
-                                    Conta Contábil
+                                    Conta Contábil <span className="text-[#E53E3E]">*</span>
                                 </FormLabel>
                                 <FormControl>
                                     <Select onValueChange={field.onChange} value={field.value || NONE}>
