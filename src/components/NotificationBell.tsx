@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useOnboarding } from "@/components/onboarding/OnboardingChecklist";
+import { useImplantacao } from "@/hooks/useImplantacao";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,7 +67,7 @@ export function NotificationBell() {
   const { user, activeClient } = useAuth();
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
-  const onboarding = useOnboarding(selectedCompany?.id);
+  const onboarding = useImplantacao(selectedCompany?.id);
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [idsLidas, setIdsLidas] = useState<Set<string>>(() => carregarIdsLidas());
   const [open, setOpen] = useState(false);

@@ -1,7 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/hooks/useEntitlements";
+
+const STORAGE_KEY_DISMISSED = "onboarding_checklist_dismissed";
 
 /** Perfil do negócio que adapta o checklist de implantação. */
 export interface ImplantacaoPerfil {
@@ -126,6 +128,21 @@ export function useImplantacao(companyId?: string) {
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
   const allDone = total > 0 && doneCount === total;
 
+  // Dispensar (usado pelo sino de notificações; o balão tem seu próprio hide).
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(`${STORAGE_KEY_DISMISSED}_${companyId ?? ""}`) === "true");
+    } catch {
+      setDismissed(false);
+    }
+  }, [companyId]);
+  const dismiss = () => {
+    try { localStorage.setItem(`${STORAGE_KEY_DISMISSED}_${companyId ?? ""}`, "true"); } catch { /* ignore */ }
+    setDismissed(true);
+  };
+  const pending = !!companyId && !isLoading && !allDone && !dismissed && total > 0;
+
   const savePerfil = async (novo: Omit<ImplantacaoPerfil, "preenchido_em">) => {
     if (!companyId) return;
     const payload: ImplantacaoPerfil = { ...novo, preenchido_em: new Date().toISOString() };
@@ -144,6 +161,9 @@ export function useImplantacao(companyId?: string) {
     pct,
     allDone,
     isLoading,
+    pending,
+    dismissed,
+    dismiss,
     savePerfil,
   };
 }
