@@ -3,7 +3,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, startOfMo
 import {
   Clock, Loader2, Plus, X, Search, RefreshCw,
   Check, CheckCheck, ChevronLeft, ChevronRight,
-  Camera, Trash2, Upload, Printer
+  Camera, Trash2, Upload, Printer, RotateCcw
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -437,6 +437,42 @@ export default function PontoEletronico() {
     setAprovandoTodos(false)
   }
 
+  // ─── Desaprovar (voltar para pendente) ────────────────────────────
+  const handleDesaprovar = async (pontoId: string) => {
+    const db = activeClient as any
+    const { error } = await db.from('ponto_eletronico')
+      .update({ aprovado: false })
+      .eq('id', pontoId)
+    if (error) {
+      toast.error('Erro ao desaprovar')
+    } else {
+      toast.success('Ponto voltou para pendente')
+      loadData()
+    }
+  }
+
+  // Desaprovar todos os aprovados do filtro atual (desfaz "Aprovar todos").
+  const handleDesaprovarTodos = async () => {
+    const aprovados = filteredPontos.filter(p => p.aprovado)
+    if (aprovados.length === 0) {
+      toast.info('Não há pontos aprovados para reverter')
+      return
+    }
+    setAprovandoTodos(true)
+    const db = activeClient as any
+    const ids = aprovados.map(p => p.id)
+    const { error } = await db.from('ponto_eletronico')
+      .update({ aprovado: false })
+      .in('id', ids)
+    if (error) {
+      toast.error('Erro ao reverter as aprovações')
+    } else {
+      toast.success(`${ids.length} ${ids.length === 1 ? 'aprovação revertida' : 'aprovações revertidas'}`)
+      loadData()
+    }
+    setAprovandoTodos(false)
+  }
+
   // ─── Import por foto ──────────────────────────────────────────────
   const openImportModal = () => {
     setImportFuncId(funcFilter !== 'todos' ? funcFilter : '')
@@ -704,6 +740,18 @@ export default function PontoEletronico() {
                 Aprovar todos ({filteredPontos.filter(p => !p.aprovado).length})
               </button>
             )}
+            {filteredPontos.some(p => p.aprovado) && (
+              <button
+                onClick={handleDesaprovarTodos}
+                disabled={aprovandoTodos}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border disabled:opacity-50"
+                style={{ borderColor: '#D92D20', color: '#D92D20' }}
+                title="Reverter todas as aprovações do filtro atual (volta para pendente)"
+              >
+                {aprovandoTodos ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                Desaprovar todos ({filteredPontos.filter(p => p.aprovado).length})
+              </button>
+            )}
             {viewMode === 'consolidado' ? (
               <ExportMenu
                 rows={consolidado}
@@ -875,9 +923,16 @@ export default function PontoEletronico() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           {p.aprovado ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-green-600">
-                              <Check size={12} /> Aprovado
-                            </span>
+                            <button
+                              onClick={() => handleDesaprovar(p.id)}
+                              className="group inline-flex items-center gap-1 text-xs text-green-600 hover:text-red-600 font-medium"
+                              title="Clique para desaprovar (voltar para pendente)"
+                            >
+                              <Check size={12} className="group-hover:hidden" />
+                              <RotateCcw size={12} className="hidden group-hover:inline" />
+                              <span className="group-hover:hidden">Aprovado</span>
+                              <span className="hidden group-hover:inline">Desaprovar</span>
+                            </button>
                           ) : (
                             <button
                               onClick={() => handleAprovar(p.id)}
