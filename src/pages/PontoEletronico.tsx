@@ -8,7 +8,8 @@ import {
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatData } from '@/lib/format'
-import { gerarRelatorioListaPDF, downloadListaPDF } from '@/lib/cadastros-pdf/gerar-lista-pdf'
+import { downloadListaPDF } from '@/lib/cadastros-pdf/gerar-lista-pdf'
+import { gerarPontoSemanalPDF, type PontoDiaPDF } from '@/lib/ponto/gerar-ponto-semanal-pdf'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
@@ -65,6 +66,12 @@ const formatHoras = (decimal: number | null | undefined): string => {
   if (h === 0) return `${m}min`
   if (m === 0) return `${h}h`
   return `${h}h${String(m).padStart(2, '0')}`
+}
+
+// Saldo líquido com sinal: "+15h04" / "−2h12" / "0h" (extra − faltante).
+const formatSaldo = (decimal: number): string => {
+  if (Math.abs(decimal) < 1 / 120) return '0h'
+  return (decimal >= 0 ? '+' : '−') + formatHoras(Math.abs(decimal))
 }
 
 const TIPO_AUSENCIA_LABELS: Record<string, { label: string; color: string }> = {
@@ -305,44 +312,41 @@ export default function PontoEletronico() {
     return { semanas, total }
   }, [detalheFunc, filteredPontos])
 
-  // PDF do detalhe semanal (reaproveita o gerador padrão com cabeçalho da empresa).
+  // PDF do detalhe semanal — documento próprio com extra, faltante e resultado.
   const handleBaixarDetalhePDF = () => {
     if (!detalheFunc || !detalheSemanas) return
     const { semanas, total } = detalheSemanas
-    const linhas: string[][] = semanas.map(s => ([
-      `Semana ${s.num}`,
-      `${formatData(s.inicio).slice(0, 5)} a ${formatData(s.fim).slice(0, 5)}`,
-      String(s.dias),
-      formatHoras(s.horas),
-      s.extra > 0 ? formatHoras(s.extra) : '—',
-      s.faltante > 0 ? formatHoras(s.faltante) : '—',
-      s.faltas > 0 ? String(s.faltas) : '—',
-    ]))
-    linhas.push([
-      'TOTAL', '',
-      String(total.dias),
-      formatHoras(total.horas),
-      total.extra > 0 ? formatHoras(total.extra) : '—',
-      total.faltante > 0 ? formatHoras(total.faltante) : '—',
-      total.faltas > 0 ? String(total.faltas) : '—',
-    ])
-    const blob = gerarRelatorioListaPDF({
+
+    const blob = gerarPontoSemanalPDF({
       empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || 'Empresa',
       empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
       empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
       empresa_local: [(selectedCompany as any)?.endereco_cidade, (selectedCompany as any)?.endereco_estado].filter(Boolean).join('/') || null,
-      titulo: `PONTO · ${detalheFunc.nome} · ${mesLabel}`,
-      orientacao: 'portrait',
-      colunas: [
-        { header: 'Semana', flex: 12 },
-        { header: 'Período', flex: 14, align: 'center' },
-        { header: 'Dias', flex: 8, align: 'center' },
-        { header: 'Horas trab.', flex: 12, align: 'center' },
-        { header: 'Extra', flex: 11, align: 'center' },
-        { header: 'Faltante', flex: 11, align: 'center' },
-        { header: 'Faltas', flex: 8, align: 'center' },
-      ],
-      linhas,
+      funcionaria: detalheFunc.nome,
+      competencia: mesLabel,
+      total: { dias: total.dias, horas: total.horas, extra: total.extra, faltante: total.faltante },
+      semanas: semanas.map(s => ({
+        num: s.num,
+        periodo: `${formatData(s.inicio).slice(0, 5)} a ${formatData(s.fim).slice(0, 5)}`,
+        dias: s.dias,
+        horas: s.horas,
+        extra: s.extra,
+        faltante: s.faltante,
+        pontos: s.pontos.map<PontoDiaPDF>(p => {
+          const ausencia = p.tipo_ausencia ? (TIPO_AUSENCIA_LABELS[p.tipo_ausencia]?.label || p.tipo_ausencia) : null
+          const faltanteDia = p.tipo_ausencia === 'falta'
+            ? CARGA_HORARIA_DIARIA
+            : (!p.tipo_ausencia && p.horas_trabalhadas != null ? Math.max(0, CARGA_HORARIA_DIARIA - p.horas_trabalhadas) : 0)
+          return {
+            rotulo: `${DIAS_SEMANA[parseISO(p.data).getDay()]} ${formatData(p.data).slice(0, 5)}`,
+            horario: p.entrada ? `${p.entrada.slice(0, 5)}${p.saida ? ` → ${p.saida.slice(0, 5)}` : ''}` : '',
+            horas: p.tipo_ausencia ? null : p.horas_trabalhadas,
+            extra: (p.horas_extras_50 || 0) + (p.horas_extras_100 || 0),
+            faltante: faltanteDia,
+            ausencia,
+          }
+        }),
+      })),
     })
     downloadListaPDF(blob, `ponto-${detalheFunc.nome}-${mesAno}`)
   }
@@ -1227,6 +1231,14 @@ export default function PontoEletronico() {
                       <span className="font-medium text-gray-700">{formatHoras(s.horas)}</span>
                       {s.extra > 0 && <span className="font-semibold text-orange-600">+{formatHoras(s.extra)} extra</span>}
                       {s.faltante > 0 && <span className="font-semibold text-red-600">−{formatHoras(s.faltante)} faltante</span>}
+                      <span
+                        className="font-bold px-1.5 py-0.5 rounded"
+                        style={(s.extra - s.faltante) >= 0
+                          ? { color: '#059669', backgroundColor: '#e1f5ee' }
+                          : { color: '#DC2626', backgroundColor: '#FEE2E2' }}
+                      >
+                        = {formatSaldo(s.extra - s.faltante)}
+                      </span>
                     </div>
                   </div>
                   <table className="w-full text-xs">
@@ -1243,7 +1255,7 @@ export default function PontoEletronico() {
                               {DIAS_SEMANA[parseISO(p.data).getDay()]} {formatData(p.data).slice(0, 5)}
                             </td>
                             <td className="px-2 py-1.5 font-mono text-gray-600 whitespace-nowrap">
-                              {p.entrada || '—'}{p.saida ? ` → ${p.saida}` : ''}
+                              {p.entrada ? p.entrada.slice(0, 5) : '—'}{p.saida ? ` → ${p.saida.slice(0, 5)}` : ''}
                             </td>
                             <td className="px-2 py-1.5 text-center font-medium text-gray-700 w-20">
                               {ausencia ? '' : (p.horas_trabalhadas != null ? formatHoras(p.horas_trabalhadas) : '—')}
@@ -1279,12 +1291,17 @@ export default function PontoEletronico() {
                   {detalheSemanas.total.faltante > 0 && (
                     <span className="font-semibold text-red-600">−{formatHoras(detalheSemanas.total.faltante)} faltante</span>
                   )}
-                  {detalheSemanas.total.extra === 0 && detalheSemanas.total.faltante === 0 && (
-                    <span className="text-gray-400">sem extra/faltante</span>
-                  )}
                   {detalheSemanas.total.faltas > 0 && (
                     <span className="text-red-600">{detalheSemanas.total.faltas} falta(s)</span>
                   )}
+                  <span
+                    className="font-bold px-2 py-1 rounded-lg"
+                    style={(detalheSemanas.total.extra - detalheSemanas.total.faltante) >= 0
+                      ? { color: '#059669', backgroundColor: '#e1f5ee' }
+                      : { color: '#DC2626', backgroundColor: '#FEE2E2' }}
+                  >
+                    Resultado {formatSaldo(detalheSemanas.total.extra - detalheSemanas.total.faltante)}
+                  </span>
                 </div>
               </div>
             </div>
