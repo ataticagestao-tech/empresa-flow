@@ -435,6 +435,20 @@ export default function PontoEletronico() {
     setShowNewModal(true)
   }
 
+  // Preenche SÓ os horários vazios com a jornada padrão (não toca no que já tem).
+  // Sábado é jornada reduzida: só entrada e saída (sem almoço/retorno).
+  const aplicarJornadaPadrao = (form: typeof newForm): typeof newForm => {
+    const isSabado = parseISO(form.data).getDay() === 6
+    const cheio = (v: string) => !!(v && v.trim())
+    return {
+      ...form,
+      entrada: cheio(form.entrada) ? form.entrada : JORNADA_PADRAO.entrada,
+      saida_almoco: isSabado ? form.saida_almoco : (cheio(form.saida_almoco) ? form.saida_almoco : JORNADA_PADRAO.saida_almoco),
+      retorno_almoco: isSabado ? form.retorno_almoco : (cheio(form.retorno_almoco) ? form.retorno_almoco : JORNADA_PADRAO.retorno_almoco),
+      saida: cheio(form.saida) ? form.saida : JORNADA_PADRAO.saida,
+    }
+  }
+
   // ─── Aprovar ponto ────────────────────────────────────────────────
   const handleAprovar = async (pontoId: string) => {
     const db = activeClient as any
@@ -686,11 +700,11 @@ export default function PontoEletronico() {
           <button
             onClick={() => {
               setEditingId(null)
-              setNewForm({
+              setNewForm(aplicarJornadaPadrao({
                 funcionario_id: '', data: format(new Date(), 'yyyy-MM-dd'),
-                ...JORNADA_PADRAO,
+                entrada: '', saida_almoco: '', retorno_almoco: '', saida: '',
                 justificativa: '', tipo_ausencia: '',
-              })
+              }))
               setShowNewModal(true)
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
@@ -1054,12 +1068,12 @@ export default function PontoEletronico() {
                 <>
                 <button
                   type="button"
-                  onClick={() => setNewForm(prev => ({ ...prev, ...JORNADA_PADRAO }))}
+                  onClick={() => setNewForm(prev => aplicarJornadaPadrao(prev))}
                   className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors"
                   style={{ borderColor: '#059669', color: '#059669' }}
-                  title="Preenche entrada 09:00 · almoço 11:30 · retorno 12:30 · saída 18:00"
+                  title="Preenche só os campos vazios com a jornada padrão. Sábado: só entrada e saída."
                 >
-                  <Clock size={13} /> Preencher horário padrão (09:00 · 11:30 · 12:30 · 18:00)
+                  <Clock size={13} /> Preencher lacunas (09:00 · 11:30 · 12:30 · 18:00)
                 </button>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
