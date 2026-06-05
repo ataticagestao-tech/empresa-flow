@@ -57,6 +57,14 @@ interface DiaImport {
 // Carga horária diária padrão (CLT 44h/semana ≈ 8h/dia). employees não tem coluna própria.
 const CARGA_HORARIA_DIARIA = 8
 
+// Jornada padrão sugerida ao lançar/editar ponto (preenchimento rápido).
+const JORNADA_PADRAO = {
+  entrada: '09:00',
+  saida_almoco: '11:30',
+  retorno_almoco: '12:30',
+  saida: '18:00',
+}
+
 // Converte horas decimais (ex.: 8.69) em formato legível "8h41". Banco guarda decimal.
 const formatHoras = (decimal: number | null | undefined): string => {
   if (decimal == null || isNaN(Number(decimal))) return '—'
@@ -680,7 +688,7 @@ export default function PontoEletronico() {
               setEditingId(null)
               setNewForm({
                 funcionario_id: '', data: format(new Date(), 'yyyy-MM-dd'),
-                entrada: '08:00', saida_almoco: '12:00', retorno_almoco: '13:00', saida: '17:00',
+                ...JORNADA_PADRAO,
                 justificativa: '', tipo_ausencia: '',
               })
               setShowNewModal(true)
@@ -1043,6 +1051,16 @@ export default function PontoEletronico() {
               </div>
 
               {!newForm.tipo_ausencia && (
+                <>
+                <button
+                  type="button"
+                  onClick={() => setNewForm(prev => ({ ...prev, ...JORNADA_PADRAO }))}
+                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors"
+                  style={{ borderColor: '#059669', color: '#059669' }}
+                  title="Preenche entrada 09:00 · almoço 11:30 · retorno 12:30 · saída 18:00"
+                >
+                  <Clock size={13} /> Preencher horário padrão (09:00 · 11:30 · 12:30 · 18:00)
+                </button>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Entrada</label>
@@ -1081,6 +1099,7 @@ export default function PontoEletronico() {
                     />
                   </div>
                 </div>
+                </>
               )}
 
               <div>
