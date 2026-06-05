@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, startOfMonth, endOfMonth } from 'date-fns'
 import {
   Clock, Loader2, Plus, X, Search, RefreshCw,
-  Check, ChevronLeft, ChevronRight,
+  Check, CheckCheck, ChevronLeft, ChevronRight,
   Camera, Trash2, Upload
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -55,6 +55,17 @@ interface DiaImport {
 // Carga horária diária padrão (CLT 44h/semana ≈ 8h/dia). employees não tem coluna própria.
 const CARGA_HORARIA_DIARIA = 8
 
+// Converte horas decimais (ex.: 8.69) em formato legível "8h41". Banco guarda decimal.
+const formatHoras = (decimal: number | null | undefined): string => {
+  if (decimal == null || isNaN(Number(decimal))) return '—'
+  const totalMin = Math.round(Number(decimal) * 60)
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  if (h === 0) return `${m}min`
+  if (m === 0) return `${h}h`
+  return `${h}h${String(m).padStart(2, '0')}`
+}
+
 const TIPO_AUSENCIA_LABELS: Record<string, { label: string; color: string }> = {
   falta: { label: 'Falta', color: '#E53E3E' },
   atraso: { label: 'Atraso', color: '#EA580C' },
@@ -66,6 +77,23 @@ const TIPO_AUSENCIA_LABELS: Record<string, { label: string; color: string }> = {
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
 
+const MESES = [
+  'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]
+
+// Mês inicial da tela: lembra o último mês olhado (localStorage); na primeira vez
+// abre no mês ANTERIOR — folha de ponto se revisa/aprova depois do mês fechar.
+const PONTO_MES_KEY = 'ponto_mesAno'
+const mesPadraoPonto = (): string => {
+  try {
+    const salvo = localStorage.getItem(PONTO_MES_KEY)
+    if (salvo && /^\d{4}-\d{2}$/.test(salvo)) return salvo
+  } catch { /* localStorage indisponível */ }
+  const n = new Date()
+  return format(new Date(n.getFullYear(), n.getMonth() - 1, 1), 'yyyy-MM')
+}
+
 // ─── Component ──────────────────────────────────────────────────────
 export default function PontoEletronico() {
   const { selectedCompany } = useCompany()
@@ -75,11 +103,17 @@ export default function PontoEletronico() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [aprovandoTodos, setAprovandoTodos] = useState(false)
 
   // Filters
-  const [mesAno, setMesAno] = useState(() => format(new Date(), 'yyyy-MM'))
+  const [mesAno, setMesAno] = useState(mesPadraoPonto)
   const [funcFilter, setFuncFilter] = useState('todos')
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Lembra o mês escolhido para a tela não voltar pro mês atual ao reabrir.
+  useEffect(() => {
+    try { localStorage.setItem(PONTO_MES_KEY, mesAno) } catch { /* ignore */ }
+  }, [mesAno])
 
   // Modal
   const [showNewModal, setShowNewModal] = useState(false)
@@ -149,6 +183,21 @@ export default function PontoEletronico() {
     return Math.round(((manha + tarde) / 60) * 100) / 100
   }
 
+  // Calcula horas a partir do que houver: jornada completa, só entrada/saída
+  // (sem almoço registrado) ou null se não der pra calcular.
+  const calcularHorasFlex = (
+    entrada: string | null, saidaAlm: string | null, retornoAlm: string | null, saida: string | null
+  ): number | null => {
+    const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+    if (entrada && saidaAlm && retornoAlm && saida) {
+      return calcularHoras(entrada, saidaAlm, retornoAlm, saida)
+    }
+    if (entrada && saida) {
+      return Math.round(((toMin(saida) - toMin(entrada)) / 60) * 100) / 100
+    }
+    return null
+  }
+
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     const totalRegistros = pontos.length
@@ -212,6 +261,8 @@ export default function PontoEletronico() {
 
       toast.success('Ponto registrado')
       setShowNewModal(false)
+      // Pula para o mês do ponto salvo, senão ele "some" se for de outro mês.
+      setMesAno(newForm.data.slice(0, 7))
       loadData()
     } catch (err: any) {
       toast.error(err.message || 'Erro ao registrar ponto')
@@ -232,6 +283,28 @@ export default function PontoEletronico() {
       toast.success('Ponto aprovado')
       loadData()
     }
+  }
+
+  // ─── Aprovar todos os pendentes (do filtro atual) ────────────────
+  const handleAprovarTodos = async () => {
+    const pendentes = filteredPontos.filter(p => !p.aprovado)
+    if (pendentes.length === 0) {
+      toast.info('Não há pontos pendentes para aprovar')
+      return
+    }
+    setAprovandoTodos(true)
+    const db = activeClient as any
+    const ids = pendentes.map(p => p.id)
+    const { error } = await db.from('ponto_eletronico')
+      .update({ aprovado: true })
+      .in('id', ids)
+    if (error) {
+      toast.error('Erro ao aprovar os pontos')
+    } else {
+      toast.success(`${ids.length} ${ids.length === 1 ? 'ponto aprovado' : 'pontos aprovados'}`)
+      loadData()
+    }
+    setAprovandoTodos(false)
   }
 
   // ─── Import por foto ──────────────────────────────────────────────
@@ -264,11 +337,12 @@ export default function PontoEletronico() {
 
       const dias: DiaImport[] = data?.dias || []
       if (dias.length === 0) {
+        // Não apaga um preview já carregado por causa de uma leitura vazia.
         toast.warning('Nenhum dia foi identificado na foto. Tente uma foto mais nítida.')
       } else {
         toast.success(`${dias.length} dias lidos. Confira antes de salvar.`)
+        setPreview(dias)
       }
-      setPreview(dias)
     } catch (err: any) {
       toast.error(err.message || 'Erro ao ler a folha de ponto')
     } finally {
@@ -307,40 +381,68 @@ export default function PontoEletronico() {
     setSavingImport(true)
     const db = activeClient as any
     const [ano, mes] = importMesAno.split('-')
+    const anoN = parseInt(ano, 10)
+    const mesN = parseInt(mes, 10)
+    // Último dia real do mês (ex.: abril = 30) — descarta dias impossíveis (31/04).
+    const diasNoMes = new Date(anoN, mesN, 0).getDate()
 
     try {
       const cargaHoraria = CARGA_HORARIA_DIARIA
-      const records = preview
-        .filter(r => r.dia >= 1 && r.dia <= 31)
-        .map(r => {
-          const data = `${ano}-${mes}-${String(r.dia).padStart(2, '0')}`
-          const temTodos = !!(r.entrada && r.saida_almoco && r.retorno_almoco && r.saida)
-          const horas = r.tipo_ausencia
-            ? 0
-            : (temTodos ? calcularHoras(r.entrada!, r.saida_almoco!, r.retorno_almoco!, r.saida!) : null)
-          const he50 = horas && horas > cargaHoraria ? Math.min(horas - cargaHoraria, 2) : 0
-          const he100 = horas && horas > cargaHoraria + 2 ? horas - cargaHoraria - 2 : 0
-          return {
-            company_id: selectedCompany.id,
-            employee_id: importFuncId,
-            data,
-            entrada: r.tipo_ausencia ? null : r.entrada,
-            saida_almoco: r.tipo_ausencia ? null : r.saida_almoco,
-            retorno_almoco: r.tipo_ausencia ? null : r.retorno_almoco,
-            saida: r.tipo_ausencia ? null : r.saida,
-            horas_trabalhadas: horas,
-            horas_extras_50: he50,
-            horas_extras_100: he100,
-            justificativa: r.obs || null,
-            tipo_ausencia: r.tipo_ausencia || null,
-            origem: 'importado',
-          }
-        })
+
+      // 1) normaliza o dia para número e descarta dias inválidos para este mês.
+      const validos = preview
+        .map(r => ({ ...r, dia: Number(r.dia) }))
+        .filter(r => Number.isFinite(r.dia) && r.dia >= 1 && r.dia <= diasNoMes)
+
+      // 2) dedupe por dia (mantém a última linha) — um upsert não pode tocar a
+      //    mesma (funcionário, data) duas vezes no mesmo lote, senão falha tudo.
+      const porDia = new Map<number, typeof validos[number]>()
+      validos.forEach(r => porDia.set(r.dia, r))
+      const linhas = Array.from(porDia.values()).sort((a, b) => a.dia - b.dia)
+
+      if (linhas.length === 0) {
+        toast.error(`Nenhum dia válido para ${MESES[mesN - 1]}/${ano} (esse mês tem ${diasNoMes} dias). Confira os números da coluna "Dia".`)
+        setSavingImport(false)
+        return
+      }
+
+      const descartados = preview.length - linhas.length
+
+      const records = linhas.map(r => {
+        const data = `${ano}-${mes}-${String(r.dia).padStart(2, '0')}`
+        const horas = r.tipo_ausencia
+          ? 0
+          : calcularHorasFlex(r.entrada, r.saida_almoco, r.retorno_almoco, r.saida)
+        const he50 = horas && horas > cargaHoraria ? Math.min(horas - cargaHoraria, 2) : 0
+        const he100 = horas && horas > cargaHoraria + 2 ? horas - cargaHoraria - 2 : 0
+        return {
+          company_id: selectedCompany.id,
+          employee_id: importFuncId,
+          data,
+          entrada: r.tipo_ausencia ? null : r.entrada,
+          saida_almoco: r.tipo_ausencia ? null : r.saida_almoco,
+          retorno_almoco: r.tipo_ausencia ? null : r.retorno_almoco,
+          saida: r.tipo_ausencia ? null : r.saida,
+          horas_trabalhadas: horas,
+          horas_extras_50: he50,
+          horas_extras_100: he100,
+          justificativa: r.obs || null,
+          tipo_ausencia: r.tipo_ausencia || null,
+          origem: 'importado',
+        }
+      })
 
       const { error } = await db.from('ponto_eletronico')
         .upsert(records, { onConflict: 'employee_id,data' })
 
-      if (error) throw error
+      if (error) {
+        // Mostra o motivo real do banco (RLS, constraint, etc.) em vez de falhar mudo.
+        const detalhe = [error.message, error.details, error.hint].filter(Boolean).join(' · ')
+        throw new Error(detalhe || 'Erro ao salvar no banco')
+      }
+      if (descartados > 0) {
+        toast.warning(`${descartados} linha(s) ignorada(s) por dia inválido ou repetido.`)
+      }
 
       toast.success(`${records.length} registros importados`)
       setShowImportModal(false)
@@ -353,11 +455,6 @@ export default function PontoEletronico() {
       setSavingImport(false)
     }
   }
-
-  const MESES = [
-    'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-  ]
 
   const mesLabel = useMemo(() => {
     const [ano, mes] = mesAno.split('-')
@@ -375,8 +472,8 @@ export default function PontoEletronico() {
         <KpiCardGrid className="lg:grid-cols-5">
           {[
             { label: 'Registros', value: kpis.totalRegistros, color: '#059669' },
-            { label: 'Horas trabalhadas', value: `${kpis.totalHoras}h`, color: '#059669' },
-            { label: 'Horas extras', value: `${kpis.totalHE}h`, color: '#EA580C' },
+            { label: 'Horas trabalhadas', value: formatHoras(kpis.totalHoras), color: '#059669' },
+            { label: 'Horas extras', value: kpis.totalHE > 0 ? formatHoras(kpis.totalHE) : '0h', color: '#EA580C' },
             { label: 'Faltas', value: kpis.faltas, color: '#E53E3E' },
             { label: 'Pendentes aprovacao', value: kpis.pendentes, color: '#667085' },
           ].map((kpi, i) => (
@@ -442,7 +539,19 @@ export default function PontoEletronico() {
             <RefreshCw size={16} className="text-gray-500" />
           </button>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {filteredPontos.some(p => !p.aprovado) && (
+              <button
+                onClick={handleAprovarTodos}
+                disabled={aprovandoTodos}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: '#059669' }}
+                title="Aprovar todos os pontos pendentes do filtro atual"
+              >
+                {aprovandoTodos ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16} />}
+                Aprovar todos ({filteredPontos.filter(p => !p.aprovado).length})
+              </button>
+            )}
             <ExportMenu
               rows={filteredPontos}
               baseName="ponto-eletronico"
@@ -455,8 +564,8 @@ export default function PontoEletronico() {
                 { header: 'Saída alm.', value: (p) => p.saida_almoco || '', align: 'center', pdfFlex: 7 },
                 { header: 'Retorno', value: (p) => p.retorno_almoco || '', align: 'center', pdfFlex: 7 },
                 { header: 'Saída', value: (p) => p.saida || '', align: 'center', pdfFlex: 7 },
-                { header: 'Horas', value: (p) => p.horas_trabalhadas != null ? p.horas_trabalhadas : '', numericValue: (p) => Number(p.horas_trabalhadas || 0), pdfFlex: 7 },
-                { header: 'HE', value: (p) => (p.horas_extras_50 + p.horas_extras_100) > 0 ? (p.horas_extras_50 + p.horas_extras_100).toFixed(1) : '', numericValue: (p) => p.horas_extras_50 + p.horas_extras_100, pdfFlex: 7 },
+                { header: 'Horas', value: (p) => p.horas_trabalhadas != null ? formatHoras(p.horas_trabalhadas) : '', numericValue: (p) => Number(p.horas_trabalhadas || 0), pdfFlex: 7 },
+                { header: 'HE', value: (p) => (p.horas_extras_50 + p.horas_extras_100) > 0 ? formatHoras(p.horas_extras_50 + p.horas_extras_100) : '', numericValue: (p) => p.horas_extras_50 + p.horas_extras_100, pdfFlex: 7 },
                 { header: 'Obs', value: (p) => p.tipo_ausencia ? (TIPO_AUSENCIA_LABELS[p.tipo_ausencia]?.label || p.tipo_ausencia) : (p.justificativa || ''), pdfFlex: 14 },
                 { header: 'Status', value: (p) => p.aprovado ? 'Aprovado' : 'Pendente', align: 'center', pdfFlex: 8 },
               ]}
@@ -508,12 +617,12 @@ export default function PontoEletronico() {
                         <td className="px-4 py-3 text-center font-mono text-xs">{p.retorno_almoco || '—'}</td>
                         <td className="px-4 py-3 text-center font-mono text-xs">{p.saida || '—'}</td>
                         <td className="px-4 py-3 text-center font-medium">
-                          {p.horas_trabalhadas != null ? `${p.horas_trabalhadas}h` : '—'}
+                          {p.horas_trabalhadas != null ? formatHoras(p.horas_trabalhadas) : '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {(p.horas_extras_50 + p.horas_extras_100) > 0 && (
                             <span className="text-orange-600 font-medium">
-                              {(p.horas_extras_50 + p.horas_extras_100).toFixed(1)}h
+                              {formatHoras(p.horas_extras_50 + p.horas_extras_100)}
                             </span>
                           )}
                         </td>
