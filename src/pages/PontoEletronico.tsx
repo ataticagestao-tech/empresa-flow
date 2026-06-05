@@ -109,6 +109,7 @@ export default function PontoEletronico() {
   const [mesAno, setMesAno] = useState(mesPadraoPonto)
   const [funcFilter, setFuncFilter] = useState('todos')
   const [searchTerm, setSearchTerm] = useState('')
+  const [viewMode, setViewMode] = useState<'diario' | 'consolidado'>('diario')
 
   // Lembra o mês escolhido para a tela não voltar pro mês atual ao reabrir.
   useEffect(() => {
@@ -220,6 +221,42 @@ export default function PontoEletronico() {
     }
     return list
   }, [pontos, funcFilter, searchTerm, funcionarios])
+
+  // ─── Consolidado por funcionária (somatória do mês) ───────────────
+  const consolidado = useMemo(() => {
+    const mapa = new Map<string, {
+      employee_id: string
+      nome: string
+      diasTrabalhados: number
+      horas: number
+      he50: number
+      he100: number
+      faltas: number
+      folgas: number
+      pendentes: number
+    }>()
+    filteredPontos.forEach(p => {
+      let row = mapa.get(p.employee_id)
+      if (!row) {
+        row = {
+          employee_id: p.employee_id,
+          nome: getNomeFuncionario(p.employee_id),
+          diasTrabalhados: 0, horas: 0, he50: 0, he100: 0, faltas: 0, folgas: 0, pendentes: 0,
+        }
+        mapa.set(p.employee_id, row)
+      }
+      if (p.tipo_ausencia === 'falta') row.faltas += 1
+      else if (p.tipo_ausencia === 'folga' || p.tipo_ausencia === 'feriado') row.folgas += 1
+      else if (p.horas_trabalhadas != null || p.entrada) row.diasTrabalhados += 1
+      row.horas += p.horas_trabalhadas || 0
+      row.he50 += p.horas_extras_50 || 0
+      row.he100 += p.horas_extras_100 || 0
+      if (!p.aprovado) row.pendentes += 1
+    })
+    return Array.from(mapa.values())
+      .map(r => ({ ...r, heTotal: r.he50 + r.he100 }))
+      .sort((a, b) => a.nome.localeCompare(b.nome))
+  }, [filteredPontos, funcionarios])
 
   // ─── Salvar ponto ─────────────────────────────────────────────────
   const handleSalvarPonto = async () => {
@@ -539,6 +576,28 @@ export default function PontoEletronico() {
             <RefreshCw size={16} className="text-gray-500" />
           </button>
 
+          {/* Alternância Por dia / Consolidado */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
+            <button
+              onClick={() => setViewMode('diario')}
+              className="px-3 py-2 transition-colors"
+              style={viewMode === 'diario'
+                ? { backgroundColor: '#059669', color: '#fff' }
+                : { color: '#667085' }}
+            >
+              Por dia
+            </button>
+            <button
+              onClick={() => setViewMode('consolidado')}
+              className="px-3 py-2 transition-colors border-l border-gray-200"
+              style={viewMode === 'consolidado'
+                ? { backgroundColor: '#059669', color: '#fff' }
+                : { color: '#667085' }}
+            >
+              Consolidado
+            </button>
+          </div>
+
           <div className="ml-auto flex items-center gap-2">
             {filteredPontos.some(p => !p.aprovado) && (
               <button
@@ -552,24 +611,42 @@ export default function PontoEletronico() {
                 Aprovar todos ({filteredPontos.filter(p => !p.aprovado).length})
               </button>
             )}
-            <ExportMenu
-              rows={filteredPontos}
-              baseName="ponto-eletronico"
-              titulo="PONTO ELETRÔNICO"
-              subtitulo={mesLabel}
-              columns={[
-                { header: 'Funcionário', value: (p) => getNomeFuncionario(p.employee_id), pdfFlex: 20, excelWidth: 28 },
-                { header: 'Data', value: (p) => formatData(p.data), align: 'center', pdfFlex: 9 },
-                { header: 'Entrada', value: (p) => p.entrada || '', align: 'center', pdfFlex: 7 },
-                { header: 'Saída alm.', value: (p) => p.saida_almoco || '', align: 'center', pdfFlex: 7 },
-                { header: 'Retorno', value: (p) => p.retorno_almoco || '', align: 'center', pdfFlex: 7 },
-                { header: 'Saída', value: (p) => p.saida || '', align: 'center', pdfFlex: 7 },
-                { header: 'Horas', value: (p) => p.horas_trabalhadas != null ? formatHoras(p.horas_trabalhadas) : '', numericValue: (p) => Number(p.horas_trabalhadas || 0), pdfFlex: 7 },
-                { header: 'HE', value: (p) => (p.horas_extras_50 + p.horas_extras_100) > 0 ? formatHoras(p.horas_extras_50 + p.horas_extras_100) : '', numericValue: (p) => p.horas_extras_50 + p.horas_extras_100, pdfFlex: 7 },
-                { header: 'Obs', value: (p) => p.tipo_ausencia ? (TIPO_AUSENCIA_LABELS[p.tipo_ausencia]?.label || p.tipo_ausencia) : (p.justificativa || ''), pdfFlex: 14 },
-                { header: 'Status', value: (p) => p.aprovado ? 'Aprovado' : 'Pendente', align: 'center', pdfFlex: 8 },
-              ]}
-            />
+            {viewMode === 'consolidado' ? (
+              <ExportMenu
+                rows={consolidado}
+                baseName="ponto-consolidado"
+                titulo="PONTO ELETRÔNICO · CONSOLIDADO"
+                subtitulo={mesLabel}
+                columns={[
+                  { header: 'Funcionário', value: (r) => r.nome, pdfFlex: 24, excelWidth: 30 },
+                  { header: 'Dias', value: (r) => r.diasTrabalhados, align: 'center', numericValue: (r) => r.diasTrabalhados, pdfFlex: 7 },
+                  { header: 'Horas trab.', value: (r) => formatHoras(r.horas), numericValue: (r) => Math.round(r.horas * 100) / 100, pdfFlex: 9 },
+                  { header: 'HE 50%', value: (r) => r.he50 > 0 ? formatHoras(r.he50) : '', numericValue: (r) => Math.round(r.he50 * 100) / 100, pdfFlex: 8 },
+                  { header: 'HE 100%', value: (r) => r.he100 > 0 ? formatHoras(r.he100) : '', numericValue: (r) => Math.round(r.he100 * 100) / 100, pdfFlex: 8 },
+                  { header: 'HE total', value: (r) => r.heTotal > 0 ? formatHoras(r.heTotal) : '', numericValue: (r) => Math.round(r.heTotal * 100) / 100, pdfFlex: 8 },
+                  { header: 'Faltas', value: (r) => r.faltas, align: 'center', numericValue: (r) => r.faltas, pdfFlex: 7 },
+                ]}
+              />
+            ) : (
+              <ExportMenu
+                rows={filteredPontos}
+                baseName="ponto-eletronico"
+                titulo="PONTO ELETRÔNICO"
+                subtitulo={mesLabel}
+                columns={[
+                  { header: 'Funcionário', value: (p) => getNomeFuncionario(p.employee_id), pdfFlex: 20, excelWidth: 28 },
+                  { header: 'Data', value: (p) => formatData(p.data), align: 'center', pdfFlex: 9 },
+                  { header: 'Entrada', value: (p) => p.entrada || '', align: 'center', pdfFlex: 7 },
+                  { header: 'Saída alm.', value: (p) => p.saida_almoco || '', align: 'center', pdfFlex: 7 },
+                  { header: 'Retorno', value: (p) => p.retorno_almoco || '', align: 'center', pdfFlex: 7 },
+                  { header: 'Saída', value: (p) => p.saida || '', align: 'center', pdfFlex: 7 },
+                  { header: 'Horas', value: (p) => p.horas_trabalhadas != null ? formatHoras(p.horas_trabalhadas) : '', numericValue: (p) => Number(p.horas_trabalhadas || 0), pdfFlex: 7 },
+                  { header: 'HE', value: (p) => (p.horas_extras_50 + p.horas_extras_100) > 0 ? formatHoras(p.horas_extras_50 + p.horas_extras_100) : '', numericValue: (p) => p.horas_extras_50 + p.horas_extras_100, pdfFlex: 7 },
+                  { header: 'Obs', value: (p) => p.tipo_ausencia ? (TIPO_AUSENCIA_LABELS[p.tipo_ausencia]?.label || p.tipo_ausencia) : (p.justificativa || ''), pdfFlex: 14 },
+                  { header: 'Status', value: (p) => p.aprovado ? 'Aprovado' : 'Pendente', align: 'center', pdfFlex: 8 },
+                ]}
+              />
+            )}
           </div>
         </div>
 
@@ -582,6 +659,54 @@ export default function PontoEletronico() {
           ) : filteredPontos.length === 0 ? (
             <div className="text-center py-20 text-gray-400 text-sm">
               Nenhum registro de ponto para {mesLabel}
+            </div>
+          ) : viewMode === 'consolidado' ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase">
+                    <th className="px-4 py-3">Funcionário</th>
+                    <th className="px-4 py-3 text-center">Dias</th>
+                    <th className="px-4 py-3 text-center">Horas trab.</th>
+                    <th className="px-4 py-3 text-center">HE 50%</th>
+                    <th className="px-4 py-3 text-center">HE 100%</th>
+                    <th className="px-4 py-3 text-center">HE total</th>
+                    <th className="px-4 py-3 text-center">Faltas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {consolidado.map(r => (
+                    <tr key={r.employee_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-3 font-medium">{r.nome}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">{r.diasTrabalhados}</td>
+                      <td className="px-4 py-3 text-center font-medium">{formatHoras(r.horas)}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">{r.he50 > 0 ? formatHoras(r.he50) : '—'}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">{r.he100 > 0 ? formatHoras(r.he100) : '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        {r.heTotal > 0
+                          ? <span className="text-orange-600 font-semibold">{formatHoras(r.heTotal)}</span>
+                          : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {r.faltas > 0
+                          ? <span className="text-red-600 font-medium">{r.faltas}</span>
+                          : <span className="text-gray-300">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-200 bg-gray-50 font-semibold text-gray-800">
+                    <td className="px-4 py-3">TOTAL ({consolidado.length})</td>
+                    <td className="px-4 py-3 text-center">{consolidado.reduce((s, r) => s + r.diasTrabalhados, 0)}</td>
+                    <td className="px-4 py-3 text-center">{formatHoras(consolidado.reduce((s, r) => s + r.horas, 0))}</td>
+                    <td className="px-4 py-3 text-center">{formatHoras(consolidado.reduce((s, r) => s + r.he50, 0))}</td>
+                    <td className="px-4 py-3 text-center">{formatHoras(consolidado.reduce((s, r) => s + r.he100, 0))}</td>
+                    <td className="px-4 py-3 text-center text-orange-600">{formatHoras(consolidado.reduce((s, r) => s + r.heTotal, 0))}</td>
+                    <td className="px-4 py-3 text-center text-red-600">{consolidado.reduce((s, r) => s + r.faltas, 0)}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           ) : (
             <div className="overflow-x-auto">
