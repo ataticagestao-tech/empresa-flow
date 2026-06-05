@@ -1417,6 +1417,11 @@ export default function ContasPagar() {
         return
       }
 
+      // Desfaz conciliacao: a conta volta a "aberta", entao nao pode
+      // continuar vinculada a um lancamento do extrato.
+      await db.from('bank_reconciliation_matches').update({ payable_id: null }).eq('payable_id', cp.id)
+      await db.from('bank_transactions').update({ reconciled_payable_id: null }).eq('reconciled_payable_id', cp.id)
+
       const { error: errCp } = await db
         .from('contas_pagar')
         .update({
@@ -2543,6 +2548,17 @@ export default function ContasPagar() {
                                           >
                                             <Pencil size={14} /> Editar
                                           </button>
+                                          {(cp.status === 'pago' || cp.status === 'parcial') && (
+                                            <button
+                                              onClick={() => handleCancelar(cp)}
+                                              className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
+                                              style={{ color: '#EA580C', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
+                                              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(234,88,12,0.06)' }}
+                                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
+                                            >
+                                              <RefreshCw size={14} /> Cancelar pagamento
+                                            </button>
+                                          )}
                                           <RoleGate minRole="owner">
                                             <button
                                               onClick={async () => {
