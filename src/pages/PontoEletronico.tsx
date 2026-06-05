@@ -3,11 +3,12 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, startOfMo
 import {
   Clock, Loader2, Plus, X, Search, RefreshCw,
   Check, CheckCheck, ChevronLeft, ChevronRight,
-  Camera, Trash2, Upload
+  Camera, Trash2, Upload, Printer
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatData } from '@/lib/format'
+import { gerarRelatorioListaPDF, downloadListaPDF } from '@/lib/cadastros-pdf/gerar-lista-pdf'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
@@ -110,6 +111,7 @@ export default function PontoEletronico() {
   const [funcFilter, setFuncFilter] = useState('todos')
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<'diario' | 'consolidado'>('diario')
+  const [detalheFunc, setDetalheFunc] = useState<{ employee_id: string; nome: string } | null>(null)
 
   // Lembra o mês escolhido para a tela não voltar pro mês atual ao reabrir.
   useEffect(() => {
@@ -257,6 +259,93 @@ export default function PontoEletronico() {
       .map(r => ({ ...r, heTotal: r.he50 + r.he100 }))
       .sort((a, b) => a.nome.localeCompare(b.nome))
   }, [filteredPontos, funcionarios])
+
+  // ─── Detalhe por semana de uma funcionária ────────────────────────
+  // Extra = horas além de 8h/dia (HE). Faltante = horas abaixo de 8h/dia
+  // nos dias trabalhados + 8h por dia de FALTA. Folga/feriado/atestado não contam.
+  const detalheSemanas = useMemo(() => {
+    if (!detalheFunc) return null
+    const dias = filteredPontos
+      .filter(p => p.employee_id === detalheFunc.employee_id)
+      .slice()
+      .sort((a, b) => a.data.localeCompare(b.data))
+
+    type Sem = {
+      inicio: string; fim: string; pontos: Ponto[]
+      dias: number; horas: number; extra: number; faltante: number; faltas: number
+    }
+    const map = new Map<string, Sem>()
+    dias.forEach(p => {
+      const wk = format(startOfWeek(parseISO(p.data), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+      let s = map.get(wk)
+      if (!s) { s = { inicio: p.data, fim: p.data, pontos: [], dias: 0, horas: 0, extra: 0, faltante: 0, faltas: 0 }; map.set(wk, s) }
+      s.pontos.push(p)
+      if (p.data < s.inicio) s.inicio = p.data
+      if (p.data > s.fim) s.fim = p.data
+      if (p.tipo_ausencia === 'falta') {
+        s.faltas += 1
+        s.faltante += CARGA_HORARIA_DIARIA
+      } else if (!p.tipo_ausencia) {
+        if (p.horas_trabalhadas != null || p.entrada) s.dias += 1
+        s.horas += p.horas_trabalhadas || 0
+        s.extra += (p.horas_extras_50 || 0) + (p.horas_extras_100 || 0)
+        if (p.horas_trabalhadas != null) {
+          s.faltante += Math.max(0, CARGA_HORARIA_DIARIA - p.horas_trabalhadas)
+        }
+      }
+    })
+
+    const semanas = Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([, s], i) => ({ num: i + 1, ...s }))
+    const total = semanas.reduce((t, s) => ({
+      dias: t.dias + s.dias, horas: t.horas + s.horas, extra: t.extra + s.extra,
+      faltante: t.faltante + s.faltante, faltas: t.faltas + s.faltas,
+    }), { dias: 0, horas: 0, extra: 0, faltante: 0, faltas: 0 })
+    return { semanas, total }
+  }, [detalheFunc, filteredPontos])
+
+  // PDF do detalhe semanal (reaproveita o gerador padrão com cabeçalho da empresa).
+  const handleBaixarDetalhePDF = () => {
+    if (!detalheFunc || !detalheSemanas) return
+    const { semanas, total } = detalheSemanas
+    const linhas: string[][] = semanas.map(s => ([
+      `Semana ${s.num}`,
+      `${formatData(s.inicio).slice(0, 5)} a ${formatData(s.fim).slice(0, 5)}`,
+      String(s.dias),
+      formatHoras(s.horas),
+      s.extra > 0 ? formatHoras(s.extra) : '—',
+      s.faltante > 0 ? formatHoras(s.faltante) : '—',
+      s.faltas > 0 ? String(s.faltas) : '—',
+    ]))
+    linhas.push([
+      'TOTAL', '',
+      String(total.dias),
+      formatHoras(total.horas),
+      total.extra > 0 ? formatHoras(total.extra) : '—',
+      total.faltante > 0 ? formatHoras(total.faltante) : '—',
+      total.faltas > 0 ? String(total.faltas) : '—',
+    ])
+    const blob = gerarRelatorioListaPDF({
+      empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || 'Empresa',
+      empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
+      empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
+      empresa_local: [(selectedCompany as any)?.endereco_cidade, (selectedCompany as any)?.endereco_estado].filter(Boolean).join('/') || null,
+      titulo: `PONTO · ${detalheFunc.nome} · ${mesLabel}`,
+      orientacao: 'portrait',
+      colunas: [
+        { header: 'Semana', flex: 12 },
+        { header: 'Período', flex: 14, align: 'center' },
+        { header: 'Dias', flex: 8, align: 'center' },
+        { header: 'Horas trab.', flex: 12, align: 'center' },
+        { header: 'Extra', flex: 11, align: 'center' },
+        { header: 'Faltante', flex: 11, align: 'center' },
+        { header: 'Faltas', flex: 8, align: 'center' },
+      ],
+      linhas,
+    })
+    downloadListaPDF(blob, `ponto-${detalheFunc.nome}-${mesAno}`)
+  }
 
   // ─── Salvar ponto ─────────────────────────────────────────────────
   const handleSalvarPonto = async () => {
@@ -650,6 +739,12 @@ export default function PontoEletronico() {
           </div>
         </div>
 
+        {viewMode === 'consolidado' && (
+          <p className="text-xs text-gray-400 mb-2">
+            Clique em uma funcionária para ver o detalhe por semana (extra/faltante) e imprimir em PDF.
+          </p>
+        )}
+
         {/* ── Table ── */}
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           {loading ? (
@@ -676,8 +771,18 @@ export default function PontoEletronico() {
                 </thead>
                 <tbody>
                   {consolidado.map(r => (
-                    <tr key={r.employee_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 font-medium">{r.nome}</td>
+                    <tr
+                      key={r.employee_id}
+                      onClick={() => setDetalheFunc({ employee_id: r.employee_id, nome: r.nome })}
+                      className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                      title="Ver detalhe por semana"
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        <span className="inline-flex items-center gap-1.5">
+                          {r.nome}
+                          <ChevronRight size={14} className="text-gray-300" />
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-center text-gray-600">{r.diasTrabalhados}</td>
                       <td className="px-4 py-3 text-center font-medium">{formatHoras(r.horas)}</td>
                       <td className="px-4 py-3 text-center text-gray-600">{r.he50 > 0 ? formatHoras(r.he50) : '—'}</td>
@@ -1076,6 +1181,112 @@ export default function PontoEletronico() {
                 {savingImport ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                 Salvar {preview.length > 0 ? `${preview.length} dias` : ''}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL: Detalhe por semana ═══ */}
+      {detalheFunc && detalheSemanas && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800">{detalheFunc.nome}</h2>
+                <p className="text-xs text-gray-500">Detalhe por semana · {mesLabel}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBaixarDetalhePDF}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white"
+                  style={{ backgroundColor: '#D92D20' }}
+                  title="Baixar este detalhe em PDF"
+                >
+                  <Printer size={15} /> PDF
+                </button>
+                <button onClick={() => setDetalheFunc(null)} className="p-1 rounded hover:bg-gray-100">
+                  <X size={20} className="text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Corpo: uma caixa por semana */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              {detalheSemanas.semanas.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">Sem registros neste mês.</p>
+              ) : detalheSemanas.semanas.map(s => (
+                <div key={s.num} className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <div className="text-sm font-semibold text-gray-700">
+                      Semana {s.num}
+                      <span className="font-normal text-gray-400"> · {formatData(s.inicio).slice(0, 5)} a {formatData(s.fim).slice(0, 5)}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-gray-500">{s.dias} {s.dias === 1 ? 'dia' : 'dias'}</span>
+                      <span className="font-medium text-gray-700">{formatHoras(s.horas)}</span>
+                      {s.extra > 0 && <span className="font-semibold text-orange-600">+{formatHoras(s.extra)} extra</span>}
+                      {s.faltante > 0 && <span className="font-semibold text-red-600">−{formatHoras(s.faltante)} faltante</span>}
+                    </div>
+                  </div>
+                  <table className="w-full text-xs">
+                    <tbody>
+                      {s.pontos.map(p => {
+                        const ausencia = p.tipo_ausencia ? TIPO_AUSENCIA_LABELS[p.tipo_ausencia] : null
+                        const extraDia = (p.horas_extras_50 || 0) + (p.horas_extras_100 || 0)
+                        const faltanteDia = p.tipo_ausencia === 'falta'
+                          ? CARGA_HORARIA_DIARIA
+                          : (!p.tipo_ausencia && p.horas_trabalhadas != null ? Math.max(0, CARGA_HORARIA_DIARIA - p.horas_trabalhadas) : 0)
+                        return (
+                          <tr key={p.id} className="border-b border-gray-50 last:border-0">
+                            <td className="px-4 py-1.5 text-gray-500 w-28 whitespace-nowrap">
+                              {DIAS_SEMANA[parseISO(p.data).getDay()]} {formatData(p.data).slice(0, 5)}
+                            </td>
+                            <td className="px-2 py-1.5 font-mono text-gray-600 whitespace-nowrap">
+                              {p.entrada || '—'}{p.saida ? ` → ${p.saida}` : ''}
+                            </td>
+                            <td className="px-2 py-1.5 text-center font-medium text-gray-700 w-20">
+                              {ausencia ? '' : (p.horas_trabalhadas != null ? formatHoras(p.horas_trabalhadas) : '—')}
+                            </td>
+                            <td className="px-3 py-1.5 text-right w-28 whitespace-nowrap">
+                              {ausencia
+                                ? <span style={{ color: ausencia.color }}>{ausencia.label}</span>
+                                : extraDia > 0
+                                  ? <span className="text-orange-600 font-medium">+{formatHoras(extraDia)}</span>
+                                  : faltanteDia > 0
+                                    ? <span className="text-red-600 font-medium">−{formatHoras(faltanteDia)}</span>
+                                    : ''}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+
+            {/* Rodapé: consolidado do mês */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                <span className="font-semibold text-gray-800">Consolidado do mês</span>
+                <div className="flex flex-wrap items-center gap-4">
+                  <span className="text-gray-600">{detalheSemanas.total.dias} dias</span>
+                  <span className="font-medium text-gray-800">{formatHoras(detalheSemanas.total.horas)} trab.</span>
+                  {detalheSemanas.total.extra > 0 && (
+                    <span className="font-semibold text-orange-600">+{formatHoras(detalheSemanas.total.extra)} extra</span>
+                  )}
+                  {detalheSemanas.total.faltante > 0 && (
+                    <span className="font-semibold text-red-600">−{formatHoras(detalheSemanas.total.faltante)} faltante</span>
+                  )}
+                  {detalheSemanas.total.extra === 0 && detalheSemanas.total.faltante === 0 && (
+                    <span className="text-gray-400">sem extra/faltante</span>
+                  )}
+                  {detalheSemanas.total.faltas > 0 && (
+                    <span className="text-red-600">{detalheSemanas.total.faltas} falta(s)</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
