@@ -3,7 +3,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, startOfMo
 import {
   Clock, Loader2, Plus, X, Search, RefreshCw,
   Check, CheckCheck, ChevronLeft, ChevronRight,
-  Camera, Trash2, Upload, Printer, RotateCcw
+  Camera, Trash2, Upload, Printer, RotateCcw, Pencil
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -127,6 +127,7 @@ export default function PontoEletronico() {
 
   // Modal
   const [showNewModal, setShowNewModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [newForm, setNewForm] = useState({
     funcionario_id: '',
     data: format(new Date(), 'yyyy-MM-dd'),
@@ -363,42 +364,67 @@ export default function PontoEletronico() {
     const db = activeClient as any
 
     try {
+      // Horários vazios viram null; horas calculadas mesmo sem almoço.
+      const norm = (t: string) => (t && t.trim() ? t : null)
+      const entrada = newForm.tipo_ausencia ? null : norm(newForm.entrada)
+      const saidaAlm = newForm.tipo_ausencia ? null : norm(newForm.saida_almoco)
+      const retornoAlm = newForm.tipo_ausencia ? null : norm(newForm.retorno_almoco)
+      const saida = newForm.tipo_ausencia ? null : norm(newForm.saida)
+
       const horasTrabalhadas = newForm.tipo_ausencia
         ? 0
-        : calcularHoras(newForm.entrada, newForm.saida_almoco, newForm.retorno_almoco, newForm.saida)
+        : calcularHorasFlex(entrada, saidaAlm, retornoAlm, saida)
 
       const cargaHoraria = CARGA_HORARIA_DIARIA
-      const he50 = horasTrabalhadas > cargaHoraria ? Math.min(horasTrabalhadas - cargaHoraria, 2) : 0
-      const he100 = horasTrabalhadas > cargaHoraria + 2 ? horasTrabalhadas - cargaHoraria - 2 : 0
+      const he50 = horasTrabalhadas && horasTrabalhadas > cargaHoraria ? Math.min(horasTrabalhadas - cargaHoraria, 2) : 0
+      const he100 = horasTrabalhadas && horasTrabalhadas > cargaHoraria + 2 ? horasTrabalhadas - cargaHoraria - 2 : 0
 
-      const { error } = await db.from('ponto_eletronico').upsert({
+      const payload = {
         company_id: selectedCompany.id,
         employee_id: newForm.funcionario_id,
         data: newForm.data,
-        entrada: newForm.tipo_ausencia ? null : newForm.entrada,
-        saida_almoco: newForm.tipo_ausencia ? null : newForm.saida_almoco,
-        retorno_almoco: newForm.tipo_ausencia ? null : newForm.retorno_almoco,
-        saida: newForm.tipo_ausencia ? null : newForm.saida,
+        entrada, saida_almoco: saidaAlm, retorno_almoco: retornoAlm, saida,
         horas_trabalhadas: horasTrabalhadas,
         horas_extras_50: he50,
         horas_extras_100: he100,
         justificativa: newForm.justificativa || null,
         tipo_ausencia: newForm.tipo_ausencia || null,
-        origem: 'manual',
-      }, { onConflict: 'employee_id,data' })
+        origem: 'manual' as const,
+      }
+
+      const { error } = editingId
+        ? await db.from('ponto_eletronico').update(payload).eq('id', editingId)
+        : await db.from('ponto_eletronico').upsert(payload, { onConflict: 'employee_id,data' })
 
       if (error) throw error
 
-      toast.success('Ponto registrado')
+      toast.success(editingId ? 'Ponto atualizado' : 'Ponto registrado')
       setShowNewModal(false)
+      setEditingId(null)
       // Pula para o mês do ponto salvo, senão ele "some" se for de outro mês.
       setMesAno(newForm.data.slice(0, 7))
       loadData()
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao registrar ponto')
+      toast.error(err.message || 'Erro ao salvar ponto')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // Abre o popup já preenchido para editar uma batida existente.
+  const openEditPonto = (p: Ponto) => {
+    setEditingId(p.id)
+    setNewForm({
+      funcionario_id: p.employee_id,
+      data: p.data,
+      entrada: p.entrada?.slice(0, 5) || '',
+      saida_almoco: p.saida_almoco?.slice(0, 5) || '',
+      retorno_almoco: p.retorno_almoco?.slice(0, 5) || '',
+      saida: p.saida?.slice(0, 5) || '',
+      justificativa: p.justificativa || '',
+      tipo_ausencia: p.tipo_ausencia || '',
+    })
+    setShowNewModal(true)
   }
 
   // ─── Aprovar ponto ────────────────────────────────────────────────
@@ -651,6 +677,7 @@ export default function PontoEletronico() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => {
+              setEditingId(null)
               setNewForm({
                 funcionario_id: '', data: format(new Date(), 'yyyy-MM-dd'),
                 entrada: '08:00', saida_almoco: '12:00', retorno_almoco: '13:00', saida: '17:00',
@@ -880,6 +907,7 @@ export default function PontoEletronico() {
                     <th className="px-4 py-3 text-center">HE</th>
                     <th className="px-4 py-3">Obs</th>
                     <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-center">Editar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -942,6 +970,15 @@ export default function PontoEletronico() {
                             </button>
                           )}
                         </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => openEditPonto(p)}
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            title="Editar esta batida"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </td>
                       </tr>
                     )
                   })}
@@ -958,8 +995,8 @@ export default function PontoEletronico() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800">Registrar ponto</h2>
-              <button onClick={() => setShowNewModal(false)} className="p-1 rounded hover:bg-gray-100">
+              <h2 className="text-lg font-semibold text-gray-800">{editingId ? 'Editar ponto' : 'Registrar ponto'}</h2>
+              <button onClick={() => { setShowNewModal(false); setEditingId(null) }} className="p-1 rounded hover:bg-gray-100">
                 <X size={20} className="text-gray-400" />
               </button>
             </div>
@@ -969,7 +1006,8 @@ export default function PontoEletronico() {
                 <select
                   value={newForm.funcionario_id}
                   onChange={e => setNewForm(prev => ({ ...prev, funcionario_id: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  disabled={!!editingId}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500"
                 >
                   <option value="">Selecione...</option>
                   {funcionarios.map(f => (
@@ -983,7 +1021,8 @@ export default function PontoEletronico() {
                   type="date"
                   value={newForm.data}
                   onChange={e => setNewForm(prev => ({ ...prev, data: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  disabled={!!editingId}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>
               <div>
@@ -1057,7 +1096,7 @@ export default function PontoEletronico() {
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
               <button
-                onClick={() => setShowNewModal(false)}
+                onClick={() => { setShowNewModal(false); setEditingId(null) }}
                 className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
               >
                 Cancelar
@@ -1069,7 +1108,7 @@ export default function PontoEletronico() {
                 style={{ backgroundColor: '#059669' }}
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Clock size={16} />}
-                Salvar
+                {editingId ? 'Salvar alterações' : 'Salvar'}
               </button>
             </div>
           </div>
