@@ -1987,7 +1987,12 @@ export default function ContasPagar() {
                       : '*CONTAS A PAGAR \u2014 PR\u00d3XIMOS 30 DIAS*'
                     const blocos = agendaAgrupadoPorPlano.map(g => {
                       const itens = g.items.map(cp => {
-                        const dataPrefix = selectedAgendaDate ? '' : `${format(parseISO(cp.data_vencimento), 'dd/MM')} \u2014 `
+                        // Mostra o fornecedor ao lado da data s\u00f3 quando h\u00e1 descri\u00e7\u00e3o pr\u00f3pria
+                        // (sen\u00e3o o nome j\u00e1 \u00e9 o pr\u00f3prio credor e ficaria repetido).
+                        const fornecedor = cp.descricao && cp.credor_nome && cp.credor_nome !== cp.descricao ? cp.credor_nome : ''
+                        const dataTxt = selectedAgendaDate ? '' : format(parseISO(cp.data_vencimento), 'dd/MM')
+                        const prefixo = [dataTxt, fornecedor].filter(Boolean).join(' \u00b7 ')
+                        const dataPrefix = prefixo ? `${prefixo} \u2014 ` : ''
                         return `${dataPrefix}${cp.descricao || cp.credor_nome} \u2014 ${formatBRL(cp._pendente)}`
                       }).join('\n')
                       return `*${g.plano}*\n${itens}`
@@ -2052,16 +2057,21 @@ export default function ContasPagar() {
                             header: 'Conta',
                             title: (cp: any) => cp.descricao || cp.credor_nome || '',
                             cellClassName: 'text-[#0F172A]',
-                            render: (cp: any) => (
-                              <>
-                                <div className="font-medium truncate">{cp.descricao || cp.credor_nome}</div>
-                                {!selectedAgendaDate && (
-                                  <div className="text-[10.5px] text-[#9CA3AF]">
-                                    {format(parseISO(cp.data_vencimento), 'dd/MM')}
-                                  </div>
-                                )}
-                              </>
-                            ),
+                            render: (cp: any) => {
+                              const fornecedor = cp.descricao && cp.credor_nome && cp.credor_nome !== cp.descricao ? cp.credor_nome : ''
+                              const dataTxt = !selectedAgendaDate ? format(parseISO(cp.data_vencimento), 'dd/MM') : ''
+                              const sub = [dataTxt, fornecedor].filter(Boolean).join(' · ')
+                              return (
+                                <>
+                                  <div className="font-medium truncate">{cp.descricao || cp.credor_nome}</div>
+                                  {sub && (
+                                    <div className="text-[10.5px] text-[#9CA3AF] truncate" title={fornecedor || undefined}>
+                                      {sub}
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            },
                           },
                           {
                             id: 'valor',
