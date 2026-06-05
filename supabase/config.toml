@@ -50,6 +50,14 @@ verify_jwt = false
 [functions.gerar-overnight-pdf]
 verify_jwt = false
 
+# Gerador de relatório financeiro em PDF (fluxo/CP/CR/DRE/faturamento).
+# Chamado server-a-server pela tool gerar_relatorio_pdf com a service key.
+[functions.gerar-relatorio-financeiro]
+verify_jwt = false
+
+[functions.agente-tool-gerar_relatorio_pdf]
+verify_jwt = false
+
 [functions.enviar-whatsapp]
 verify_jwt = false
 
@@ -87,6 +95,11 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ler-boleto]
+verify_jwt = false
+
+# Leitor de extrato por visão (fallback do parser de texto p/ PDF escaneado/foto).
+# Mesma cadeia do ler-boleto: valida via ANTHROPIC_API_KEY, não JWT.
+[functions.ler-extrato]
 verify_jwt = false
 
 [functions.agente-tool-listar_cp_abertas]

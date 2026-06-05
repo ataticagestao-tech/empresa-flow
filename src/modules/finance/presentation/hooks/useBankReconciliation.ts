@@ -7,7 +7,8 @@ import { format } from "date-fns";
 import { BankTransaction } from "../../domain/schemas/bank-reconciliation.schema";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { parseBankStatementPdf } from "@/lib/parsers/bankStatementPdf";
+import { parseBankStatementPdf, type BankStatementParsedTransaction } from "@/lib/parsers/bankStatementPdf";
+import { readStatementWithVision } from "@/lib/parsers/bankStatementVision";
 import { parseCreditCardPdf } from "@/lib/parsers/creditCardPdf";
 import { parseBankStatementExcel } from "@/lib/parsers/bankStatementExcel";
 import { recordStatementBalance } from "@/modules/finance/application/statementBalance";
@@ -327,6 +328,23 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" })
     });
 
+    // Parse "inteligente" de extrato em PDF/imagem:
+    //   1) PDF com camada de texto → parser posicional (offline, barato).
+    //   2) PDF escaneado (texto vazio) ou FOTO/imagem → visão (Claude, via ler-extrato).
+    // A visão é cacheada por File (bankStatementVision), então gate + commit do mesmo
+    // arquivo chamam a IA uma vez só.
+    const smartParseStatement = async (
+        file: File,
+    ): Promise<{ transactions: BankStatementParsedTransaction[]; usedVision: boolean; truncated: boolean }> => {
+        const isImage = (file.type || "").startsWith("image/");
+        if (!isImage) {
+            const txt = await parseBankStatementPdf(file).catch(() => [] as BankStatementParsedTransaction[]);
+            if (txt.length > 0) return { transactions: txt, usedVision: false, truncated: false };
+        }
+        const v = await readStatementWithVision(file, activeClient);
+        return { transactions: v.transactions, usedVision: true, truncated: v.truncated };
+    };
+
     const uploadPDF = useMutation({
         mutationFn: async (file: File) => {
             if (!bankAccountId || !companyId) throw new Error("Dados incompletos");
@@ -357,7 +375,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             if (statementError) throw statementError;
 
-            const parsed = await parseBankStatementPdf(file);
+            const { transactions: parsed, usedVision, truncated } = await smartParseStatement(file);
 
             const toInsert = parsed.map((tx, index) => {
                 // fit_id baseado em conteúdo (NÃO no id do arquivo) — senão reimportar o
@@ -401,16 +419,25 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             if (updateStatementError) throw updateStatementError;
 
-            return { parsed: toInsert.length, inserted };
+            return { parsed: toInsert.length, inserted, usedVision, truncated };
         },
-        onSuccess: ({ parsed, inserted }) => {
+        onSuccess: ({ parsed, inserted, usedVision, truncated }) => {
+            const origem = usedVision ? "da foto" : "do PDF";
             const duplicates = parsed - inserted;
             if (inserted === 0 && parsed > 0) {
-                toast({ title: "Nenhuma nova transação", description: `Todas as ${parsed} transações do PDF já existem no sistema.`, variant: "destructive" });
+                toast({ title: "Nenhuma nova transação", description: `Todas as ${parsed} transações ${origem} já existem no sistema.`, variant: "destructive" });
             } else if (duplicates > 0) {
-                toast({ title: "Sucesso", description: `${inserted} novas transações do PDF. ${duplicates} duplicadas ignoradas.` });
+                toast({ title: "Sucesso", description: `${inserted} novas transações ${origem}. ${duplicates} duplicadas ignoradas.` });
             } else {
-                toast({ title: "Sucesso", description: `${inserted} transações importadas do PDF.` });
+                toast({ title: "Sucesso", description: `${inserted} transações importadas ${origem}.` });
+            }
+            // Visão pode cortar a resposta em extratos muito longos — avisa pra conferir.
+            if (truncated) {
+                toast({
+                    title: "Confira o fim do extrato",
+                    description: "O extrato é longo e a leitura por foto pode ter parado antes do fim. Confira as últimas datas; se faltar, suba o restante em outro arquivo.",
+                    variant: "destructive",
+                });
             }
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
             queryClient.invalidateQueries({ queryKey: ['bank_statement_files'] });
@@ -1088,9 +1115,9 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             if (!parsed.length) throw new Error("Nenhuma transação encontrada na planilha");
             txs = parsed.map(tx => ({ date: tx.date, amount: tx.amount }));
         } else if (source === 'pdf') {
-            const parsed = await parseBankStatementPdf(file);
-            if (!parsed.length) throw new Error("Nenhuma transação encontrada no PDF");
-            txs = parsed.map(tx => ({ date: tx.date, amount: tx.amount }));
+            const { transactions } = await smartParseStatement(file);
+            if (!transactions.length) throw new Error("Nenhuma transação encontrada no extrato (PDF ou foto). Tente um arquivo mais legível ou outro período.");
+            txs = transactions.map(tx => ({ date: tx.date, amount: tx.amount }));
         } else {
             const statement = await parseCreditCardPdf(file);
             if (!statement.transactions.length) throw new Error("Nenhuma transação encontrada na fatura");

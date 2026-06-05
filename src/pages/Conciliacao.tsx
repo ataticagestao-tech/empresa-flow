@@ -1669,7 +1669,7 @@ export default function Conciliacao() {
                             onChange={handleFileChange} />
                         <input type="file" accept=".pdf" className="hidden" ref={ccFileInputRef}
                             onChange={handleCCFileChange} />
-                        <input type="file" accept=".pdf" className="hidden" ref={pdfFileInputRef}
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,image/*" className="hidden" ref={pdfFileInputRef}
                             onChange={handlePDFFileChange} />
                         <input type="file" accept=".xlsx,.xls,.csv" className="hidden" ref={excelFileInputRef}
                             onChange={handleExcelFileChange} />
@@ -1691,9 +1691,10 @@ export default function Conciliacao() {
                                 </Button>
                                 <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                     onClick={() => pdfFileInputRef.current?.click()}
-                                    disabled={!selectedAccountId || uploadPDF.isPending || securityChecking}>
+                                    disabled={!selectedAccountId || uploadPDF.isPending || securityChecking}
+                                    title="Extrato em PDF (inclusive escaneado) ou foto — leitura automática por IA">
                                     {uploadPDF.isPending || securityChecking ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                                    PDF
+                                    PDF / Foto
                                 </Button>
                                 <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                     onClick={() => excelFileInputRef.current?.click()}
