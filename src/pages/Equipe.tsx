@@ -18,6 +18,7 @@ import {
 import {
   Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ExportMenu } from '@/components/ExportMenu';
@@ -27,6 +28,7 @@ interface MembroEquipe {
   user_id: string;
   role: Role;
   is_default: boolean;
+  lean_menu: boolean;
   full_name: string | null;
   email: string | null;
 }
@@ -78,6 +80,7 @@ export default function Equipe() {
           user_id,
           role,
           is_default,
+          lean_menu,
           profiles!user_id ( full_name, email )
         `)
         .eq('company_id', selectedCompany.id)
@@ -88,6 +91,7 @@ export default function Equipe() {
         user_id: r.user_id,
         role: r.role as Role,
         is_default: r.is_default,
+        lean_menu: r.lean_menu ?? false,
         full_name: r.profiles?.full_name ?? null,
         email: r.profiles?.email ?? null,
       }));
@@ -106,6 +110,22 @@ export default function Equipe() {
     },
     onSuccess: () => {
       toast.success('Permissão atualizada');
+      queryClient.invalidateQueries({ queryKey: ['equipe'] });
+    },
+    onError: (err: any) => toast.error('Erro: ' + (err.message || 'desconhecido')),
+  });
+
+  // Liga/desliga "menu enxuto" (só telas com dados) por usuário
+  const setLeanMenu = useMutation({
+    mutationFn: async (input: { user_companies_id: string; lean: boolean }) => {
+      const { error } = await (activeClient as any)
+        .from('user_companies')
+        .update({ lean_menu: input.lean })
+        .eq('id', input.user_companies_id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Menu atualizado');
       queryClient.invalidateQueries({ queryKey: ['equipe'] });
     },
     onError: (err: any) => toast.error('Erro: ' + (err.message || 'desconhecido')),
@@ -302,29 +322,40 @@ export default function Equipe() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        {isYou ? (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold"
-                            style={{ background: colors.bg, color: colors.text }}
-                          >
-                            <Icon size={12} />
-                            {ROLE_LABELS[m.role]}
-                          </span>
-                        ) : (
-                          <Select
-                            value={m.role}
-                            onValueChange={(v) => changeRole.mutate({ user_companies_id: m.user_companies_id, new_role: v as Role })}
-                          >
-                            <SelectTrigger className="w-[180px] h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="owner">Proprietário</SelectItem>
-                              <SelectItem value="operador">Operador</SelectItem>
-                              <SelectItem value="visualizador">Visualizador</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
+                        <div className="flex flex-col gap-2">
+                          {isYou ? (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold w-fit"
+                              style={{ background: colors.bg, color: colors.text }}
+                            >
+                              <Icon size={12} />
+                              {ROLE_LABELS[m.role]}
+                            </span>
+                          ) : (
+                            <Select
+                              value={m.role}
+                              onValueChange={(v) => changeRole.mutate({ user_companies_id: m.user_companies_id, new_role: v as Role })}
+                            >
+                              <SelectTrigger className="w-[180px] h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="owner">Proprietário</SelectItem>
+                                <SelectItem value="operador">Operador</SelectItem>
+                                <SelectItem value="visualizador">Visualizador</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                          {!isYou && m.role === 'visualizador' && (
+                            <label className="flex items-center gap-2 text-xs text-[#667085] cursor-pointer select-none">
+                              <Switch
+                                checked={m.lean_menu}
+                                onCheckedChange={(v) => setLeanMenu.mutate({ user_companies_id: m.user_companies_id, lean: v })}
+                              />
+                              <span>Menu enxuto<br /><span className="text-[#98A2B3]">só telas com dados</span></span>
+                            </label>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         {!isYou && (

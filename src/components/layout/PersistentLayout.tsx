@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react";
-import { Outlet, useLocation, Link } from "react-router-dom";
+import { Outlet, useLocation, Link, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { AppHeader } from "./AppHeader";
 import { AppTopNav } from "./AppTopNav";
@@ -13,6 +13,8 @@ import { AssistenteFab } from "@/components/assistente/AssistenteFab";
 import { PageTitleProvider, usePageTitle } from "@/contexts/PageTitleContext";
 import { menuGroups, findModuleForPath } from "@/config/menuConfig";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { useLeanMenu } from "@/hooks/useLeanMenu";
+import { useModulesWithData } from "@/hooks/useModulesWithData";
 import { ModuleLocked } from "@/components/ModuleLocked";
 import { Home, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -63,10 +65,16 @@ function LayoutMain() {
   const { title } = usePageTitle();
   const location = useLocation();
   const { hasModule } = useEntitlements();
+  const { leanMenu } = useLeanMenu();
+  const { hasData, isLoading: leanLoading } = useModulesWithData(leanMenu);
 
   // Guard de rota da modularização: módulo da rota atual não liberado pelo plano.
   const routeModule = findModuleForPath(location.pathname);
   const moduleLocked = routeModule ? !hasModule(routeModule) : false;
+
+  // Guard do MENU ENXUTO: usuário lean não acessa (nem digitando a URL) telas
+  // sem dado. Só bloqueia depois de contar (evita redirect no meio do load).
+  const leanBlocked = leanMenu && !leanLoading && !hasData(location.pathname);
 
   // Layout persiste entre navegações: reseta o scroll ao trocar de rota
   // (antes o remount fazia isso sozinho).
@@ -85,7 +93,9 @@ function LayoutMain() {
         {/* Suspense aqui (e não em volta do app inteiro): o menu do topo fica
             fixo e só o miolo mostra o "carregando" ao abrir uma tela sob demanda. */}
         <ErrorBoundary resetKey={location.pathname}>
-          {moduleLocked ? (
+          {leanBlocked ? (
+            <Navigate to="/dashboard" replace />
+          ) : moduleLocked ? (
             <ModuleLocked module={routeModule!} />
           ) : (
             <Suspense

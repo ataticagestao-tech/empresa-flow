@@ -13,6 +13,8 @@ import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { useLeanMenu } from "@/hooks/useLeanMenu";
+import { useModulesWithData } from "@/hooks/useModulesWithData";
 import { useTranslation } from "react-i18next";
 import { menuGroups, OWNER_EMAIL, type MenuGroup, type MenuItem } from "@/config/menuConfig";
 
@@ -26,14 +28,30 @@ export function AppTopNav() {
   const { user } = useAuth();
   const { isSuperAdmin } = useAdmin();
   const { hasModule } = useEntitlements();
+  const { leanMenu } = useLeanMenu();
+  const { hasData } = useModulesWithData(leanMenu);
   const { t } = useTranslation();
 
   const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase();
   const isActive = (url?: string) => (url ? location.pathname === url : false);
   const startsWith = (url?: string) => (url ? location.pathname.startsWith(url) : false);
 
-  const isItemVisible = (item: MenuItem) =>
-    !item.hidden && (!item.adminOnly || isSuperAdmin) && (!item.ownerOnly || isOwner) && hasModule(item.module);
+  // Visibilidade base (flags + plano). No MENU ENXUTO some também o que está
+  // vazio: item-pai some se nenhum filho sobreviver; folha some se a tela não
+  // tem dado.
+  const isItemVisible = (item: MenuItem): boolean => {
+    if (item.hidden) return false;
+    if (item.adminOnly && !isSuperAdmin) return false;
+    if (item.ownerOnly && !isOwner) return false;
+    if (!hasModule(item.module)) return false;
+    if (leanMenu) {
+      if (item.children && item.children.length > 0) {
+        return item.children.some(isItemVisible);
+      }
+      return hasData(item.url);
+    }
+    return true;
+  };
 
   const visibleGroups = menuGroups.filter((group) => {
     if (group.ownerOnly && !isOwner) return false;

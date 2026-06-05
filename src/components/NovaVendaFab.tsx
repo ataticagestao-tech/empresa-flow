@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useReadOnly } from "@/hooks/useReadOnly";
 import { Plus, Minus, X } from "lucide-react";
 
 /**
@@ -90,6 +91,7 @@ function FabButton({ label, icon: Icon, color, shadow, shadowHover, iconColor, o
 export function NovaVendaFab() {
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
+  const { readOnly } = useReadOnly();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -109,6 +111,7 @@ export function NovaVendaFab() {
 
   if (!user) return null;
   if (!selectedCompany?.id) return null;
+  if (readOnly) return null; // visualizador não lança nada
   if (hiddenRoute) return null;
   if (vendaHidden && cpHidden) return null;
 

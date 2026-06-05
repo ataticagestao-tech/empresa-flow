@@ -2344,12 +2344,14 @@ export default function Vendas() {
               ? <><Loader2 size={11} className="animate-spin" /> Gerando…</>
               : <><ImageDown size={11} /> Imagem</>}
           </button>
-          <button
-            onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
-            className="flex items-center gap-2 px-5 h-10 text-[13.5px] font-bold text-white bg-[#039855] rounded-md hover:bg-[#027A47] active:scale-[0.98] transition-all shadow-md hover:shadow-lg"
-          >
-            <Plus size={17} strokeWidth={2.5} /> Nova Venda
-          </button>
+          <RoleGate minRole="operador">
+            <button
+              onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
+              className="flex items-center gap-2 px-5 h-10 text-[13.5px] font-bold text-white bg-[#039855] rounded-md hover:bg-[#027A47] active:scale-[0.98] transition-all shadow-md hover:shadow-lg"
+            >
+              <Plus size={17} strokeWidth={2.5} /> Nova Venda
+            </button>
+          </RoleGate>
           <input
             ref={fileInputRef}
             type="file"
@@ -2593,12 +2595,14 @@ export default function Vendas() {
                     Lance sua primeira venda. O sistema cuida do resto: gera conta a receber se for a prazo, atualiza o estoque
                     se for produto cadastrado, e registra a movimentação no caixa.
                   </p>
-                  <button
-                    onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
-                    className="flex items-center gap-2 px-5 h-10 text-[13.5px] font-bold text-white bg-[#039855] rounded-md hover:bg-[#027A47] transition-colors"
-                  >
-                    <Plus size={17} strokeWidth={2.5} /> Lançar primeira venda
-                  </button>
+                  <RoleGate minRole="operador">
+                    <button
+                      onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
+                      className="flex items-center gap-2 px-5 h-10 text-[13.5px] font-bold text-white bg-[#039855] rounded-md hover:bg-[#027A47] transition-colors"
+                    >
+                      <Plus size={17} strokeWidth={2.5} /> Lançar primeira venda
+                    </button>
+                  </RoleGate>
                 </div>
               ) : (
                 <div className="text-center py-12 text-[#555] text-sm">Nenhuma venda encontrada com os filtros aplicados.</div>

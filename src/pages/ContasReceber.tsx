@@ -1376,12 +1376,14 @@ export default function ContasReceber() {
               </button>
             )}
             <div className="flex-1" />
-            <button
-              onClick={() => setNovoModal(true)}
-              className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
-            >
-              <Plus size={11} /> Novo t&iacute;tulo
-            </button>
+            <RoleGate minRole="operador">
+              <button
+                onClick={() => setNovoModal(true)}
+                className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
+              >
+                <Plus size={11} /> Novo t&iacute;tulo
+              </button>
+            </RoleGate>
           </div>
         </div>
 

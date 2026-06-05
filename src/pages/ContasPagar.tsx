@@ -2288,12 +2288,14 @@ export default function ContasPagar() {
                   document.body
                 )}
               </div>
-              <button
-                onClick={openNewModal}
-                className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
-              >
-                <Plus size={11} /> Nova conta
-              </button>
+              <RoleGate minRole="operador">
+                <button
+                  onClick={openNewModal}
+                  className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
+                >
+                  <Plus size={11} /> Nova conta
+                </button>
+              </RoleGate>
             </div>
 
             {/* Loading */}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { RoleGate } from "@/components/auth/RoleGate";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -363,7 +364,7 @@ export default function Fornecedores() {
                       <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path fill="#25D366" d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/><path fill="#fff" d="M9.36 7.32c-.18-.4-.36-.41-.53-.42h-.45c-.16 0-.41.06-.63.3-.22.24-.83.81-.83 1.98 0 1.17.85 2.3.97 2.46.12.16 1.65 2.64 4.08 3.6 2.02.8 2.43.64 2.87.6.44-.04 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.64-1.19-1.42-1.33-1.66-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.53-1.31-.74-1.79z"/></svg></button>
                       <button onClick={() => setIsDupOpen(true)} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Localizar duplicados"><Copy className="h-4 w-4" /></button>
                       <ExportMenu rows={suppliersExportRows} columns={suppliersExportColumns} titulo="FORNECEDORES" baseName="fornecedores" orientacao="landscape" size="sm" disabled={!suppliers.length} />
-                      <button onClick={startNew} className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1 ml-1">+ Novo</button>
+                      <RoleGate minRole="operador"><button onClick={startNew} className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1 ml-1">+ Novo</button></RoleGate>
                     </div>
                   </div>
                 </div>
