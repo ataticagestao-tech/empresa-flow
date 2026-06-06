@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,6 +61,30 @@ const AUTOR_LABEL: Record<string, string> = {
   contato: "Cliente",
 };
 
+// ── CTWA: leitura do objeto `referral` que a Meta manda quando o lead
+//    vem de um anúncio Click-to-WhatsApp (qual criativo originou a conversa).
+interface Referral {
+  headline?: string;
+  body?: string;
+  source_id?: string;
+  source_url?: string;
+  source_type?: string;
+  ctwa_clid?: string;
+  media_type?: string;
+}
+function lerReferral(r: Record<string, unknown> | null | undefined): Referral | null {
+  if (!r || typeof r !== "object") return null;
+  return r as Referral;
+}
+/** Rótulo legível do anúncio: headline > início do texto > id > genérico. */
+function rotuloAnuncio(r: Referral | null): string {
+  if (!r) return "Anúncio";
+  if (r.headline) return r.headline;
+  if (r.body) return String(r.body).slice(0, 48);
+  if (r.source_id) return `Anúncio ${r.source_id}`;
+  return "Anúncio (sem detalhe)";
+}
+
 export default function WhatsAppInbox() {
   const { session } = useAuth();
   const { selectedCompany } = useCompany();
@@ -74,6 +98,22 @@ export default function WhatsAppInbox() {
   const fimRef = useRef<HTMLDivElement>(null);
 
   const selecionada = conversas.find((c) => c.id === selecionadaId) || null;
+
+  // Agrupa os leads por anúncio de origem (CTWA) a partir do que já foi carregado.
+  const origemLeads = useMemo(() => {
+    const map = new Map<string, { rotulo: string; total: number; ultimo: string | null; url?: string }>();
+    for (const c of conversas) {
+      const r = lerReferral(c.referral);
+      if (!r) continue;
+      const key = r.headline || r.source_id || "sem-id";
+      const atual = map.get(key) || { rotulo: rotuloAnuncio(r), total: 0, ultimo: null as string | null, url: r.source_url };
+      atual.total += 1;
+      if (c.last_message_at && (!atual.ultimo || c.last_message_at > atual.ultimo)) atual.ultimo = c.last_message_at;
+      map.set(key, atual);
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [conversas]);
+  const totalLeadsAnuncio = origemLeads.reduce((s, o) => s + o.total, 0);
 
   const callInbox = useCallback(
     async (action: string, payload: Record<string, unknown> = {}) => {
@@ -264,10 +304,36 @@ export default function WhatsAppInbox() {
           {/* Thread + composer */}
           <div className="flex-1 border border-[#EAECF0] rounded-lg overflow-hidden flex flex-col bg-[#F7F8FA]">
             {!selecionada ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-[#98A2B3]">
-                <MessageCircle className="h-10 w-10 mb-2" />
-                <p className="text-[13px]">Selecione uma conversa pra ver as mensagens</p>
-              </div>
+              origemLeads.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-[#98A2B3]">
+                  <MessageCircle className="h-10 w-10 mb-2" />
+                  <p className="text-[13px]">Selecione uma conversa pra ver as mensagens</p>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto p-5">
+                  <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#1D2939]">
+                    <Megaphone className="h-4 w-4 text-emerald-600" /> Origem dos leads
+                  </h3>
+                  <p className="text-[11px] text-[#667085] mt-1 mb-3">
+                    Quantos leads cada anúncio trouxe. Cruze com o gasto por anúncio no Gerenciador do Meta pra achar o custo por lead — e escale o que traz mais barato.
+                  </p>
+                  <div className="border border-[#EAECF0] rounded-lg overflow-hidden bg-white max-w-[560px]">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 bg-gray-50 border-b border-[#EAECF0] text-[10px] uppercase tracking-wide text-[#98A2B3] font-semibold">
+                      <span>Anúncio</span><span className="text-right">Leads</span><span className="text-right">Último</span>
+                    </div>
+                    {origemLeads.map((o, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 border-b border-[#F2F4F7] last:border-0 items-center">
+                        <span className="text-[12px] text-[#1D2939] truncate" title={o.rotulo}>{o.rotulo}</span>
+                        <span className="text-[13px] font-semibold text-emerald-700 text-right tabular-nums">{o.total}</span>
+                        <span className="text-[11px] text-[#98A2B3] text-right">{horaCurta(o.ultimo)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-[11px] text-[#667085] mt-2">
+                    Total de {totalLeadsAnuncio} {totalLeadsAnuncio === 1 ? "lead vindo" : "leads vindos"} de anúncio.
+                  </div>
+                </div>
+              )
             ) : (
               <>
                 {/* Cabeçalho do thread */}
@@ -284,6 +350,21 @@ export default function WhatsAppInbox() {
                     <Switch checked={selecionada.ia_ativa} onCheckedChange={toggleIa} />
                   </label>
                 </div>
+
+                {/* Origem do anúncio (CTWA) */}
+                {(() => {
+                  const r = lerReferral(selecionada.referral);
+                  if (!r) return null;
+                  return (
+                    <div className="px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-800 flex items-center gap-1.5">
+                      <Megaphone className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Veio do anúncio: <b>{rotuloAnuncio(r)}</b></span>
+                      {r.source_url ? (
+                        <a href={r.source_url} target="_blank" rel="noreferrer" className="underline shrink-0 ml-auto">ver anúncio</a>
+                      ) : null}
+                    </div>
+                  );
+                })()}
 
                 {/* Mensagens */}
                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
