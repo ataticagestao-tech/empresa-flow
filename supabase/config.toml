@@ -102,6 +102,11 @@ verify_jwt = false
 [functions.ler-extrato]
 verify_jwt = false
 
+# Leitor/classificador de comprovante (PIX/TED/boleto) por visão. Chamado pelo
+# orquestrador com service key. Mesma cadeia do ler-boleto.
+[functions.ler-comprovante]
+verify_jwt = false
+
 [functions.agente-tool-listar_cp_abertas]
 verify_jwt = false
 
@@ -145,4 +150,24 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.resumir-interacao]
+verify_jwt = false
+
+# Asaas — testa a API Key da empresa contra o Asaas. Recebe a chave no corpo
+# (validada contra o próprio Asaas), não acessa banco; verify_jwt=false.
+[functions.asaas-testar-conexao]
+verify_jwt = false
+
+# Asaas — cria cobrança (link Pix/boleto). Recebe o JWT do usuário no header e
+# lê a config/insere via RLS (anon key + Authorization). verify_jwt=false pra
+# alinhar com a cadeia (a auth real é a RLS).
+[functions.asaas-criar-cobranca]
+verify_jwt = false
+
+# Asaas — webhook de pagamentos (chamado pelo Asaas, sem JWT). Dá baixa
+# automática na CR. Auth interna via token (asaas-access-token) + service key.
+[functions.asaas-webhook-handler]
+verify_jwt = false
+
+# Asaas — cancela cobrança. JWT do usuário (anon + RLS). verify_jwt=false.
+[functions.asaas-cancelar-cobranca]
 verify_jwt = false

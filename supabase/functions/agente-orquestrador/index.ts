@@ -134,7 +134,15 @@ DRE / FLUXO DE CAIXA:
 - "me mostra o DRE", "qual o resultado do mês" → gerar_dre. Resuma no chat as linhas principais: *Receita Líquida*, *Lucro Bruto*, *Resultado Operacional*, *Resultado Líquido* (uma por linha, formato WhatsApp).
 - "me mostra o fluxo de caixa", "como tá o caixa" → gerar_fluxo_caixa. Resuma entradas/saídas por atividade e o resultado.
 - Período default é o mês corrente; se ele pedir outro ("do trimestre", "de abril"), resolva as datas antes.
-- (Por enquanto é resumo no chat, não PDF.)
+- gerar_dre/gerar_fluxo_caixa devolvem TEXTO pra você resumir no chat. Se ele quiser em ARQUIVO/PDF, use gerar_relatorio_pdf (abaixo).
+
+RELATÓRIO EM PDF (gerar_relatorio_pdf):
+- Quando ele pedir um relatório EM PDF / "me manda o PDF de...", "me manda o arquivo", "gera o relatório de..." → use gerar_relatorio_pdf. Ela gera o PDF e JÁ MANDA o documento aqui no WhatsApp dele (não precisa configurar nada).
+- tipo: fluxo_caixa (entradas/saídas por dia), contas_pagar, contas_receber (só EM ABERTO por padrão), dre, faturamento.
+- Resolva o período pra data_inicio/data_fim antes (default mês corrente). "fluxo de maio" → 01 a 31/05. "contas a pagar" sem período → mês corrente.
+- Contas a pagar/receber: por padrão vai só o que está EM ABERTO (escopo="abertas"). Se ele falar "todas", "incluindo as pagas", use escopo="todas".
+- NÃO é destrutivo, NÃO precisa confirmar. Depois de chamar, confirme curto ("Pronto ✅ Te mandei o [relatório] de [período] em PDF aqui.") e repasse o campo 'resumo' que a tool retornou. Se enviado=false, avise que não consegui mandar e diga o motivo.
+- Diferença pro overnight: gerar_relatorio_pdf é UM relatório específico que ELE pede; enviar_overnight é o resumão diário automático pros números configurados.
 
 REENVIAR OVERNIGHT DE DIA ANTERIOR:
 - "me reenvia o overnight de ontem", "manda o fechamento do dia 25" → reenviar_overnight com a data (resolva pra YYYY-MM-DD). Vai pro SEU WhatsApp (de quem pediu). Diferente de enviar_overnight, que é o de HOJE pros números configurados.
@@ -504,6 +512,21 @@ const TOOLS = [
             required: ["empresa_id"],
         },
     },
+    {
+        name: "gerar_relatorio_pdf",
+        description: "Gera um relatório financeiro EM PDF e JÁ ENTREGA pro empresário (manda o documento no WhatsApp de quem pediu). Use quando ele pedir um relatório 'em PDF', 'me manda o arquivo de...', 'gera o relatório de...'. Tipos: fluxo_caixa (entradas/saídas por dia do período), contas_pagar e contas_receber (só os EM ABERTO por padrão), dre (Demonstração de Resultado), faturamento (vendas por dia + por forma de pagamento). Resolva o período pra datas ANTES (default mês corrente). Não é destrutivo — não precisa confirmar. A tool devolve um 'resumo' curto: repasse ele na confirmação.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                tipo: { type: "string", enum: ["fluxo_caixa", "contas_pagar", "contas_receber", "dre", "faturamento"], description: "Tipo do relatório." },
+                data_inicio: { type: "string", description: "YYYY-MM-DD. Opcional. Default: 1º dia do mês corrente." },
+                data_fim: { type: "string", description: "YYYY-MM-DD. Opcional. Default: hoje." },
+                escopo: { type: "string", enum: ["abertas", "todas"], description: "Só pra contas_pagar/contas_receber. 'abertas' (default) = só o que falta pagar/receber. 'todas' = inclui pagas, por vencimento no período." },
+            },
+            required: ["empresa_id", "tipo"],
+        },
+    },
 ];
 
 // ── tipos ────────────────────────────────────────────────────
@@ -582,6 +605,7 @@ interface ParsedMsg {
         tipo: "image" | "document";
         mimetype: string;
         fileName?: string;
+        cloudMediaId?: string; // id da mídia na Cloud API (Graph) — ausente no Evolution
     };
 }
 
@@ -608,11 +632,11 @@ function extrairTextoEvolution(body: EvolutionWebhook): ParsedMsg | null {
 
     let midia: ParsedMsg["midia"] = null;
     if (msg.imageMessage) {
-        midia = { tipo: "image", mimetype: msg.imageMessage.mimetype || "image/jpeg" };
+        midia = { tipo: "image", mimetype: msg.imageMessage.mimetype || "image/jpeg", cloudMediaId: (msg.imageMessage as any).cloudMediaId };
     } else if (msg.documentMessage) {
-        midia = { tipo: "document", mimetype: msg.documentMessage.mimetype || "application/pdf", fileName: msg.documentMessage.fileName };
+        midia = { tipo: "document", mimetype: msg.documentMessage.mimetype || "application/pdf", fileName: msg.documentMessage.fileName, cloudMediaId: (msg.documentMessage as any).cloudMediaId };
     } else if (docInner) {
-        midia = { tipo: "document", mimetype: docInner.mimetype || "application/pdf", fileName: docInner.fileName };
+        midia = { tipo: "document", mimetype: docInner.mimetype || "application/pdf", fileName: docInner.fileName, cloudMediaId: (docInner as any).cloudMediaId };
     }
 
     if (!text.trim() && !midia) return null;
@@ -662,6 +686,84 @@ async function extrairDadosBoleto(base64: string, mimetype: string): Promise<any
         return data;
     } catch (err: any) {
         console.error("[orquestrador] excecao ler-boleto:", err?.message);
+        return null;
+    }
+}
+
+// Baixa mídia recebida pela WhatsApp Cloud API (Graph): id da mídia → URL
+// temporária → bytes → base64. A URL exige o mesmo Bearer token pra baixar.
+async function baixarMidiaCloud(cloudMediaId: string): Promise<{ base64: string; mimetype: string } | null> {
+    try {
+        const cfg = getCloudConfig();
+        if (!cfg) {
+            console.error("[orquestrador] Cloud sem credenciais (WHATSAPP_ACCESS_TOKEN/PHONE_NUMBER_ID/WABA) pra baixar mídia");
+            return null;
+        }
+        const metaResp = await fetch(`https://graph.facebook.com/v21.0/${cloudMediaId}`, {
+            headers: { Authorization: `Bearer ${cfg.accessToken}` },
+        });
+        if (!metaResp.ok) {
+            console.error("[orquestrador] graph media meta falhou:", metaResp.status, (await metaResp.text()).slice(0, 200));
+            return null;
+        }
+        const meta = await metaResp.json();
+        const url: string | undefined = meta?.url;
+        const mimetype: string = meta?.mime_type ?? "application/octet-stream";
+        if (!url) return null;
+
+        const binResp = await fetch(url, { headers: { Authorization: `Bearer ${cfg.accessToken}` } });
+        if (!binResp.ok) {
+            console.error("[orquestrador] graph media download falhou:", binResp.status);
+            return null;
+        }
+        const bytes = new Uint8Array(await binResp.arrayBuffer());
+        // base64 em chunks pra não estourar o call stack com arquivos grandes
+        let binary = "";
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+        }
+        return { base64: btoa(binary), mimetype };
+    } catch (err: any) {
+        console.error("[orquestrador] excecao baixar mídia cloud:", err?.message);
+        return null;
+    }
+}
+
+// Escolhe o downloader certo: Cloud API (se ativa e tem id de mídia Cloud) ou
+// Evolution (Baileys). Unifica os dois caminhos de recebimento de mídia.
+async function obterMidia(
+    midiaMeta: { cloudMediaId?: string } | null | undefined,
+    msgId: string | null | undefined,
+    remoteJid: string,
+): Promise<{ base64: string; mimetype: string } | null> {
+    if (isCloudEnabled() && midiaMeta?.cloudMediaId) {
+        return await baixarMidiaCloud(midiaMeta.cloudMediaId);
+    }
+    if (msgId) return await baixarMidiaEvolution(msgId, remoteJid);
+    return null;
+}
+
+// Lê e CLASSIFICA o documento (comprovante PIX/TED vs boleto) via visão.
+async function extrairDocumento(base64: string, mimetype: string): Promise<any | null> {
+    try {
+        const url = `${SUPABASE_URL}/functions/v1/ler-comprovante`;
+        const resp = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${SERVICE_KEY}`,
+                apikey: SERVICE_KEY,
+            },
+            body: JSON.stringify({ fileBase64: base64, mimeType: mimetype }),
+        });
+        if (!resp.ok) {
+            console.error("[orquestrador] ler-comprovante falhou:", resp.status, (await resp.text()).slice(0, 200));
+            return null;
+        }
+        return await resp.json();
+    } catch (err: any) {
+        console.error("[orquestrador] excecao ler-comprovante:", err?.message);
         return null;
     }
 }
@@ -1115,9 +1217,9 @@ serve(async (req: Request) => {
             };
 
             if (msg.midia && msgId) {
-                // Baixa midia via Evolution
+                // Baixa midia (Cloud API ou Evolution, conforme a origem)
                 const remoteJid = body?.data?.key?.remoteJid || "";
-                const midiaDl = await baixarMidiaEvolution(msgId, remoteJid);
+                const midiaDl = await obterMidia(msg.midia, msgId, remoteJid);
                 if (midiaDl) {
                     processorMessage.type = msg.midia.tipo; // 'image' | 'document'
                     processorMessage.media_base64 = midiaDl.base64;
@@ -1263,15 +1365,70 @@ serve(async (req: Request) => {
     // 3. carrega histórico
     const historico = await carregarHistorico(service, contexto.user_id, contexto.acesso_id, contexto.empresa_ativa_id);
 
-    // 3.5. Se veio mídia (foto/PDF), tenta extrair como boleto via OCR
+    // 3.5. Se veio mídia (foto/PDF), lê e CLASSIFICA: comprovante (PIX/TED → DAR
+    // BAIXA numa CR/CP) ou boleto (→ lançar CP). Funciona em Cloud e Evolution.
     let textoEnriquecido = msg.text || "";
     if (msg.midia && msgId) {
-        await enviarResposta(phoneNorm, "📄 Recebi sua mídia, analisando o boleto...");
+        await enviarResposta(phoneNorm, "📄 Recebi sua mídia, analisando...");
         const remoteJid = body?.data?.key?.remoteJid || "";
-        const midia = await baixarMidiaEvolution(msgId, remoteJid);
-        if (midia) {
-            const dadosBoleto = await extrairDadosBoleto(midia.base64, midia.mimetype);
-            if (dadosBoleto && (dadosBoleto.valor || dadosBoleto.fornecedor)) {
+        const midia = await obterMidia(msg.midia, msgId, remoteJid);
+        const onlyDigits = (s: any) => String(s || "").replace(/\D/g, "");
+        if (!midia) {
+            textoEnriquecido = `Empresário mandou uma mídia mas não consegui baixar. Avise que tente novamente, ou que mande os dados em texto.`;
+        } else {
+            const doc = await extrairDocumento(midia.base64, midia.mimetype);
+            const c = doc?.comprovante;
+
+            if (doc?.tipo_documento === "comprovante" && c && (c.valor || c.beneficiario_nome || c.pagador_nome)) {
+                // Direção: a empresa autorizada é a BENEFICIÁRIA (recebeu → CR) ou a PAGADORA (pagou → CP)?
+                const { data: empresasComCnpj } = await service
+                    .from("companies")
+                    .select("id, nome_fantasia, cnpj")
+                    .in("id", empresas.map((e) => e.company_id));
+                const lista = (empresasComCnpj || []) as any[];
+                const matchDoc = (docNum: any) => {
+                    const d = onlyDigits(docNum);
+                    if (d.length < 11) return null;
+                    return lista.find((x) => onlyDigits(x.cnpj) === d) || null;
+                };
+                const matchNome = (nome: any) => {
+                    const n = String(nome || "").toLowerCase().trim();
+                    if (n.length < 4) return null;
+                    return lista.find((x) => {
+                        const f = String(x.nome_fantasia || "").toLowerCase().trim();
+                        return f.length >= 4 && (f.includes(n) || n.includes(f));
+                    }) || null;
+                };
+                const benefEmpresa = matchDoc(c.beneficiario_cpf_cnpj) || matchNome(c.beneficiario_nome);
+                const pagadorEmpresa = matchDoc(c.pagador_cpf_cnpj) || matchNome(c.pagador_nome);
+
+                let direcao = "INDEFINIDA";
+                let empresaEnvolvida: any = null;
+                let contraparte = "";
+                if (benefEmpresa && !pagadorEmpresa) { direcao = "RECEBIMENTO"; empresaEnvolvida = benefEmpresa; contraparte = c.pagador_nome || ""; }
+                else if (pagadorEmpresa && !benefEmpresa) { direcao = "PAGAMENTO"; empresaEnvolvida = pagadorEmpresa; contraparte = c.beneficiario_nome || ""; }
+
+                const partes: string[] = [];
+                if (c.tipo) partes.push(`tipo=${c.tipo}`);
+                if (c.valor) partes.push(`valor=${c.valor}`);
+                if (c.data) partes.push(`data=${c.data}`);
+                if (c.pagador_nome) partes.push(`pagador=${c.pagador_nome}${c.pagador_cpf_cnpj ? ` (${c.pagador_cpf_cnpj})` : ""}`);
+                if (c.beneficiario_nome) partes.push(`beneficiario=${c.beneficiario_nome}${c.beneficiario_cpf_cnpj ? ` (${c.beneficiario_cpf_cnpj})` : ""}`);
+                if (c.instituicao) partes.push(`instituicao=${c.instituicao}`);
+                if (c.descricao) partes.push(`descricao=${c.descricao}`);
+                if (c.id_transacao) partes.push(`id_transacao=${c.id_transacao}`);
+                partes.push(`direcao_detectada=${direcao}`);
+                if (empresaEnvolvida) partes.push(`empresa_envolvida=${empresaEnvolvida.nome_fantasia} (id=${empresaEnvolvida.id})`);
+
+                textoEnriquecido = `[COMPROVANTE ANEXADO PELO EMPRESÁRIO — lido por OCR]\n${partes.join("\n")}\n\n` +
+                    `IMPORTANTE: comprovante = pagamento que JÁ aconteceu, então o certo é DAR BAIXA (não lançar em aberto). Use a empresa_envolvida acima se preenchida; senão pergunte qual empresa.\n` +
+                    `- Se direcao=RECEBIMENTO: o cliente "${contraparte || "?"}" PAGOU a empresa. Ache a Conta a RECEBER em aberto com listar_cr_abertas (termo="${contraparte || ""}") e valor ≈ ${c.valor ?? "?"}. Pergunte em qual conta bancária caiu (listar_contas_bancarias; se só houver uma, use). CONFIRME e dê baixa com baixar_cr. Se NÃO achar CR aberta que bata, avise e ofereça lançar_cr já recebida (lança e baixa).\n` +
+                    `- Se direcao=PAGAMENTO: a empresa PAGOU "${contraparte || "?"}". Ache a Conta a PAGAR em aberto com listar_cp_abertas (termo="${contraparte || ""}") e valor ≈ ${c.valor ?? "?"}. CONFIRME e dê baixa com baixar_cp. Se não achar, ofereça lançar_cp já paga.\n` +
+                    `- Se direcao=INDEFINIDA: pergunte ao empresário se esse comprovante é de algo que ele RECEBEU ou PAGOU, e siga o fluxo certo.\n` +
+                    `- Ao casar, confira o VALOR: se a conta em aberto não bater com o do comprovante, avise antes de baixar.\n\n` +
+                    `Caption/texto da mensagem: "${msg.text || "(sem texto)"}"`;
+            } else if (doc?.tipo_documento === "boleto" && doc.boleto && (doc.boleto.valor || doc.boleto.fornecedor)) {
+                const dadosBoleto = doc.boleto;
                 const partes: string[] = [];
                 if (dadosBoleto.fornecedor) partes.push(`fornecedor=${dadosBoleto.fornecedor}`);
                 if (dadosBoleto.valor) partes.push(`valor=${dadosBoleto.valor}`);
@@ -1284,14 +1441,13 @@ serve(async (req: Request) => {
                 // Verifica se pagador bate com alguma das empresas autorizadas (compara só dígitos)
                 let avisoPagador = "";
                 if (dadosBoleto.pagador_cpf_cnpj) {
-                    const docBoleto = String(dadosBoleto.pagador_cpf_cnpj).replace(/\D/g, "");
-                    // Busca CNPJ das empresas que ele pode acessar
+                    const docBoleto = onlyDigits(dadosBoleto.pagador_cpf_cnpj);
                     const { data: empresasComCnpj } = await service
                         .from("companies")
                         .select("id, nome_fantasia, cnpj")
                         .in("id", empresas.map((e) => e.company_id));
                     const empresaDoPagador = (empresasComCnpj || []).find(
-                        (c: any) => (c.cnpj || "").replace(/\D/g, "") === docBoleto,
+                        (x: any) => (x.cnpj || "").replace(/\D/g, "") === docBoleto,
                     );
                     if (!empresaDoPagador) {
                         avisoPagador = `\n\n⚠️ ATENÇÃO: o pagador no boleto (${dadosBoleto.pagador_nome || "?"} - CNPJ ${dadosBoleto.pagador_cpf_cnpj}) NÃO bate com nenhuma das empresas autorizadas pra esse usuário. Esse boleto pode ser de outra empresa. AVISE o usuário explicitamente antes de pedir confirmação pra lançar.`;
@@ -1302,10 +1458,8 @@ serve(async (req: Request) => {
 
                 textoEnriquecido = `[BOLETO ANEXADO PELO EMPRESÁRIO — dados extraídos por OCR]\n${partes.join("\n")}\n\nCaption/texto da mensagem: "${msg.text || "(sem texto)"}"\n\nAja como se o empresário pedisse pra lançar essa CP. Pergunte qual empresa se houver mais de uma (use empresa_do_boleto como sugestão se preencheu). Siga o fluxo normal de lançar_cp.${avisoPagador}`;
             } else {
-                textoEnriquecido = `Empresário mandou uma mídia que não consegui identificar como boleto. Caption: "${msg.text || "(sem texto)"}". Pergunte o que ele quer que você faça.`;
+                textoEnriquecido = `Empresário mandou uma mídia que não consegui identificar como comprovante nem boleto. Caption: "${msg.text || "(sem texto)"}". Pergunte o que ele quer que você faça.`;
             }
-        } else {
-            textoEnriquecido = `Empresário mandou uma mídia mas não consegui baixar. Avise que tente novamente, ou que mande os dados em texto.`;
         }
     }
 
