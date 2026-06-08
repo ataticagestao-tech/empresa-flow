@@ -142,8 +142,10 @@ function maskCnpj(v: string) {
 
 function maskPhone(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
+  // Telefone fixo: (XX) XXXX-XXXX
   if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3").trim();
-  return d.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3").trim();
+  // Celular: (XX) X XXXX-XXXX
+  return d.replace(/(\d{2})(\d{1})(\d{4})(\d{0,4})/, "($1) $2 $3-$4").trim();
 }
 
 export default function Checkout() {
@@ -332,7 +334,7 @@ export default function Checkout() {
                   <Campo
                     id="telefone"
                     label="Telefone / WhatsApp"
-                    placeholder="(00) 00000-0000"
+                    placeholder="(00) 0 0000-0000"
                     value={telefone}
                     onChange={(v) => setTelefone(maskPhone(v))}
                     error={errors.telefone}

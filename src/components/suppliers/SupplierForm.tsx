@@ -487,7 +487,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 className="h-9 focus-visible:ring-green-600 border-[#EAECF0]"
                                                 {...field}
                                                 onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                                                maxLength={15}
+                                                maxLength={16}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -665,7 +665,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 className="h-9 border-[#EAECF0]"
                                                 {...field}
                                                 onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                                                maxLength={15}
+                                                maxLength={16}
                                             />
                                         </FormControl>
                                     </FormItem>
@@ -683,7 +683,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                     className="h-9 border-[#EAECF0]"
                                                     {...field}
                                                     onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                                                    maxLength={15}
+                                                    maxLength={16}
                                                 />
                                                 <WhatsappValidatorButton phone={field.value ?? ""} size="sm" />
                                             </div>
@@ -702,7 +702,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 className="h-9 border-[#EAECF0]"
                                                 {...field}
                                                 onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                                                maxLength={15}
+                                                maxLength={16}
                                             />
                                         </FormControl>
                                     </FormItem>

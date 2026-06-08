@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "sonner";
+import { formatBRL } from "@/lib/format";
 
 export interface ContratoParcela {
     id: string;
@@ -265,7 +266,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
 
             // 2. Valida: novo valor_total >= ja pago
             if (input.valor_total < totalPreservado - 0.01) {
-                throw new Error(`Valor total (${input.valor_total}) nao pode ser menor que o ja pago (${totalPreservado.toFixed(2)})`);
+                throw new Error(`Valor total (${formatBRL(input.valor_total)}) nao pode ser menor que o ja pago (${formatBRL(totalPreservado)})`);
             }
 
             // 3. Reserva: se a reserva ja foi paga, valor/data sao imutaveis

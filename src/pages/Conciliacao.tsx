@@ -32,7 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ProdutoCatalogoDialog } from "@/components/products/ProdutoCatalogoDialog";
-import { formatCPF, formatCNPJ } from "@/lib/format";
+import { formatCPF, formatCNPJ, formatBRL } from "@/lib/format";
 import { BankTransaction } from "@/modules/finance/domain/schemas/bank-reconciliation.schema";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -1197,15 +1197,15 @@ export default function Conciliacao() {
             let msg = `⚠️ Pode haver duplicata!\n\n`;
             if (exatos.length > 0) {
                 const lista = exatos.slice(0, 3).map((c: any) =>
-                    `• R$ ${Number(c.valor).toFixed(2)} — ${c[nameCol] || "(sem nome)"} (venc. ${c.data_vencimento})`
+                    `• ${formatBRL(c.valor)} — ${c[nameCol] || "(sem nome)"} (venc. ${c.data_vencimento})`
                 ).join("\n");
                 msg += `${tipoLabel} em aberto com MESMO valor:\n${lista}\n\n`;
             }
             if (somaBate) {
                 const lista = candidates.slice(0, 5).map((c: any) =>
-                    `• R$ ${Number(c.valor).toFixed(2)} — ${c[nameCol] || "(sem nome)"}`
+                    `• ${formatBRL(c.valor)} — ${c[nameCol] || "(sem nome)"}`
                 ).join("\n");
-                msg += `Ou a SOMA de ${candidates.length} lançamentos em aberto bate R$ ${amount.toFixed(2)}:\n${lista}\n\n`;
+                msg += `Ou a SOMA de ${candidates.length} lançamentos em aberto bate ${formatBRL(amount)}:\n${lista}\n\n`;
             }
             msg += `OK = criar NOVO mesmo assim (risco de duplicata).\n`;
             msg += `Cancelar = voltar e usar "Conciliar com existente" (1:N no bt).`;

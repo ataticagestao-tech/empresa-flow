@@ -17,12 +17,18 @@ export const maskCPF = (value: string) => {
         .replace(/(-\d{2})\d+?$/, "$1");
 };
 
+// Celular: (XX) X XXXX-XXXX  |  Fixo: (XX) XXXX-XXXX
 export const maskPhone = (value: string) => {
-    return value
-        .replace(/\D/g, "")
-        .replace(/(\d{2})(\d)/, "($1) $2")
-        .replace(/(\d{5})(\d)/, "$1-$2")
-        .replace(/(-\d{4})\d+?$/, "$1");
+    const d = value.replace(/\D/g, "").slice(0, 11);
+    if (d.length === 0) return "";
+    if (d.length <= 2) return `(${d}`;
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+    if (d.length <= 10) {
+        // Telefone fixo: (XX) XXXX-XXXX
+        return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    }
+    // Celular: (XX) X XXXX-XXXX
+    return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`;
 };
 
 export const maskCEP = (value: string) => {

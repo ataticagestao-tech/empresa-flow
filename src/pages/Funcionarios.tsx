@@ -79,8 +79,10 @@ const formatPhone = (v: string) => {
   const d = v.replace(/\D/g, "").slice(0, 11);
   if (d.length <= 2) return d.length ? "(" + d : "";
   if (d.length <= 6) return "(" + d.slice(0, 2) + ") " + d.slice(2);
+  // Telefone fixo: (XX) XXXX-XXXX
   if (d.length <= 10) return "(" + d.slice(0, 2) + ") " + d.slice(2, 6) + "-" + d.slice(6);
-  return "(" + d.slice(0, 2) + ") " + d.slice(2, 7) + "-" + d.slice(7);
+  // Celular: (XX) X XXXX-XXXX
+  return "(" + d.slice(0, 2) + ") " + d.slice(2, 3) + " " + d.slice(3, 7) + "-" + d.slice(7);
 };
 
 const formatSalary = (v: string) => {
@@ -914,8 +916,8 @@ export default function Funcionarios() {
                             value={formData.phone}
                             onChange={e => set("phone", formatPhone(e.target.value))}
                             className={IC}
-                            placeholder="(00) 00000-0000"
-                            maxLength={15}
+                            placeholder="(00) 0 0000-0000"
+                            maxLength={16}
                           />
                           <WhatsappValidatorButton phone={formData.phone} />
                         </div>

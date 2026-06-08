@@ -894,8 +894,15 @@ function OvernightPanel() {
         const digits = raw.replace(/\D/g, "").slice(0, 13);
         if (digits.length === 0) return "";
         if (digits.length <= 2) return `(${digits}`;
-        if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+        if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        // Fixo: (XX) XXXX-XXXX  |  Celular: (XX) X XXXX-XXXX
+        const fmtLocal = (n: string) =>
+            n.length <= 10
+                ? `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`
+                : `(${n.slice(0, 2)}) ${n.slice(2, 3)} ${n.slice(3, 7)}-${n.slice(7)}`;
+        if (digits.length <= 11) return fmtLocal(digits);
+        // Com DDI (12-13 dígitos): +DD (XX) X XXXX-XXXX
+        return `+${digits.slice(0, 2)} ${fmtLocal(digits.slice(2))}`;
     };
 
     const adicionarFone = () => {

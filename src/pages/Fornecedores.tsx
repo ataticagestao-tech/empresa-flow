@@ -500,11 +500,11 @@ export default function Fornecedores() {
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <label className={LB}>Telefone</label>
-                                                <input value={formData.telefone} onChange={e => set("telefone", maskPhone(e.target.value))} className={IC} placeholder="(00) 0000-0000" maxLength={15} />
+                                                <input value={formData.telefone} onChange={e => set("telefone", maskPhone(e.target.value))} className={IC} placeholder="(00) 0000-0000" maxLength={16} />
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <label className={LB}>Celular / WhatsApp</label>
-                                                <input value={formData.celular} onChange={e => set("celular", maskPhone(e.target.value))} className={IC} placeholder="(00) 00000-0000" maxLength={15} />
+                                                <input value={formData.celular} onChange={e => set("celular", maskPhone(e.target.value))} className={IC} placeholder="(00) 0 0000-0000" maxLength={16} />
                                             </div>
                                         </div>
 

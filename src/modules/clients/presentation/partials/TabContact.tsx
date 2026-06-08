@@ -51,7 +51,7 @@ export function TabContact({ form }: TabContactProps) {
                                     className="h-9 border-[#EAECF0]"
                                     {...field}
                                     onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                                    maxLength={15}
+                                    maxLength={16}
                                 />
                             </FormControl>
                             <FormMessage />
@@ -74,7 +74,7 @@ export function TabContact({ form }: TabContactProps) {
                                         {...field}
                                         value={field.value ?? ""}
                                         onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                                        maxLength={15}
+                                        maxLength={16}
                                     />
                                     <WhatsappValidatorButton phone={field.value ?? ""} size="sm" />
                                 </div>
