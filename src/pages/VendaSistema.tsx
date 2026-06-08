@@ -33,6 +33,7 @@ import {
   Zap,
   ImageIcon,
   User,
+  X,
 } from "lucide-react";
 
 const WHATSAPP_NUMERO = "5535999647089";
@@ -78,12 +79,42 @@ const stats = [
 ];
 
 const sistemaCards = [
-  { icon: Sparkles, t: "IA que lê seus boletos", d: "Mande a foto ou o PDF do boleto e a IA preenche o lançamento sozinha. Zero digitação, zero erro de conta." },
-  { icon: Zap, t: "Conciliação automática", d: "Importa o extrato (OFX, PDF ou foto) e o sistema bate banco × clínica e aponta as diferenças. Em minutos, não em dias." },
-  { icon: BarChart3, t: "DRE em tempo real", d: "Veja se a clínica lucra ou perde todo mês, com margem e resultado por conta — sem esperar o contador." },
-  { icon: LineChart, t: "Indicadores de controller", d: "Ponto de equilíbrio, margem, ciclo de caixa e liquidez calculados sozinhos — na tela do seu celular." },
-  { icon: Bell, t: "Cobrança automática", d: "Régua de cobrança que avisa o cliente inadimplente sozinha. O sistema cobra enquanto você atende." },
-  { icon: Building2, t: "Multi-unidade num login", d: "Mais de uma sala ou CNPJ? Veja tudo consolidado num painel só, trocando de empresa num clique." },
+  { icon: Sparkles, t: "IA que lê seus boletos", d: "Mande a foto ou o PDF do boleto e a IA preenche o lançamento sozinha. Zero digitação, zero erro de conta.", img: "/images/sistema/contas-pagar.png" },
+  { icon: Zap, t: "Conciliação automática", d: "Importa o extrato (OFX, PDF ou foto) e o sistema bate banco × clínica e aponta as diferenças. Em minutos, não em dias.", img: "/images/sistema/conciliacao.png" },
+  { icon: BarChart3, t: "DRE em tempo real", d: "Veja se a clínica lucra ou perde todo mês, com margem e resultado por conta — sem esperar o contador.", img: "/images/sistema/dre.png" },
+  { icon: LineChart, t: "Indicadores de controller", d: "Ponto de equilíbrio, margem, ciclo de caixa e liquidez calculados sozinhos — na tela do seu celular.", img: "/images/sistema/dashboard.png" },
+  { icon: Bell, t: "Cobrança automática", d: "Régua de cobrança que avisa o cliente inadimplente sozinha. O sistema cobra enquanto você atende.", img: "/images/sistema/regua-cobranca.png" },
+  { icon: Building2, t: "Multi-unidade num login", d: "Mais de uma sala ou CNPJ? Veja tudo consolidado num painel só, trocando de empresa num clique.", img: "/images/sistema/empresas.png" },
+];
+
+const telasSistema = [
+  { src: "/images/sistema/dashboard.png", label: "Dashboard" },
+  { src: "/images/sistema/vendas.png", label: "Vendas" },
+  { src: "/images/sistema/contas-receber.png", label: "Contas a Receber" },
+  { src: "/images/sistema/contas-pagar.png", label: "Contas a Pagar" },
+  { src: "/images/sistema/movimentacoes.png", label: "Movimentações" },
+  { src: "/images/sistema/conciliacao.png", label: "Conciliação Bancária" },
+  { src: "/images/sistema/recebiveis-cartao.png", label: "Recebíveis de Cartão" },
+  { src: "/images/sistema/recibos.png", label: "Recibos" },
+  { src: "/images/sistema/dre.png", label: "DRE Mensal" },
+  { src: "/images/sistema/fluxo-caixa.png", label: "Fluxo de Caixa" },
+  { src: "/images/sistema/ponto-equilibrio.png", label: "Ponto de Equilíbrio" },
+  { src: "/images/sistema/ciclo-caixa-indicadores.png", label: "Ciclo de Caixa e Indicadores" },
+  { src: "/images/sistema/metas-orcamento.png", label: "Metas e Orçamento" },
+  { src: "/images/sistema/relatorios.png", label: "Relatórios Gerenciais" },
+  { src: "/images/sistema/emissao-nf.png", label: "Emissão de NF" },
+  { src: "/images/sistema/provisao-impostos.png", label: "Provisão de Impostos" },
+  { src: "/images/sistema/xml.png", label: "Importação XML" },
+  { src: "/images/sistema/area-contador.png", label: "Área do Contador" },
+  { src: "/images/sistema/funcionarios.png", label: "Funcionários" },
+  { src: "/images/sistema/salarios.png", label: "Salários" },
+  { src: "/images/sistema/folha-pagamento.png", label: "Folha de Pagamento" },
+  { src: "/images/sistema/folha-ponto.png", label: "Folha de Ponto" },
+  { src: "/images/sistema/regua-cobranca.png", label: "Régua de Cobrança" },
+  { src: "/images/sistema/markup-precificacao.png", label: "Markup e Precificação" },
+  { src: "/images/sistema/composicao-custo.png", label: "Composição de Custo" },
+  { src: "/images/sistema/pacientes.png", label: "Pacientes" },
+  { src: "/images/sistema/whatsapp.png", label: "WhatsApp" },
 ];
 
 const servicos = [
@@ -221,6 +252,7 @@ export default function VendaSistema() {
     style.textContent =
       ".tatica-lp{font-family:'Nunito Sans',system-ui,sans-serif;background-color:#F5F0E6;background-image:linear-gradient(to right,rgba(2,10,23,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(2,10,23,.06) 1px,transparent 1px);background-size:78px 78px;background-repeat:repeat}" +
       ".tatica-lp h1,.tatica-lp h2,.tatica-lp h3{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:-.01em}" +
+      ".tatica-marquee{animation:tatica-mq 90s linear infinite}.tatica-marquee:hover{animation-play-state:paused}@keyframes tatica-mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}.tatica-marquee-mask{-webkit-mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent)}" +
       ".tatica-lp::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.55;mix-blend-mode:soft-light;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='gr'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23gr)' opacity='0.5'/%3E%3C/svg%3E\")}";
     document.head.appendChild(style);
     return () => {
@@ -237,6 +269,7 @@ export default function VendaSistema() {
       <Sistema />
       <GaleriaSistema />
       <TudoNumSistema />
+      <Overnight />
       <Servicos />
       <Planos />
       <Consultoria />
@@ -531,7 +564,9 @@ function Sobre() {
 }
 
 function Sistema() {
+  const [zoom, setZoom] = useState<{ src: string; label: string } | null>(null);
   return (
+    <>
     <section id="sistema" className="relative overflow-hidden bg-[#020A17] text-white">
       <div className="pointer-events-none absolute -right-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-[#065F46]/10 blur-3xl" />
       <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
@@ -546,28 +581,42 @@ function Sistema() {
           </p>
         </div>
 
-        <div className="relative mx-auto mt-14 max-w-4xl">
-          <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-br from-[#065F46]/25 via-transparent to-[#065F46]/15 blur-2xl" />
-          <div className="aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_30px_60px_-30px_rgba(0,0,0,0.5)]">
-            <PhotoFrame
-              src="/images/sistema-dashboard.jpg"
-              alt="Preview do Sistema Tática"
-              rounded="rounded-2xl"
-              fallbackIcon={BarChart3}
-              fallbackLabel="Screenshot do sistema"
-            />
+        <div className="relative mt-12 md:mt-14">
+          <div className="overflow-hidden">
+            <div className="tatica-marquee flex w-max gap-5 py-2">
+              {[...telasSistema, ...telasSistema].map((t, i) => (
+                <figure key={i} className="w-[280px] shrink-0 md:w-[360px]">
+                  <button
+                    type="button"
+                    onClick={() => setZoom(t)}
+                    className="block w-full cursor-zoom-in rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-left shadow-[0_20px_40px_-25px_rgba(0,0,0,0.8)] transition hover:border-[#34D399]/40"
+                  >
+                    <img src={t.src} alt={t.label} loading="lazy" className="block w-full rounded-md ring-1 ring-white/10" />
+                  </button>
+                  <figcaption className="mt-2 text-center text-[12.5px] font-semibold text-[#A79E8E]">{t.label}</figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {sistemaCards.map(({ icon: Icon, t, d }) => (
-            <div key={t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition hover:-translate-y-1 hover:border-[#065F46]/50 hover:bg-white/[0.06]">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#065F46]/15 text-[#34D399]">
-                <Icon className="h-5 w-5" />
+          {sistemaCards.map(({ icon: Icon, t, d, img }) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setZoom({ src: img, label: t })}
+              className="group cursor-zoom-in rounded-2xl border border-white/10 bg-white/[0.04] p-7 text-left transition hover:-translate-y-1 hover:border-[#065F46]/50 hover:bg-white/[0.06]"
+            >
+              <div className="flex items-start justify-between">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#065F46]/15 text-[#34D399]">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className="mt-1 text-[11px] font-semibold text-[#34D399] opacity-0 transition group-hover:opacity-100">ver tela →</span>
               </div>
               <p className="mt-5 text-[17px] font-bold tracking-tight text-white">{t}</p>
               <p className="mt-2 text-[14.5px] leading-relaxed text-[#A79E8E]">{d}</p>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -602,40 +651,33 @@ function Sistema() {
         </div>
       </div>
     </section>
+    {zoom && (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        onClick={() => setZoom(null)}
+      >
+        <div className="relative max-h-[90vh] w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
+          <img
+            src={zoom.src}
+            alt={zoom.label}
+            className="mx-auto max-h-[90vh] w-auto max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-white/15"
+          />
+          <button
+            type="button"
+            onClick={() => setZoom(null)}
+            aria-label="Fechar"
+            className="absolute -right-3 -top-3 grid h-9 w-9 place-items-center rounded-full bg-white text-[#020A17] shadow-lg transition hover:scale-105"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
 function GaleriaSistema() {
-  const grupos = [
-    {
-      titulo: "Operação Financeira",
-      sub: "Tudo que entra e tudo que sai, rastreado por convênio, procedimento e unidade",
-      thumbs: [
-        { src: "/images/sistema/vendas.png", label: "Vendas", desc: "Lançamento por procedimento, convênio ou particular." },
-        { src: "/images/sistema/contas-receber.png", label: "Contas a Receber", desc: "Recebimentos abertos, parciais e quitados em um só lugar." },
-        { src: "/images/sistema/contas-pagar.png", label: "Contas a Pagar", desc: "Pagamentos agendados com alertas de vencimento." },
-      ],
-    },
-    {
-      titulo: "Análise e Decisão",
-      sub: "Saber, dia 1º, exatamente quanto sua clínica lucrou",
-      thumbs: [
-        { src: "/images/sistema/dre.png", label: "DRE Mensal", desc: "Resultado por unidade, em caixa e competência." },
-        { src: "/images/sistema/fluxo-caixa.png", label: "Fluxo de Caixa", desc: "Projeção de 90 dias e alerta de saldo crítico." },
-        { src: "/images/sistema/conciliacao.png", label: "Conciliação Bancária", desc: "Extratos conferidos com o sistema em minutos." },
-      ],
-    },
-    {
-      titulo: "Gestão da Equipe",
-      sub: "Folha, ponto e cobrança automatizados — menos retrabalho administrativo",
-      thumbs: [
-        { src: "/images/sistema/folha-pagamento.png", label: "Folha de Pagamento", desc: "Cálculo de salários, encargos e benefícios." },
-        { src: "/images/sistema/regua-cobranca.png", label: "Régua de Cobrança", desc: "Lembretes automáticos por WhatsApp e e-mail." },
-        { src: "/images/sistema/relatorios.png", label: "Relatórios Gerenciais", desc: "DRE, fluxo, inadimplência e contábil em um clique." },
-      ],
-    },
-  ];
-
   return (
     <section id="plataforma" className="bg-transparent">
       <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
@@ -652,50 +694,15 @@ function GaleriaSistema() {
 
         <div className="relative mx-auto mt-10 max-w-5xl md:mt-14">
           <div className="absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-br from-[#065F46]/20 via-transparent to-[#065F46]/15 blur-2xl" />
-          <div className="overflow-hidden rounded-2xl border border-black/8 bg-[#020A17] shadow-[0_30px_60px_-30px_rgba(0,0,0,0.3)]">
+          <div className="overflow-hidden rounded-2xl border border-black/8 bg-[#020A17] p-3 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.3)] md:p-4">
             <img
               src="/images/sistema/dashboard.png"
               alt="Dashboard principal Tática Gestão"
               loading="lazy"
-              className="block w-full"
+              className="block w-full rounded-lg ring-1 ring-white/10"
             />
           </div>
-          <p className="mt-4 text-center text-[13px] text-[#666]">
-            <strong className="text-[#020A17]">Dashboard principal</strong> · indicadores consolidados por unidade
-          </p>
         </div>
-
-        <div className="mt-12 space-y-12 md:mt-16 md:space-y-16">
-          {grupos.map((g) => (
-            <div key={g.titulo}>
-              <div className="mb-6 flex flex-col items-start gap-1 border-l-4 border-[#065F46] pl-4 md:mb-8">
-                <h3 className="text-[17px] font-black tracking-tight text-[#020A17] md:text-[18px]">{g.titulo}</h3>
-                <p className="text-[13px] leading-relaxed text-[#666] md:text-[14.5px]">{g.sub}</p>
-              </div>
-              <div className="grid gap-5 md:grid-cols-3">
-                {g.thumbs.map((t) => (
-                  <div
-                    key={t.label}
-                    className="overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.1)] transition hover:-translate-y-1 hover:shadow-[0_16px_32px_-15px_rgba(0,0,0,0.18)]"
-                  >
-                    <div className="overflow-hidden bg-[#F5F0E6]">
-                      <img src={t.src} alt={t.label} loading="lazy" className="block w-full" />
-                    </div>
-                    <div className="border-t border-black/5 p-4 md:p-5">
-                      <p className="text-[14.5px] font-bold tracking-tight text-[#020A17]">{t.label}</p>
-                      <p className="mt-1 text-[13px] leading-relaxed text-[#666]">{t.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p className="mx-auto mt-12 max-w-2xl text-center text-[13px] italic text-[#666] md:mt-14">
-          Telas reais da plataforma — nome da empresa anonimizado.
-          Existem mais de 20 módulos integrados, incluindo Multi-empresa, Estoque, NFS-e e Painel Gerencial.
-        </p>
       </div>
     </section>
   );
@@ -761,6 +768,104 @@ function TudoNumSistema() {
             <div>
               <p className="text-[16px] font-black text-white">Do micro ao macro</p>
               <p className="mt-1 text-[14.5px] leading-relaxed text-[#CFC8BA]">Selic, IPCA, dólar e Bolsa B3 em tempo real, no mesmo painel dos seus indicadores.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Overnight() {
+  const bullets = [
+    "Resumo do mês: faturamento, despesas e resultado",
+    "Vendas do dia, contas a pagar e a receber",
+    "Consolidado do dia e do mês, num PDF",
+    "Chega sozinho, no horário que você escolher",
+  ];
+  const linhas: [string, string][] = [
+    ["Vendas do dia", "R$ 2.340"],
+    ["Contas a pagar", "R$ 1.890"],
+    ["Contas a receber", "R$ 3.120"],
+  ];
+  return (
+    <section className="bg-transparent">
+      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+        <div className="grid items-center gap-12 lg:grid-cols-[1fr_0.82fr]">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Exclusivo Tática · Overnight</p>
+            <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
+              Todo dia às 18h, seu financeiro chega no <span className="text-[#065F46]">seu WhatsApp</span>
+            </h2>
+            <p className="mt-4 max-w-xl text-[15.5px] leading-relaxed text-[#666]">
+              O <strong className="text-[#020A17]">Overnight</strong> é um relatório automático que você recebe todo fim de tarde, direto no celular — sem precisar abrir o sistema. Você fecha a clínica já sabendo exatamente como foi o dia.
+            </p>
+            <ul className="mt-6 space-y-2.5">
+              {bullets.map((b) => (
+                <li key={b} className="flex items-start gap-3 text-[15px] font-medium text-[#473f37]">
+                  <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[#065F46]/12 text-[#065F46]">
+                    <Check className="h-3 w-3" />
+                  </span>
+                  {b}
+                </li>
+              ))}
+            </ul>
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-8 inline-flex h-12 items-center gap-2 rounded-md bg-[#065F46] px-7 text-[15px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#064E3B]"
+            >
+              Quero receber meu Overnight <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+
+          {/* mockup de celular */}
+          <div className="relative mx-auto w-[270px]">
+            <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-br from-[#065F46]/15 to-[#1351B4]/15 blur-2xl" />
+            <div className="rounded-[2.4rem] border-[10px] border-[#020A17] bg-[#020A17] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.5)]">
+              <div className="overflow-hidden rounded-[1.7rem] bg-[#ECE9E1]">
+                <div className="flex items-center gap-2 bg-[#075E54] px-3 py-2.5 text-white">
+                  <div className="grid h-7 w-7 place-items-center rounded-full bg-white/15">
+                    <MessageSquare className="h-4 w-4" />
+                  </div>
+                  <div className="leading-tight">
+                    <p className="text-[11px] font-bold">Tática Gestão</p>
+                    <p className="text-[9px] text-white/70">hoje, 18:00</p>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+                    <div className="bg-[#020A17] px-3 py-2.5 text-white">
+                      <p className="text-[12px] font-black tracking-wide">OVERNIGHT</p>
+                      <p className="text-[8px] text-white/55">Atualização financeira diária</p>
+                    </div>
+                    <div className="space-y-1.5 p-2.5">
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <div className="rounded bg-[#F5F0E6] p-1.5 text-center">
+                          <p className="text-[7px] uppercase tracking-wide text-[#8A8174]">Faturou</p>
+                          <p className="text-[10px] font-black text-[#065F46]">R$ 82,4k</p>
+                        </div>
+                        <div className="rounded bg-[#F5F0E6] p-1.5 text-center">
+                          <p className="text-[7px] uppercase tracking-wide text-[#8A8174]">Gastou</p>
+                          <p className="text-[10px] font-black text-[#b4292b]">R$ 49,1k</p>
+                        </div>
+                        <div className="rounded bg-[#F5F0E6] p-1.5 text-center">
+                          <p className="text-[7px] uppercase tracking-wide text-[#8A8174]">Sobrou</p>
+                          <p className="text-[10px] font-black text-[#065F46]">+33,3k</p>
+                        </div>
+                      </div>
+                      {linhas.map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between rounded bg-[#F7F4ED] px-2 py-1 text-[8.5px]">
+                          <span className="text-[#473f37]">{k}</span>
+                          <span className="font-bold text-[#020A17]">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-center text-[8px] text-[#8A8174]">PDF recebido · 18:00</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
