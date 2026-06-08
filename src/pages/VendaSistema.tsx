@@ -44,7 +44,7 @@ const whatsappUrl = `https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`;
 const checkoutUrl = (plano: string) => `/checkout?plano=${encodeURIComponent(plano)}`;
 
 const heroBullets = [
-  "Especialista em clínicas de estética e saúde — capilar, dermato e harmonização",
+  "Especialista em finanças para a área médica — clínicas, consultórios e procedimentos",
   "Sistema próprio que mostra o lucro real de cada procedimento",
   "A taxa do cartão para de comer sua margem no parcelado",
   "Precificação, regime tributário e repasse de profissionais sob controle",
@@ -53,26 +53,26 @@ const heroBullets = [
 
 const heroCards = [
   {
-    icon: Cpu,
-    titulo: "Sistema Próprio Tática",
-    txt: "Plataforma exclusiva desenvolvida pela nossa equipe para gestão financeira em tempo real, integrada ao seu negócio.",
+    icon: Briefcase,
+    titulo: "Consultoria financeira especialista",
+    txt: "Um time dedicado ao financeiro da sua clínica: precificação, tributário, maquininha e fluxo de caixa sob controle.",
     destaque: true,
   },
   {
-    icon: LineChart,
-    titulo: "BI e Dashboards em Tempo Real",
-    txt: "Visualize a saúde financeira com gráficos e relatórios gerados automaticamente pelo nosso sistema.",
+    icon: Users2,
+    titulo: "BPO financeiro completo",
+    txt: "Terceirize a operação — contas, conciliação e relatórios. Você cuida do paciente; a gente cuida dos números.",
   },
   {
-    icon: ShieldCheck,
-    titulo: "Segurança e Confiabilidade",
-    txt: "Seus dados financeiros protegidos em infraestrutura robusta, com acesso controlado e auditável.",
+    icon: Cpu,
+    titulo: "Sistema próprio incluído",
+    txt: "Toda essa gestão na nossa plataforma exclusiva, em tempo real, sem custo de software à parte.",
   },
 ];
 
 const stats = [
   { n: "Até 5%", l: "do faturamento de volta no seu caixa" },
-  { n: "100%", l: "focado em clínicas de estética e saúde" },
+  { n: "100%", l: "focado na área médica" },
   { n: "Sócio médico", l: "DNA clínico na gestão financeira", small: true },
   { n: "Sistema próprio", l: "tecnologia exclusiva Tática", small: true },
 ];
@@ -115,7 +115,7 @@ const planos = [
   },
   {
     nome: "Clínica em crescimento",
-    desc: "O pacote da maioria das clínicas de estética.",
+    desc: "O pacote da maioria das clínicas e consultórios médicos.",
     preco: "3.000",
     bullets: [
       "Tudo do início, e mais:",
@@ -413,7 +413,7 @@ function Hero() {
         <div>
           <Badge variant="outline" className="rounded-full border-[#065F46]/40 bg-[#065F46]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#34D399]">
             <Sparkles className="mr-1.5 h-3 w-3" />
-            BPO Financeiro para clínicas de estética e saúde
+            Consultoria & BPO financeiro · especialista na área médica
           </Badge>
 
           <h1 className="mt-5 text-[clamp(1.9rem,7vw,3.4rem)] font-black leading-[1.1] tracking-tight md:mt-6">
@@ -423,7 +423,7 @@ function Hero() {
           </h1>
 
           <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-[#CFC8BA]">
-            Gestão financeira especializada para <strong className="text-white">clínicas de estética e saúde</strong>,
+            Gestão financeira especializada para <strong className="text-white">clínicas e consultórios da área médica</strong>,
             feita por quem entende maquininha de procedimento parcelado, precificação e repasse de profissionais —
             potencializada pelo nosso <strong className="text-[#065F46]">sistema próprio</strong>.
           </p>
