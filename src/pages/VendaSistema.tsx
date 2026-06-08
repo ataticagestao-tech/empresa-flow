@@ -361,7 +361,7 @@ function TopBar() {
 
         <nav className="hidden items-center gap-7 lg:flex">
           {navLinks.map((x) => (
-            <a key={x.href} href={x.href} className="text-[14px] font-medium text-[#020A17]/75 transition hover:text-[#065F46]">
+            <a key={x.href} href={x.href} className="text-[15px] font-medium text-[#020A17]/75 transition hover:text-[#065F46]">
               {x.l}
             </a>
           ))}
@@ -388,11 +388,11 @@ function TopBar() {
         <div className="border-t border-black/5 bg-white lg:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {navLinks.map((x) => (
-              <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[14px] text-[#020A17]/80 hover:bg-black/5 hover:text-[#065F46]">
+              <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[15px] text-[#020A17]/80 hover:bg-black/5 hover:text-[#065F46]">
                 {x.l}
               </a>
             ))}
-            <a href={whatsappUrl} target="_blank" rel="noreferrer" className="mt-2 rounded-md bg-[#065F46] px-4 py-2.5 text-center text-[14px] font-semibold text-white">
+            <a href={whatsappUrl} target="_blank" rel="noreferrer" className="mt-2 rounded-md bg-[#065F46] px-4 py-2.5 text-center text-[15px] font-semibold text-white">
               Diagnóstico gratuito
             </a>
           </nav>
@@ -421,7 +421,7 @@ function Hero() {
             do seu financeiro.
           </h1>
 
-          <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-[#CFC8BA]">
+          <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-[#CFC8BA]">
             Gestão financeira especializada para <strong className="text-white">clínicas de estética e saúde</strong>,
             feita por quem entende maquininha de procedimento parcelado, precificação e repasse de profissionais —
             potencializada pelo nosso <strong className="text-[#065F46]">sistema próprio</strong>.
@@ -429,7 +429,7 @@ function Hero() {
 
           <ul className="mt-7 space-y-2">
             {heroBullets.map((b) => (
-              <li key={b} className="flex items-start gap-3 text-[14.5px] text-[#D6CFC1]">
+              <li key={b} className="flex items-start gap-3 text-[15.5px] text-[#D6CFC1]">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#34D399]" />
                 {b}
               </li>
@@ -437,13 +437,13 @@ function Hero() {
           </ul>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
-            <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#065F46] px-7 text-[16px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#064E3B] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
+            <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#065F46] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#064E3B] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
               <a href={whatsappUrl} target="_blank" rel="noreferrer">
                 Diagnóstico gratuito
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
-            <Button asChild variant="outline" size="lg" className="h-12 w-full rounded-md border-white/20 bg-transparent px-7 text-[14px] text-[#CFC8BA] hover:border-[#065F46] hover:bg-transparent hover:text-[#065F46] sm:w-auto">
+            <Button asChild variant="outline" size="lg" className="h-12 w-full rounded-md border-white/20 bg-transparent px-7 text-[15px] text-[#CFC8BA] hover:border-[#065F46] hover:bg-transparent hover:text-[#065F46] sm:w-auto">
               <a href="#planos">Ver planos</a>
             </Button>
           </div>
@@ -462,8 +462,8 @@ function Hero() {
               <div className={`grid h-11 w-11 place-items-center rounded-lg ${destaque ? "bg-[#065F46]/25 text-[#34D399]" : "bg-[#065F46]/20 text-[#7AB8F0]"}`}>
                 <Icon className="h-5 w-5" />
               </div>
-              <p className="mt-4 text-[15px] font-bold tracking-tight text-white">{titulo}</p>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[#A79E8E]">{txt}</p>
+              <p className="mt-4 text-[16px] font-bold tracking-tight text-white">{titulo}</p>
+              <p className="mt-1.5 text-[14px] leading-relaxed text-[#A79E8E]">{txt}</p>
             </div>
           ))}
         </div>
@@ -482,7 +482,7 @@ function Sobre() {
             <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.4rem)] font-black leading-[1.2] tracking-tight text-[#020A17]">
               Parceiro estratégico que <span className="text-[#065F46]">revela oportunidades</span> para decisões baseadas em dados
             </h2>
-            <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-[#666]">
+            <div className="mt-6 space-y-4 text-[16px] leading-relaxed text-[#666]">
               <p>
                 Somos especialistas em gestão financeira para empresas que querem crescer com segurança.
                 Nossa missão é ser o parceiro que transforma números em decisões estratégicas.
@@ -495,7 +495,7 @@ function Sobre() {
                 Mais que um financeiro terceirizado: <strong>impulsionamos seu crescimento estratégico e sustentável.</strong>
               </p>
             </div>
-            <Button asChild className="mt-8 h-11 rounded-md bg-[#065F46] px-6 text-[13.5px] font-bold uppercase tracking-wider text-white hover:bg-[#064E3B]">
+            <Button asChild className="mt-8 h-11 rounded-md bg-[#065F46] px-6 text-[14.5px] font-bold uppercase tracking-wider text-white hover:bg-[#064E3B]">
               <a href={whatsappUrl} target="_blank" rel="noreferrer">
                 Diagnóstico gratuito
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -517,8 +517,8 @@ function Sobre() {
             <div className="grid grid-cols-2 gap-4">
               {stats.map((s) => (
                 <div key={s.l} className="rounded-2xl border border-black/5 border-t-[3px] border-t-[#065F46] bg-white p-6 text-center shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
-                  <p className={`font-black tracking-tight text-[#020A17] ${s.small ? "text-[16px] leading-tight" : "text-[32px]"}`}>{s.n}</p>
-                  <p className="mt-1 text-[12px] text-[#666]">{s.l}</p>
+                  <p className={`font-black tracking-tight text-[#020A17] ${s.small ? "text-[17px] leading-tight" : "text-[32px]"}`}>{s.n}</p>
+                  <p className="mt-1 text-[13px] text-[#666]">{s.l}</p>
                 </div>
               ))}
             </div>
@@ -539,7 +539,7 @@ function Sistema() {
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black leading-tight tracking-tight">
             Sistema <span className="text-[#34D399]">Próprio</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-[#A79E8E]">
+          <p className="mx-auto mt-4 max-w-2xl text-[16px] leading-relaxed text-[#A79E8E]">
             Enquanto outros dependem de ferramentas genéricas, a Tática opera com plataforma desenvolvida
             internamente para entregar mais agilidade, precisão e controle.
           </p>
@@ -564,8 +564,8 @@ function Sistema() {
               <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#065F46]/15 text-[#34D399]">
                 <Icon className="h-5 w-5" />
               </div>
-              <p className="mt-5 text-[16px] font-bold tracking-tight text-white">{t}</p>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-[#A79E8E]">{d}</p>
+              <p className="mt-5 text-[17px] font-bold tracking-tight text-white">{t}</p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-[#A79E8E]">{d}</p>
             </div>
           ))}
         </div>
@@ -579,7 +579,7 @@ function Sistema() {
               <h3 className="text-[20px] font-black tracking-tight text-[#34D399]">
                 Por que sistema próprio faz diferença?
               </h3>
-              <p className="mt-3 text-[14.5px] leading-relaxed text-[#D6CFC1]">
+              <p className="mt-3 text-[15.5px] leading-relaxed text-[#D6CFC1]">
                 Ferramentas de terceiros limitam a personalização e cobram por cada usuário.
                 Com o sistema Tática, você tem uma plataforma evoluindo continuamente, sem custos extras por acesso.
               </p>
@@ -590,7 +590,7 @@ function Sistema() {
                   "Suporte técnico direto da equipe desenvolvedora",
                   "Atualizações constantes incluídas no plano",
                 ].map((x) => (
-                  <li key={x} className="flex items-start gap-2.5 text-[13.5px] text-[#CFC8BA]">
+                  <li key={x} className="flex items-start gap-2.5 text-[14.5px] text-[#CFC8BA]">
                     <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#1351B4]" />
                     {x}
                   </li>
@@ -643,7 +643,7 @@ function GaleriaSistema() {
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
             Veja o sistema <span className="text-[#065F46]">em funcionamento</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
             Telas reais do Tática Gestão. A mesma plataforma usada pela nossa equipe de BPO
             estará disponível para a sua clínica em tempo real.
           </p>
@@ -659,7 +659,7 @@ function GaleriaSistema() {
               className="block w-full"
             />
           </div>
-          <p className="mt-4 text-center text-[12px] text-[#666]">
+          <p className="mt-4 text-center text-[13px] text-[#666]">
             <strong className="text-[#020A17]">Dashboard principal</strong> · indicadores consolidados por unidade
           </p>
         </div>
@@ -668,8 +668,8 @@ function GaleriaSistema() {
           {grupos.map((g) => (
             <div key={g.titulo}>
               <div className="mb-6 flex flex-col items-start gap-1 border-l-4 border-[#065F46] pl-4 md:mb-8">
-                <h3 className="text-[16px] font-black tracking-tight text-[#020A17] md:text-[18px]">{g.titulo}</h3>
-                <p className="text-[12px] leading-relaxed text-[#666] md:text-[13.5px]">{g.sub}</p>
+                <h3 className="text-[17px] font-black tracking-tight text-[#020A17] md:text-[18px]">{g.titulo}</h3>
+                <p className="text-[13px] leading-relaxed text-[#666] md:text-[14.5px]">{g.sub}</p>
               </div>
               <div className="grid gap-5 md:grid-cols-3">
                 {g.thumbs.map((t) => (
@@ -681,8 +681,8 @@ function GaleriaSistema() {
                       <img src={t.src} alt={t.label} loading="lazy" className="block w-full" />
                     </div>
                     <div className="border-t border-black/5 p-4 md:p-5">
-                      <p className="text-[13.5px] font-bold tracking-tight text-[#020A17]">{t.label}</p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-[#666]">{t.desc}</p>
+                      <p className="text-[14.5px] font-bold tracking-tight text-[#020A17]">{t.label}</p>
+                      <p className="mt-1 text-[13px] leading-relaxed text-[#666]">{t.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -691,7 +691,7 @@ function GaleriaSistema() {
           ))}
         </div>
 
-        <p className="mx-auto mt-12 max-w-2xl text-center text-[12px] italic text-[#666] md:mt-14">
+        <p className="mx-auto mt-12 max-w-2xl text-center text-[13px] italic text-[#666] md:mt-14">
           Telas reais da plataforma — nome da empresa anonimizado.
           Existem mais de 20 módulos integrados, incluindo Multi-empresa, Estoque, NFS-e e Painel Gerencial.
         </p>
@@ -719,7 +719,7 @@ function TudoNumSistema() {
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight">
             Tudo num sistema só. <span className="text-[#34D399]">Sem planilha, sem retrabalho.</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#A79E8E]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#A79E8E]">
             Do lançamento ao resultado, num fluxo único — o que a maioria das clínicas resolve com quatro ferramentas e um monte de planilha.
           </p>
         </div>
@@ -727,7 +727,7 @@ function TudoNumSistema() {
         <div className="mt-10 flex flex-wrap items-center justify-center gap-2 md:mt-12">
           {fluxo.map((f, i) => (
             <div key={f} className="flex items-center gap-2">
-              <span className="rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 text-[12px] font-bold text-white md:px-4 md:py-2 md:text-[13px]">{f}</span>
+              <span className="rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 text-[13px] font-bold text-white md:px-4 md:py-2 md:text-[14px]">{f}</span>
               {i < fluxo.length - 1 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#34D399] md:h-4 md:w-4" />}
             </div>
           ))}
@@ -740,8 +740,8 @@ function TudoNumSistema() {
                 <Icon className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[14.5px] font-black tracking-tight text-white">{t}</p>
-                <p className="text-[12.5px] text-[#A79E8E]">{d}</p>
+                <p className="text-[15.5px] font-black tracking-tight text-white">{t}</p>
+                <p className="text-[13.5px] text-[#A79E8E]">{d}</p>
               </div>
             </div>
           ))}
@@ -751,15 +751,15 @@ function TudoNumSistema() {
           <div className="flex items-start gap-4 rounded-2xl border border-[#065F46]/30 bg-[#065F46]/[0.12] p-6">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#065F46] text-white"><Sparkles className="h-5 w-5" /></div>
             <div>
-              <p className="text-[15px] font-black text-white">Boleto lido por IA</p>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-[#CFC8BA]">Manda a foto do boleto e a IA abre o lançamento já preenchido. Zero digitação.</p>
+              <p className="text-[16px] font-black text-white">Boleto lido por IA</p>
+              <p className="mt-1 text-[14.5px] leading-relaxed text-[#CFC8BA]">Manda a foto do boleto e a IA abre o lançamento já preenchido. Zero digitação.</p>
             </div>
           </div>
           <div className="flex items-start gap-4 rounded-2xl border border-[#1351B4]/40 bg-[#1351B4]/[0.14] p-6">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#1351B4] text-white"><LineChart className="h-5 w-5" /></div>
             <div>
-              <p className="text-[15px] font-black text-white">Do micro ao macro</p>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-[#CFC8BA]">Selic, IPCA, dólar e Bolsa B3 em tempo real, no mesmo painel dos seus indicadores.</p>
+              <p className="text-[16px] font-black text-white">Do micro ao macro</p>
+              <p className="mt-1 text-[14.5px] leading-relaxed text-[#CFC8BA]">Selic, IPCA, dólar e Bolsa B3 em tempo real, no mesmo painel dos seus indicadores.</p>
             </div>
           </div>
         </div>
@@ -777,7 +777,7 @@ function Servicos() {
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
             Conheça nossos <span className="text-[#065F46]">serviços</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
             Soluções completas de gestão financeira, do operacional ao estratégico,
             integradas ao nosso sistema próprio.
           </p>
@@ -792,14 +792,14 @@ function Servicos() {
               <div className="grid h-9 w-9 place-items-center rounded-md bg-[#065F46]/10 text-[11px] font-black text-[#1351B4]">
                 {String(i + 1).padStart(2, "0")}
               </div>
-              <p className="mt-4 text-[13.5px] font-black uppercase tracking-wider text-[#020A17]">{s.t}</p>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-[#666]">{s.d}</p>
+              <p className="mt-4 text-[14.5px] font-black uppercase tracking-wider text-[#020A17]">{s.t}</p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-[#666]">{s.d}</p>
             </div>
           ))}
         </div>
 
         <div className="mt-12 text-center">
-          <Button asChild size="lg" className="h-12 rounded-md bg-[#065F46] px-7 text-[16px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#064E3B]">
+          <Button asChild size="lg" className="h-12 rounded-md bg-[#065F46] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#064E3B]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
               Diagnóstico gratuito
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -820,7 +820,7 @@ function Planos() {
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
             Pacotes por porte da sua <span className="text-[#065F46]">clínica</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
             Sistema próprio incluído em todos. O valor final é definido no diagnóstico gratuito, conforme o tamanho da sua clínica.
           </p>
         </div>
@@ -847,22 +847,22 @@ function Planos() {
                 <h3 className={`text-[24px] font-black tracking-tight ${p.destaque ? "text-white" : "text-[#020A17]"}`}>
                   {p.nome}
                 </h3>
-                <p className={`mt-1.5 text-[13px] leading-snug ${p.destaque ? "text-[#D6CFC1]" : "text-[#666]"}`}>{p.desc}</p>
+                <p className={`mt-1.5 text-[14px] leading-snug ${p.destaque ? "text-[#D6CFC1]" : "text-[#666]"}`}>{p.desc}</p>
 
                 <div className="mt-5">
-                  <span className={`text-[12px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>a partir de</span>
+                  <span className={`text-[13px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>a partir de</span>
                   <div className="flex items-end gap-1.5">
                     <span className={`text-[30px] font-black tracking-tight ${p.destaque ? "text-white" : "text-[#020A17]"}`}>R$ {p.preco}</span>
-                    <span className={`mb-1.5 text-[13px] ${p.destaque ? "text-[#D6CFC1]" : "text-[#666]"}`}>/mês</span>
+                    <span className={`mb-1.5 text-[14px] ${p.destaque ? "text-[#D6CFC1]" : "text-[#666]"}`}>/mês</span>
                   </div>
-                  <span className={`text-[12px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>+ implantação R$ 4.500 (única)</span>
+                  <span className={`text-[13px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>+ implantação R$ 4.500 (única)</span>
                 </div>
 
                 <ul className="mt-6 space-y-0">
                   {p.bullets.map((b, i) => (
                     <li
                       key={b}
-                      className={`flex items-start gap-3 py-2.5 text-[13.5px] ${
+                      className={`flex items-start gap-3 py-2.5 text-[14.5px] ${
                         p.destaque ? "text-[#D6CFC1]" : "text-[#666]"
                       } ${i < p.bullets.length - 1 ? (p.destaque ? "border-b border-white/8" : "border-b border-[#ECE3D3]") : ""}`}
                     >
@@ -874,7 +874,7 @@ function Planos() {
 
                 <Button
                   asChild
-                  className={`mt-8 w-full rounded-md py-6 text-[13.5px] font-bold uppercase tracking-wider ${
+                  className={`mt-8 w-full rounded-md py-6 text-[14.5px] font-bold uppercase tracking-wider ${
                     p.destaque
                       ? "bg-[#065F46] text-white hover:bg-[#064E3B]"
                       : "bg-[#065F46] text-white hover:bg-[#064E3B]"
@@ -903,7 +903,7 @@ function Consultoria() {
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
             Consultoria Financeira <span className="text-[#065F46]">Personalizada</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
             A Tática oferece consultoria estratégica integrada ao nosso sistema para otimizar
             seus processos e impulsionar o crescimento.
           </p>
@@ -919,15 +919,15 @@ function Consultoria() {
                 <Icon className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[15.5px] font-black tracking-tight text-[#020A17]">{t}</p>
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#666]">{d}</p>
+                <p className="text-[16.5px] font-black tracking-tight text-[#020A17]">{t}</p>
+                <p className="mt-1.5 text-[14.5px] leading-relaxed text-[#666]">{d}</p>
               </div>
             </div>
           ))}
         </div>
 
         <div className="mt-14 text-center">
-          <Button asChild size="lg" className="h-12 rounded-md bg-[#065F46] px-7 text-[16px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#064E3B]">
+          <Button asChild size="lg" className="h-12 rounded-md bg-[#065F46] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#064E3B]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
               Diagnóstico gratuito
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -949,7 +949,7 @@ function Fundadores() {
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight">
             Conheça nossos <span className="text-[#34D399]">fundadores</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[14.5px] leading-relaxed text-[#A79E8E]">
+          <p className="mx-auto mt-4 max-w-xl text-[15.5px] leading-relaxed text-[#A79E8E]">
             A Tática é formada por especialistas com experiência real em gestão financeira e tecnologia.
           </p>
         </div>
@@ -969,7 +969,7 @@ function Fundadores() {
               <div className="p-7">
                 <p className="text-[18px] font-black tracking-tight text-white">{f.nome}</p>
                 <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#34D399]">{f.cargo}</p>
-                <p className="mt-4 text-[14px] leading-relaxed text-[#CFC8BA]">{f.bio}</p>
+                <p className="mt-4 text-[15px] leading-relaxed text-[#CFC8BA]">{f.bio}</p>
               </div>
             </div>
           ))}
@@ -987,12 +987,12 @@ function CTAFinal() {
         <h2 className="text-[clamp(2rem,4.5vw,2.8rem)] font-black leading-[1.12] tracking-tight">
           Estamos prontos para ser seu <span className="text-[#34D399]">parceiro estratégico</span>
         </h2>
-        <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#A79E8E]">
+        <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-[#A79E8E]">
           Transforme a gestão financeira da sua empresa com especialistas dedicados e tecnologia exclusiva.
           Dê o próximo passo agora.
         </p>
 
-        <Button asChild size="lg" className="mt-9 h-14 rounded-md bg-[#065F46] px-10 text-[15px] font-bold uppercase tracking-wider text-white hover:-translate-y-0.5 hover:bg-[#064E3B] hover:shadow-[0_12px_30px_rgba(44,123,196,0.4)]">
+        <Button asChild size="lg" className="mt-9 h-14 rounded-md bg-[#065F46] px-10 text-[16px] font-bold uppercase tracking-wider text-white hover:-translate-y-0.5 hover:bg-[#064E3B] hover:shadow-[0_12px_30px_rgba(44,123,196,0.4)]">
           <a href={whatsappUrl} target="_blank" rel="noreferrer">
             Diagnóstico gratuito
             <ArrowRight className="ml-2 h-4 w-4" />
@@ -1010,15 +1010,15 @@ function Footer() {
         <div className="grid gap-10 md:grid-cols-[2fr_1fr_1fr_1.4fr]">
           <div>
             <LogoOficial size="sm" variant="light" className="!items-start" />
-            <p className="mt-4 max-w-xs text-[13px] leading-relaxed">
+            <p className="mt-4 max-w-xs text-[14px] leading-relaxed">
               Gestão financeira especializada com sistema próprio para empresas que querem crescer
               com clareza, controle e lucratividade real.
             </p>
           </div>
 
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white">Navegação</p>
-            <ul className="mt-4 space-y-2.5 text-[13px]">
+            <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">Navegação</p>
+            <ul className="mt-4 space-y-2.5 text-[14px]">
               {navLinks.map((l) => (
                 <li key={l.href}>
                   <a href={l.href} className="hover:text-[#065F46]">{l.l}</a>
@@ -1029,8 +1029,8 @@ function Footer() {
           </div>
 
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white">Redes sociais</p>
-            <ul className="mt-4 space-y-2.5 text-[13px]">
+            <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">Redes sociais</p>
+            <ul className="mt-4 space-y-2.5 text-[14px]">
               <li><a href="#" className="hover:text-[#065F46]">Instagram</a></li>
               <li><a href="#" className="hover:text-[#065F46]">LinkedIn</a></li>
               <li><a href="#" className="hover:text-[#065F46]">Facebook</a></li>
@@ -1039,8 +1039,8 @@ function Footer() {
           </div>
 
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white">Contato</p>
-            <ul className="mt-4 space-y-3 text-[13px]">
+            <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">Contato</p>
+            <ul className="mt-4 space-y-3 text-[14px]">
               <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-[#34D399]" /> (35) 99964-7089</li>
               <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#34D399]" /> ataticagestao@gmail.com</li>
               <li>
@@ -1054,7 +1054,7 @@ function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-white/5 pt-6 md:flex-row md:items-center">
-          <p className="text-[12px]">TÁTICA FINANCEIRO © {new Date().getFullYear()} — Todos os direitos reservados.</p>
+          <p className="text-[13px]">TÁTICA FINANCEIRO © {new Date().getFullYear()} — Todos os direitos reservados.</p>
           <div className="flex gap-2.5">
             <a href="#" aria-label="LinkedIn" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#065F46] hover:text-white">
               <Linkedin className="h-4 w-4" />
