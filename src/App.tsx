@@ -91,6 +91,7 @@ const NfseConfiguracoes = lazy(() => import("./pages/NfseConfiguracoes"));
 const PrevisaoImpostos = lazy(() => import("./pages/PrevisaoImpostos"));
 const AreaContador = lazy(() => import("./pages/AreaContador"));
 const VendaSistema = lazy(() => import("./pages/VendaSistema"));
+const Privacidade = lazy(() => import("./pages/Privacidade"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 
 const queryClient = new QueryClient({
@@ -193,6 +194,7 @@ const App = () => (
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/venda" element={<VendaSistema />} />
                 <Route path="/lp" element={<VendaSistema />} />
+                <Route path="/privacidade" element={<Privacidade />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/reset-password" element={<Auth />} />

@@ -241,6 +241,7 @@ export default function VendaSistema() {
       <Planos />
       <Consultoria />
       <Fundadores />
+      <Seguranca />
       <CTAFinal />
       <Footer />
       <WhatsAppFloat />
@@ -980,6 +981,49 @@ function Fundadores() {
   );
 }
 
+function Seguranca() {
+  const itens = [
+    { icon: Briefcase, t: "Sigilo em contrato", d: "Tudo formalizado: contrato de prestação de serviço com cláusula de confidencialidade." },
+    { icon: ShieldCheck, t: "Conformidade com a LGPD", d: "Seus dados financeiros tratados conforme a Lei Geral de Proteção de Dados." },
+    { icon: Lock, t: "Criptografia e backups", d: "Informações protegidas com criptografia e backups automáticos na nossa infraestrutura." },
+    { icon: Users2, t: "Você no controle", d: "Acesso controlado e auditável. Você decide o que compartilha — e o controle continua sendo seu." },
+  ];
+  return (
+    <section className="bg-transparent">
+      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+        <div className="text-center">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Confiança e segurança</p>
+          <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
+            Seu financeiro em <span className="text-[#065F46]">mãos seguras</span>
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
+            Cuidamos de dado sensível como se fosse o nosso. Tudo formalizado, criptografado e sob sigilo.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {itens.map(({ icon: Icon, t, d }) => (
+            <div key={t} className="rounded-2xl border border-black/5 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#065F46]/10 text-[#065F46]">
+                <Icon className="h-5 w-5" />
+              </div>
+              <p className="mt-5 text-[16px] font-black tracking-tight text-[#020A17]">{t}</p>
+              <p className="mt-2 text-[14px] leading-relaxed text-[#666]">{d}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 flex items-center justify-center gap-3 rounded-2xl border border-[#065F46]/20 bg-[#065F46]/[0.06] px-6 py-5 text-center">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-[#065F46]" />
+          <p className="text-[15px] font-semibold text-[#020A17]">
+            O diagnóstico é <span className="text-[#065F46]">100% gratuito, sem compromisso e sob sigilo.</span>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CTAFinal() {
   return (
     <section id="contato" className="bg-[#020A17] text-center text-white">
@@ -998,6 +1042,7 @@ function CTAFinal() {
             <ArrowRight className="ml-2 h-4 w-4" />
           </a>
         </Button>
+        <p className="mt-4 text-[13px] text-[#A79E8E]">Sem compromisso e sob sigilo · resposta no mesmo dia.</p>
       </div>
     </section>
   );
@@ -1025,6 +1070,7 @@ function Footer() {
                 </li>
               ))}
               <li><Link to="/auth" className="hover:text-[#065F46]">Acessar sistema</Link></li>
+              <li><Link to="/privacidade" className="hover:text-[#065F46]">Política de Privacidade</Link></li>
             </ul>
           </div>
 
@@ -1054,7 +1100,10 @@ function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-white/5 pt-6 md:flex-row md:items-center">
-          <p className="text-[13px]">TÁTICA FINANCEIRO © {new Date().getFullYear()} — Todos os direitos reservados.</p>
+          <div className="text-[13px]">
+            <p>TÁTICA FINANCEIRO © {new Date().getFullYear()} — Todos os direitos reservados.</p>
+            <p className="mt-1 text-[11.5px] text-[#8A8174]/80">CNPJ 57.202.144/0001-48 · Av. Aristides Ribeiro, 58 — Jardim Ribeiro, Varginha/MG · CEP 37068-120</p>
+          </div>
           <div className="flex gap-2.5">
             <a href="#" aria-label="LinkedIn" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#065F46] hover:text-white">
               <Linkedin className="h-4 w-4" />
