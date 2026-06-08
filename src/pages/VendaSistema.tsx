@@ -410,14 +410,14 @@ function Hero() {
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 pb-14 pt-10 md:gap-14 md:px-6 md:pb-24 md:pt-28 md:grid-cols-[1.1fr_0.9fr]">
         <div>
-          <Badge variant="outline" className="rounded-full border-[#065F46]/40 bg-[#065F46]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#7FB3A4]">
+          <Badge variant="outline" className="rounded-full border-[#065F46]/40 bg-[#065F46]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#34D399]">
             <Sparkles className="mr-1.5 h-3 w-3" />
             BPO Financeiro para clínicas de estética e saúde
           </Badge>
 
           <h1 className="mt-5 text-[clamp(1.9rem,7vw,3.4rem)] font-black leading-[1.1] tracking-tight md:mt-6">
             Cuide dos seus pacientes.<br />
-            <span className="text-[#065F46]">A Tática cuida</span><br />
+            <span className="text-[#34D399]">A Tática cuida</span><br />
             do seu financeiro.
           </h1>
 
@@ -430,7 +430,7 @@ function Hero() {
           <ul className="mt-7 space-y-2">
             {heroBullets.map((b) => (
               <li key={b} className="flex items-start gap-3 text-[14.5px] text-[#D6CFC1]">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#065F46]" />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#34D399]" />
                 {b}
               </li>
             ))}
@@ -459,7 +459,7 @@ function Hero() {
                   : "border-white/10 bg-white/[0.04]"
               }`}
             >
-              <div className={`grid h-11 w-11 place-items-center rounded-lg ${destaque ? "bg-[#065F46]/25 text-[#065F46]" : "bg-[#065F46]/20 text-[#7AB8F0]"}`}>
+              <div className={`grid h-11 w-11 place-items-center rounded-lg ${destaque ? "bg-[#065F46]/25 text-[#34D399]" : "bg-[#065F46]/20 text-[#7AB8F0]"}`}>
                 <Icon className="h-5 w-5" />
               </div>
               <p className="mt-4 text-[15px] font-bold tracking-tight text-white">{titulo}</p>
@@ -535,9 +535,9 @@ function Sistema() {
       <div className="pointer-events-none absolute -right-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-[#065F46]/10 blur-3xl" />
       <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#065F46]">Nosso grande diferencial</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Nosso grande diferencial</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black leading-tight tracking-tight">
-            Sistema <span className="text-[#065F46]">Próprio</span>
+            Sistema <span className="text-[#34D399]">Próprio</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-[#A79E8E]">
             Enquanto outros dependem de ferramentas genéricas, a Tática opera com plataforma desenvolvida
@@ -561,7 +561,7 @@ function Sistema() {
         <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {sistemaCards.map(({ icon: Icon, t, d }) => (
             <div key={t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition hover:-translate-y-1 hover:border-[#065F46]/50 hover:bg-white/[0.06]">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#065F46]/15 text-[#065F46]">
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#065F46]/15 text-[#34D399]">
                 <Icon className="h-5 w-5" />
               </div>
               <p className="mt-5 text-[16px] font-bold tracking-tight text-white">{t}</p>
@@ -576,7 +576,7 @@ function Sistema() {
               <Cpu className="h-7 w-7" />
             </div>
             <div>
-              <h3 className="text-[20px] font-black tracking-tight text-[#065F46]">
+              <h3 className="text-[20px] font-black tracking-tight text-[#34D399]">
                 Por que sistema próprio faz diferença?
               </h3>
               <p className="mt-3 text-[14.5px] leading-relaxed text-[#D6CFC1]">
@@ -715,9 +715,9 @@ function TudoNumSistema() {
       <div className="pointer-events-none absolute -right-32 top-1/3 h-[440px] w-[440px] rounded-full bg-[#065F46]/10 blur-3xl" />
       <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7FB3A4]">Por que é diferente</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Por que é diferente</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight">
-            Tudo num sistema só. <span className="text-[#7FB3A4]">Sem planilha, sem retrabalho.</span>
+            Tudo num sistema só. <span className="text-[#34D399]">Sem planilha, sem retrabalho.</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#A79E8E]">
             Do lançamento ao resultado, num fluxo único — o que a maioria das clínicas resolve com quatro ferramentas e um monte de planilha.
@@ -728,7 +728,7 @@ function TudoNumSistema() {
           {fluxo.map((f, i) => (
             <div key={f} className="flex items-center gap-2">
               <span className="rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 text-[12px] font-bold text-white md:px-4 md:py-2 md:text-[13px]">{f}</span>
-              {i < fluxo.length - 1 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#7FB3A4] md:h-4 md:w-4" />}
+              {i < fluxo.length - 1 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#34D399] md:h-4 md:w-4" />}
             </div>
           ))}
         </div>
@@ -736,7 +736,7 @@ function TudoNumSistema() {
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {modulos.map(({ icon: Icon, t, d }) => (
             <div key={t} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5 transition hover:-translate-y-0.5 hover:border-[#065F46]/40">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#065F46]/20 text-[#7FB3A4]">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#065F46]/20 text-[#34D399]">
                 <Icon className="h-5 w-5" />
               </div>
               <div>
@@ -866,7 +866,7 @@ function Planos() {
                         p.destaque ? "text-[#D6CFC1]" : "text-[#666]"
                       } ${i < p.bullets.length - 1 ? (p.destaque ? "border-b border-white/8" : "border-b border-[#ECE3D3]") : ""}`}
                     >
-                      <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${p.destaque ? "text-[#065F46]" : "text-[#1351B4]"}`} />
+                      <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${p.destaque ? "text-[#34D399]" : "text-[#1351B4]"}`} />
                       {b}
                     </li>
                   ))}
@@ -945,9 +945,9 @@ function Fundadores() {
       <div className="pointer-events-none absolute -left-32 top-1/2 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-[#065F46]/15 blur-3xl" />
       <div className="relative mx-auto max-w-5xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#065F46]">Quem está por trás</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Quem está por trás</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight">
-            Conheça nossos <span className="text-[#065F46]">fundadores</span>
+            Conheça nossos <span className="text-[#34D399]">fundadores</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[14.5px] leading-relaxed text-[#A79E8E]">
             A Tática é formada por especialistas com experiência real em gestão financeira e tecnologia.
@@ -968,7 +968,7 @@ function Fundadores() {
               </div>
               <div className="p-7">
                 <p className="text-[18px] font-black tracking-tight text-white">{f.nome}</p>
-                <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#065F46]">{f.cargo}</p>
+                <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#34D399]">{f.cargo}</p>
                 <p className="mt-4 text-[14px] leading-relaxed text-[#CFC8BA]">{f.bio}</p>
               </div>
             </div>
@@ -985,7 +985,7 @@ function CTAFinal() {
     <section id="contato" className="bg-[#020A17] text-center text-white">
       <div className="mx-auto max-w-3xl px-5 py-14 md:px-6 md:py-24">
         <h2 className="text-[clamp(2rem,4.5vw,2.8rem)] font-black leading-[1.12] tracking-tight">
-          Estamos prontos para ser seu <span className="text-[#065F46]">parceiro estratégico</span>
+          Estamos prontos para ser seu <span className="text-[#34D399]">parceiro estratégico</span>
         </h2>
         <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#A79E8E]">
           Transforme a gestão financeira da sua empresa com especialistas dedicados e tecnologia exclusiva.
@@ -1041,14 +1041,14 @@ function Footer() {
           <div>
             <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white">Contato</p>
             <ul className="mt-4 space-y-3 text-[13px]">
-              <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-[#065F46]" /> (35) 99964-7089</li>
-              <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#065F46]" /> ataticagestao@gmail.com</li>
+              <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-[#34D399]" /> (35) 99964-7089</li>
+              <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#34D399]" /> ataticagestao@gmail.com</li>
               <li>
-                <a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#065F46] hover:text-white">
+                <a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#34D399] hover:text-white">
                   <MessageSquare className="h-4 w-4" /> WhatsApp direto
                 </a>
               </li>
-              <li className="flex items-center gap-2"><Building2 className="h-4 w-4 text-[#065F46]" /> ataticagestao.com</li>
+              <li className="flex items-center gap-2"><Building2 className="h-4 w-4 text-[#34D399]" /> ataticagestao.com</li>
             </ul>
           </div>
         </div>
