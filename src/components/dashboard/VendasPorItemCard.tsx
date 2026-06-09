@@ -65,10 +65,7 @@ function faturamentoPorItem(vendas: any[]): Map<string, number> {
     return map;
 }
 
-const fmtR$ = (v: number) =>
-    v >= 1000
-        ? `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k`
-        : `R$ ${v.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+const fmtR$ = (v: number) => `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
 
 export default function VendasPorItemCard({ companyId, periodStart, periodEnd }: Props) {
     const { selectedCompany } = useCompany();
@@ -157,7 +154,7 @@ export default function VendasPorItemCard({ companyId, periodStart, periodEnd }:
                                 key={it.descricao}
                                 style={{
                                     display: "grid",
-                                    gridTemplateColumns: "minmax(88px, 140px) 1fr 116px",
+                                    gridTemplateColumns: "minmax(80px, 130px) 1fr 132px",
                                     gap: 12,
                                     alignItems: "center",
                                     padding: "3px 0",
@@ -185,7 +182,7 @@ export default function VendasPorItemCard({ companyId, periodStart, periodEnd }:
                                         <span style={{ fontSize: 10.5, fontWeight: 600, color: C.green }}>novo</span>
                                     ) : (
                                         <span style={{ fontSize: 10.5, fontWeight: 600, color: subiu ? C.green : C.red }}>
-                                            {subiu ? "▲" : "▼"}{Math.abs(delta).toFixed(0)}%
+                                            {delta > 0 ? "+" : ""}{delta.toFixed(0)}%
                                         </span>
                                     )}
                                 </div>
