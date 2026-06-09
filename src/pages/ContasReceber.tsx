@@ -7,6 +7,7 @@ import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 import { sendEmail } from '@/lib/email/send-email'
+import { CobrarAsaasDialog, type CobrarAlvo } from '@/components/cobranca/CobrarAsaasDialog'
 import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -32,7 +33,7 @@ import {
 } from 'date-fns'
 import {
   Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
-  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil, Download, Trash2, Eye,
+  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil, Download, Trash2, Eye, QrCode,
 } from 'lucide-react'
 
 // Cast for GESTAP tables not in generated types
@@ -214,6 +215,7 @@ export default function ContasReceber() {
   const [novoModal, setNovoModal] = useState(false)
   const [editarModal, setEditarModal] = useState<CR | null>(null)
   const [renegociarModal, setRenegociarModal] = useState<CR | null>(null)
+  const [cobrarAlvo, setCobrarAlvo] = useState<CobrarAlvo | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
   const [dropdownCoords, setDropdownCoords] = useState<DropdownCoords | null>(null)
   const [whatsCobrancaModal, setWhatsCobrancaModal] = useState<{ cr: CR; phone: string; text: string } | null>(null)
@@ -1647,8 +1649,8 @@ export default function ContasReceber() {
                                 Quitar
                               </button>
                             )}
-                            {/* Excluir direto (só owner) */}
-                            <RoleGate minRole="owner">
+                            {/* Excluir direto (operador+) */}
+                            <RoleGate minRole="operador">
                               <button
                                 onClick={() => excluirCR(cr)}
                                 title="Excluir titulo"
@@ -1689,6 +1691,14 @@ export default function ContasReceber() {
                                   >
                                     Renegociar
                                   </button>
+                                  {(cr.valor - (cr.valor_pago || 0)) > 0.005 && (
+                                    <button
+                                      onClick={() => { setDropdownOpen(null); setCobrarAlvo(cr) }}
+                                      className="w-full px-4 py-2.5 text-left text-[13px] text-emerald-700 hover:bg-emerald-50 transition-colors flex items-center gap-2"
+                                    >
+                                      <QrCode size={13} /> Cobrar por Pix/boleto
+                                    </button>
+                                  )}
                                   <button
                                     onClick={async () => {
                                       setDropdownOpen(null)
@@ -1820,6 +1830,13 @@ export default function ContasReceber() {
           }}
         />
       )}
+
+      {/* ── Diálogo: Cobrar por Pix/boleto (Asaas) ── */}
+      <CobrarAsaasDialog
+        alvo={cobrarAlvo}
+        onClose={() => setCobrarAlvo(null)}
+        onCreated={fetchItems}
+      />
 
       {/* ── Modal: Quitar em Lote ── */}
       {quitarLoteModal && (

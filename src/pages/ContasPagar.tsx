@@ -2561,7 +2561,7 @@ export default function ContasPagar() {
                                               <RefreshCw size={14} /> Cancelar pagamento
                                             </button>
                                           )}
-                                          <RoleGate minRole="owner">
+                                          <RoleGate minRole="operador">
                                             <button
                                               onClick={async () => {
                                                 setDropdownOpen(null)
@@ -3154,7 +3154,7 @@ export default function ContasPagar() {
 
                 {/* Helpers de auto-categorização (largura total) */}
                 {(catAutoReason || catSuggestions.length > 0 || (newForm.centroCustoId && centroCustoSugerido === newForm.centroCustoId && !centroTouched)) && (
-                  <div className="flex flex-wrap items-center gap-1.5" style={{ marginTop: -8 }}>
+                  <div className="flex flex-wrap items-center gap-1.5" style={{ marginTop: 4 }}>
                     {catAutoReason && newForm.contaContabilId && !catTouched && (
                       <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: '#059669' }}><Sparkles size={12} /> Categoria automática ({catAutoReason})</span>
                     )}
@@ -3178,7 +3178,7 @@ export default function ContasPagar() {
 
                 {/* Fixar categoria/centro como padrão deste fornecedor */}
                 {newForm.credorTipo === 'fornecedor' && newForm.credorId && (newForm.contaContabilId || newForm.centroCustoId) && (
-                  <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 12, color: '#475467', marginTop: -4 }}>
+                  <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 12, color: '#475467', marginTop: 2 }}>
                     <input type="checkbox" checked={fixarCatFornecedor} onChange={(e) => setFixarCatFornecedor(e.target.checked)} style={{ accentColor: '#059669' }} />
                     Usar sempre esta categoria e centro de custo para este fornecedor
                   </label>
