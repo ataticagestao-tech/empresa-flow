@@ -409,7 +409,7 @@ function TopBar() {
         <div className="flex items-center gap-2">
           <Button asChild className="hidden rounded-md bg-[#10B981] px-5 text-white hover:bg-[#059669] sm:inline-flex">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
-              Diagnóstico gratuito
+              Falar no WhatsApp
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </a>
           </Button>
@@ -432,7 +432,7 @@ function TopBar() {
               </a>
             ))}
             <a href={whatsappUrl} target="_blank" rel="noreferrer" className="mt-2 rounded-md bg-[#10B981] px-4 py-2.5 text-center text-[15px] font-semibold text-white">
-              Diagnóstico gratuito
+              Falar no WhatsApp
             </a>
           </nav>
         </div>
@@ -467,7 +467,7 @@ function Hero() {
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
             <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#10B981] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#059669] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
               <a href={whatsappUrl} target="_blank" rel="noreferrer">
-                Diagnóstico gratuito
+                Falar no WhatsApp
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
@@ -1017,7 +1017,7 @@ function Servicos() {
         <div className="mt-12 text-center">
           <Button asChild size="lg" className="h-12 rounded-md bg-white px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-[#1351B4] hover:bg-white/90">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
-              Diagnóstico gratuito
+              Falar no WhatsApp
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </Button>
@@ -1131,7 +1131,7 @@ function Planos() {
                   }`}
                 >
                   <a href={whatsappUrl} target="_blank" rel="noreferrer">
-                    Agendar diagnóstico
+                    Falar no WhatsApp
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
@@ -1183,7 +1183,7 @@ function Consultoria() {
         <div className="mt-14 text-center">
           <Button asChild size="lg" className="h-12 rounded-md bg-[#10B981] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#059669]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
-              Diagnóstico gratuito
+              Falar no WhatsApp
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </Button>
@@ -1289,7 +1289,7 @@ function CTAFinal() {
 
         <Button asChild size="lg" className="mt-9 h-14 rounded-md bg-[#10B981] px-10 text-[16px] font-bold uppercase tracking-wider text-white hover:-translate-y-0.5 hover:bg-[#059669] hover:shadow-[0_12px_30px_rgba(44,123,196,0.4)]">
           <a href={whatsappUrl} target="_blank" rel="noreferrer">
-            Diagnóstico gratuito
+            Falar no WhatsApp
             <ArrowRight className="ml-2 h-4 w-4" />
           </a>
         </Button>
