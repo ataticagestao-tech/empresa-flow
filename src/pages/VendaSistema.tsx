@@ -71,11 +71,13 @@ const heroCards = [
   },
 ];
 
-const stats = [
-  { n: "Até 5%", l: "do faturamento de volta no seu caixa" },
-  { n: "100%", l: "focado na área médica" },
-  { n: "Sócio médico", l: "DNA clínico na gestão financeira", small: true },
-  { n: "Sistema próprio", l: "tecnologia exclusiva Tática", small: true },
+const entregas = [
+  { icon: TrendingUp, txt: <>Negociação que devolve <strong className="text-[#34D399]">3 a 8% do faturamento</strong> ao seu caixa</> },
+  { icon: BarChart3, txt: <>Acompanhamento <strong className="text-[#34D399]">contábil</strong> completo</> },
+  { icon: Users2, txt: <><strong className="text-[#34D399]">Contratação</strong> de parceiros e funcionários regularizada</> },
+  { icon: Target, txt: <><strong className="text-[#34D399]">Precificação</strong> que melhora sua margem</> },
+  { icon: Layers, txt: <>Ecossistema: <strong className="text-[#34D399]">contadores, advogados</strong> e mais</> },
+  { icon: Cpu, txt: <><strong className="text-[#34D399]">Sistema próprio</strong> pra controlar a clínica e falar com o paciente</> },
 ];
 
 const sistemaCards = [
@@ -250,7 +252,8 @@ export default function VendaSistema() {
     document.head.appendChild(link);
     const style = document.createElement("style");
     style.textContent =
-      ".tatica-lp{font-family:'Nunito Sans',system-ui,sans-serif;background-color:#F5F0E6;background-image:linear-gradient(to right,rgba(2,10,23,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(2,10,23,.06) 1px,transparent 1px);background-size:78px 78px;background-repeat:repeat}" +
+      ".tatica-lp{font-family:'Nunito Sans',system-ui,sans-serif;background-color:#FFFFFF;background-image:linear-gradient(to right,rgba(12,42,82,.08) 1px,transparent 1px),linear-gradient(to bottom,rgba(12,42,82,.08) 1px,transparent 1px);background-size:64px 64px;background-repeat:repeat}" +
+      ".tatica-navy{background-color:#060E1C;background-image:linear-gradient(to right,rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.06) 1px,transparent 1px);background-size:64px 64px}" +
       ".tatica-lp h1,.tatica-lp h2,.tatica-lp h3{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:-.01em}" +
       ".tatica-marquee{animation:tatica-mq 90s linear infinite}.tatica-marquee:hover{animation-play-state:paused}@keyframes tatica-mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}.tatica-marquee-mask{-webkit-mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent)}.tatica-vscroll{animation:tatica-vs 15s ease-in-out infinite}.tatica-vscroll:hover{animation-play-state:paused}@keyframes tatica-vs{0%,16%{transform:translateY(0)}50%,66%{transform:translateY(-464px)}100%{transform:translateY(0)}}" +
       ".tatica-lp::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.55;mix-blend-mode:soft-light;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='gr'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23gr)' opacity='0.5'/%3E%3C/svg%3E\")}";
@@ -262,8 +265,9 @@ export default function VendaSistema() {
   }, []);
 
   return (
-    <div className="tatica-lp min-h-screen overflow-x-clip bg-[#F5F0E6] text-[#2B2620] font-sans antialiased">
+    <div className="tatica-lp min-h-screen overflow-x-clip bg-white text-[#0C2340] font-sans antialiased">
       <TopBar />
+      <div className="h-[72px] md:h-[92px]" aria-hidden="true" />
       <Hero />
       <Sobre />
       <Sistema />
@@ -271,6 +275,7 @@ export default function VendaSistema() {
       <TudoNumSistema />
       <Overnight />
       <Servicos />
+      <FAQ />
       <Planos />
       <Consultoria />
       <Fundadores />
@@ -292,7 +297,7 @@ function LogoOficial({
   className?: string;
 }) {
   const text = variant === "light" ? "#FFFFFF" : "#171717";
-  const brandGreen = "#065F46";
+  const brandGreen = "#10B981";
   const dims = {
     sm: { sym: 28, font: 19, sub: 8, gap: 1, subTracking: "0.16em" },
     md: { sym: 38, font: 26, sub: 9, gap: 2, subTracking: "0.18em" },
@@ -387,22 +392,22 @@ function PhotoFrame({
 function TopBar() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-50 border-b border-black/5 bg-white/95 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
-      <div className="mx-auto flex h-[60px] max-w-6xl items-center justify-between px-4 md:h-[72px] md:px-6">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#060E1C]/95 backdrop-blur-md shadow-[0_2px_16px_rgba(0,0,0,0.2)]">
+      <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-4 md:h-[92px] md:px-6">
         <Link to="/" className="flex items-center">
-          <LogoOficial size="sm" variant="dark" />
+          <LogoOficial size="md" variant="light" />
         </Link>
 
         <nav className="hidden items-center gap-7 lg:flex">
           {navLinks.map((x) => (
-            <a key={x.href} href={x.href} className="text-[15px] font-medium text-[#020A17]/75 transition hover:text-[#065F46]">
+            <a key={x.href} href={x.href} className="text-[16.5px] font-semibold text-white transition hover:text-[#34D399]">
               {x.l}
             </a>
           ))}
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button asChild className="hidden rounded-md bg-[#065F46] px-5 text-white hover:bg-[#064E3B] sm:inline-flex">
+          <Button asChild className="hidden rounded-md bg-[#10B981] px-5 text-white hover:bg-[#059669] sm:inline-flex">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
               Diagnóstico gratuito
               <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -410,7 +415,7 @@ function TopBar() {
           </Button>
           <button
             onClick={() => setOpen((v) => !v)}
-            className="grid h-10 w-10 place-items-center rounded-md text-[#020A17]/80 hover:bg-black/5 lg:hidden"
+            className="grid h-10 w-10 place-items-center rounded-md text-white/80 hover:bg-white/10 lg:hidden"
             aria-label="Abrir menu"
           >
             <MenuIcon className="h-5 w-5" />
@@ -419,14 +424,14 @@ function TopBar() {
       </div>
 
       {open && (
-        <div className="border-t border-black/5 bg-white lg:hidden">
+        <div className="border-t border-white/10 bg-[#060E1C] lg:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {navLinks.map((x) => (
-              <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[15px] text-[#020A17]/80 hover:bg-black/5 hover:text-[#065F46]">
+              <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[16.5px] text-white hover:bg-white/10 hover:text-[#34D399]">
                 {x.l}
               </a>
             ))}
-            <a href={whatsappUrl} target="_blank" rel="noreferrer" className="mt-2 rounded-md bg-[#065F46] px-4 py-2.5 text-center text-[15px] font-semibold text-white">
+            <a href={whatsappUrl} target="_blank" rel="noreferrer" className="mt-2 rounded-md bg-[#10B981] px-4 py-2.5 text-center text-[15px] font-semibold text-white">
               Diagnóstico gratuito
             </a>
           </nav>
@@ -438,140 +443,129 @@ function TopBar() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-[#020A17] text-white">
-      {/* glows de gradiente (mesh) */}
-      <div className="pointer-events-none absolute -left-40 -top-40 h-[560px] w-[560px] rounded-full bg-[#065F46]/30 blur-[120px]" />
-      <div className="pointer-events-none absolute -top-24 right-0 h-[520px] w-[520px] rounded-full bg-[#0E9488]/25 blur-[130px]" />
-      <div className="pointer-events-none absolute -bottom-32 left-1/3 h-[460px] w-[460px] rounded-full bg-[#1351B4]/20 blur-[130px]" />
-      {/* linhas onduladas (efeito de fluxo) */}
-      <svg
-        className="pointer-events-none absolute inset-0 h-full w-full opacity-80"
-        preserveAspectRatio="none"
-        viewBox="0 0 1440 760"
-        fill="none"
-        aria-hidden="true"
-      >
-        {Array.from({ length: 22 }).map((_, i) => {
-          const y = 18 + i * 35;
-          const amp = 16 + 14 * Math.sin(i * 0.6);
-          return (
-            <path
-              key={i}
-              d={`M -40 ${y} C 240 ${y - amp}, 480 ${y + amp}, 720 ${y} C 960 ${y - amp}, 1200 ${y + amp}, 1480 ${y}`}
-              stroke="rgba(94,234,212,0.18)"
-              strokeWidth="1.4"
-            />
-          );
-        })}
-      </svg>
-
-      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 pb-14 pt-10 md:gap-14 md:px-6 md:pb-24 md:pt-28 md:grid-cols-[1.1fr_0.9fr]">
+    <section className="relative overflow-hidden bg-transparent text-[#020A17]">
+      <div className="relative mx-auto grid max-w-6xl items-stretch gap-10 px-5 pb-16 pt-8 md:gap-14 md:px-6 md:pb-24 md:pt-16 lg:grid-cols-[0.92fr_1.08fr]">
         <div>
-          <Badge variant="outline" className="rounded-full border-[#065F46]/40 bg-[#065F46]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#34D399]">
+          <Badge className="whitespace-nowrap rounded-full bg-[#1351B4] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.04em] text-white shadow-[0_8px_22px_-8px_rgba(19,81,180,0.65)] hover:bg-[#1351B4]">
             <Sparkles className="mr-1.5 h-3 w-3" />
             Consultoria & BPO financeiro · especialista na área médica
           </Badge>
 
           <h1 className="mt-5 text-[clamp(1.9rem,7vw,3.4rem)] font-black leading-[1.1] tracking-tight md:mt-6">
             Cuide dos seus pacientes.<br />
-            <span className="text-[#34D399]">A Tática cuida</span><br />
+            <span className="text-[#059669]">A Tática cuida</span><br />
             do seu financeiro.
           </h1>
 
-          <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-[#CFC8BA]">
-            Gestão financeira especializada para <strong className="text-white">clínicas e consultórios da área médica</strong>,
+          <p className="mt-5 max-w-xl text-[18px] leading-relaxed text-[#020A17]">
+            Gestão financeira especializada para <strong className="text-[#020A17]">clínicas e consultórios da área médica</strong>,
             feita por quem entende maquininha de procedimento parcelado, precificação e repasse de profissionais —
-            potencializada pelo nosso <strong className="text-[#065F46]">sistema próprio</strong>.
+            potencializada pelo nosso <strong className="text-[#059669]">sistema próprio</strong>.
           </p>
 
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
-            <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#065F46] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#064E3B] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
+            <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#10B981] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#059669] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
               <a href={whatsappUrl} target="_blank" rel="noreferrer">
                 Diagnóstico gratuito
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
-            <Button asChild variant="outline" size="lg" className="h-12 w-full rounded-md border-white/20 bg-transparent px-7 text-[15px] text-[#CFC8BA] hover:border-[#065F46] hover:bg-transparent hover:text-[#065F46] sm:w-auto">
+            <Button asChild variant="outline" size="lg" className="h-12 w-full rounded-md border-[#020A17]/20 bg-transparent px-7 text-[15px] text-[#020A17] hover:border-[#065F46] hover:bg-transparent hover:text-[#059669] sm:w-auto">
               <a href="#planos">Ver planos</a>
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          {heroCards.map(({ icon: Icon, titulo, txt, destaque }) => (
-            <div
-              key={titulo}
-              className={`rounded-2xl border p-6 transition ${
-                destaque
-                  ? "border-[#065F46]/60 bg-[#0B201B]"
-                  : "border-white/10 bg-[#0C1722]"
-              }`}
-            >
-              <div className={`grid h-11 w-11 place-items-center rounded-lg ${destaque ? "bg-[#065F46]/25 text-[#34D399]" : "bg-[#065F46]/20 text-[#7AB8F0]"}`}>
-                <Icon className="h-5 w-5" />
-              </div>
-              <p className="mt-4 text-[16px] font-bold tracking-tight text-white">{titulo}</p>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-[#A79E8E]">{txt}</p>
-            </div>
-          ))}
+        <div className="relative h-full min-h-[380px] w-full overflow-hidden rounded-2xl border border-black/8 bg-[#060E1C] shadow-[0_36px_80px_-32px_rgba(12,42,82,0.5)]">
+          <img src="/images/equipe/medica.png" alt="Médica usando o sistema da Tática" className="h-full w-full object-cover object-center" />
         </div>
       </div>
     </section>
   );
 }
 
+const heroSlides = [
+  { src: "/images/sistema/dashboard.png", label: "Dashboard financeiro em tempo real" },
+  { src: "/images/sistema/dre.png", label: "DRE gerencial automática" },
+  { src: "/images/sistema/fluxo-caixa.png", label: "Fluxo de caixa projetado" },
+];
+
+function HeroCarousel() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((p) => (p + 1) % heroSlides.length), 4000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-black/8 bg-[#060E1C] shadow-[0_36px_80px_-32px_rgba(12,42,82,0.5)]">
+      {heroSlides.map((s, idx) => (
+        <img
+          key={idx}
+          src={s.src}
+          alt={s.label}
+          loading="lazy"
+          className={`absolute inset-0 h-full w-full object-cover object-top transition-opacity duration-700 ${idx === i ? "opacity-100" : "opacity-0"}`}
+        />
+      ))}
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-[#06183A]/95 via-[#06183A]/40 to-transparent p-4 pt-14">
+        <p className="text-[13px] font-semibold text-white">{heroSlides[i].label}</p>
+        <div className="flex gap-2 pb-0.5">
+          {heroSlides.map((s, idx) => (
+            <button
+              key={idx}
+              type="button"
+              aria-label={`Ir para slide ${idx + 1}`}
+              onClick={() => setI(idx)}
+              className={`h-2 rounded-full transition-all ${idx === i ? "w-6 bg-[#059669]" : "w-2 bg-white/30 hover:bg-white/50"}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Sobre() {
   return (
     <section id="sobre" className="bg-transparent">
-      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
-        <div className="grid items-center gap-14 md:grid-cols-[1.1fr_0.9fr]">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Quem somos</p>
-            <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.4rem)] font-black leading-[1.2] tracking-tight text-[#020A17]">
-              Parceiro estratégico que <span className="text-[#065F46]">revela oportunidades</span> para decisões baseadas em dados
-            </h2>
-            <div className="mt-6 space-y-4 text-[16px] leading-relaxed text-[#666]">
-              <p>
-                Somos especialistas em gestão financeira para empresas que querem crescer com segurança.
-                Nossa missão é ser o parceiro que transforma números em decisões estratégicas.
-              </p>
-              <p>
-                Cuidamos da análise, planejamento e execução financeira da sua empresa, potencializados pelo nosso
-                {" "}<strong className="text-[#020A17]">sistema próprio</strong>, desenvolvido para as reais necessidades do seu negócio.
-              </p>
-              <p className="text-[#020A17]">
-                Mais que um financeiro terceirizado: <strong>impulsionamos seu crescimento estratégico e sustentável.</strong>
-              </p>
-            </div>
-            <Button asChild className="mt-8 h-11 rounded-md bg-[#065F46] px-6 text-[14.5px] font-bold uppercase tracking-wider text-white hover:bg-[#064E3B]">
-              <a href={whatsappUrl} target="_blank" rel="noreferrer">
-                Diagnóstico gratuito
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="aspect-[16/10] w-full overflow-hidden rounded-2xl bg-[#020A17]">
-              <PhotoFrame
-                src="/images/equipe-tatica.jpg"
-                alt="Equipe Tática"
-                rounded="rounded-2xl"
-                fallbackIcon={Users2}
-                fallbackLabel="Foto da equipe"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {stats.map((s) => (
-                <div key={s.l} className="rounded-2xl border border-black/5 border-t-[3px] border-t-[#065F46] bg-white p-6 text-center shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
-                  <p className={`font-black tracking-tight text-[#020A17] ${s.small ? "text-[17px] leading-tight" : "text-[32px]"}`}>{s.n}</p>
-                  <p className="mt-1 text-[13px] text-[#666]">{s.l}</p>
-                </div>
-              ))}
+      <div className="mx-auto max-w-7xl px-5 pt-8 pb-14 md:px-6 md:pt-10 md:pb-24">
+        <div className="rounded-3xl border border-white/10 bg-[#060E1C] p-10 shadow-[0_30px_70px_-28px_rgba(6,14,28,0.75)] md:p-16">
+          <p className="text-center text-[12px] font-extrabold uppercase tracking-[0.18em] text-[#34D399]">Nossas entregas</p>
+          <h3 className="mb-14 mt-2 text-center text-[clamp(1.6rem,3.2vw,2.2rem)] font-black tracking-tight text-white">
+            O que a gente <span className="text-[#34D399]">faz por você</span>
+          </h3>
+          <div className="hidden md:block">
+            <div className="relative">
+              <div className="absolute left-[7%] right-[7%] top-8 h-1 rounded-full bg-gradient-to-r from-[#3B82F6] via-[#34D399] to-[#3B82F6]" />
+              <div className="relative grid grid-cols-6 gap-3">
+                {entregas.map(({ icon: Icon, txt }, i) => (
+                  <div key={i} className="flex flex-col items-center px-1 text-center">
+                    <span className="grid h-16 w-16 place-items-center rounded-full border-[3px] border-[#34D399] bg-white text-[#0C2A52] shadow-[0_8px_22px_-6px_rgba(52,211,153,0.5)]">
+                      <Icon className="h-7 w-7" />
+                    </span>
+                    <span className="mt-4 text-[18px] font-semibold leading-snug text-white/90">{txt}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+
+          <div className="relative space-y-5 pl-9 md:hidden">
+            <span className="pointer-events-none absolute left-[15px] top-1 bottom-3 w-0.5 bg-gradient-to-b from-[#10B981] to-[#10B981]/15" />
+            {entregas.map(({ icon: Icon, txt }, i) => (
+              <div key={i} className="relative flex items-center">
+                <span className="absolute -left-9 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border-2 border-[#34D399] bg-white text-[#0C2A52]">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="text-[18px] font-semibold leading-snug text-white/90">{txt}</span>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-14 text-center text-[15.5px] text-white/65">
+            <span className="font-black text-white">+R$ 14 milhões</span> sob gestão · <span className="font-black text-white">100%</span> foco em área médica
+          </p>
         </div>
       </div>
     </section>
@@ -582,8 +576,7 @@ function Sistema() {
   const [zoom, setZoom] = useState<{ src: string; label: string } | null>(null);
   return (
     <>
-    <section id="sistema" className="relative overflow-hidden bg-[#020A17] text-white">
-      <div className="pointer-events-none absolute -right-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-[#065F46]/10 blur-3xl" />
+    <section id="sistema" className="relative overflow-hidden tatica-navy text-white">
       <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Nosso grande diferencial</p>
@@ -615,6 +608,13 @@ function Sistema() {
           </div>
         </div>
 
+        <div className="mx-auto mt-7 max-w-2xl rounded-xl border border-white/10 bg-white/[0.05] px-6 py-5 text-center">
+          <p className="text-[16px] leading-relaxed text-[#EBE6D8]">
+            São <strong className="text-[#34D399]">telas reais do sistema</strong>, incluído no seu plano — a mesma plataforma que a nossa equipe usa pra cuidar do financeiro da sua clínica, <strong className="text-[#34D399]">do lançamento ao resultado</strong>.
+          </p>
+          <p className="mt-2.5 text-[12px] font-bold uppercase tracking-[0.12em] text-[#9DBDF5]">Passe o mouse pra pausar · clique pra ampliar</p>
+        </div>
+
         <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {sistemaCards.map(({ icon: Icon, t, d, img }) => (
             <button
@@ -624,7 +624,7 @@ function Sistema() {
               className="group cursor-zoom-in rounded-2xl border border-white/10 bg-white/[0.04] p-7 text-left transition hover:-translate-y-1 hover:border-[#065F46]/50 hover:bg-white/[0.06]"
             >
               <div className="flex items-start justify-between">
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#065F46]/15 text-[#34D399]">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#10B981]/15 text-[#34D399]">
                   <Icon className="h-5 w-5" />
                 </div>
                 <span className="mt-1 text-[11px] font-semibold text-[#34D399] opacity-0 transition group-hover:opacity-100">ver tela →</span>
@@ -635,9 +635,9 @@ function Sistema() {
           ))}
         </div>
 
-        <div className="mt-12 rounded-2xl border border-[#065F46]/40 bg-[#065F46]/10 p-8 md:p-10">
+        <div className="mt-12 rounded-2xl border border-[#065F46]/40 bg-[#10B981]/10 p-8 md:p-10">
           <div className="grid items-start gap-7 md:grid-cols-[auto_1fr]">
-            <div className="grid h-16 w-16 place-items-center rounded-xl bg-[#065F46]/25 text-[#065F46]">
+            <div className="grid h-16 w-16 place-items-center rounded-xl bg-[#10B981]/25 text-[#059669]">
               <Cpu className="h-7 w-7" />
             </div>
             <div>
@@ -699,9 +699,9 @@ function GaleriaSistema() {
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">A plataforma</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
-            Veja o sistema <span className="text-[#065F46]">em funcionamento</span>
+            Veja o sistema <span className="text-[#059669]">em funcionamento</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#3F3F46]">
             Telas reais do Tática Gestão. A mesma plataforma usada pela nossa equipe de BPO
             estará disponível para a sua clínica em tempo real.
           </p>
@@ -709,7 +709,7 @@ function GaleriaSistema() {
 
         <div className="relative mx-auto mt-10 max-w-5xl md:mt-14">
           <div className="absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-br from-[#065F46]/20 via-transparent to-[#065F46]/15 blur-2xl" />
-          <div className="overflow-hidden rounded-2xl border border-black/8 bg-[#020A17] p-3 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.3)] md:p-4">
+          <div className="overflow-hidden rounded-2xl border border-black/8 bg-[#060E1C] p-3 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.3)] md:p-4">
             <img
               src="/images/sistema/dashboard.png"
               alt="Dashboard principal Tática Gestão"
@@ -734,8 +734,7 @@ function TudoNumSistema() {
     { icon: Building2, t: "Multi-empresa", d: "Várias unidades num login" },
   ];
   return (
-    <section className="relative overflow-hidden bg-[#020A17] text-white">
-      <div className="pointer-events-none absolute -right-32 top-1/3 h-[440px] w-[440px] rounded-full bg-[#065F46]/10 blur-3xl" />
+    <section className="relative overflow-hidden tatica-navy text-white">
       <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Por que é diferente</p>
@@ -759,7 +758,7 @@ function TudoNumSistema() {
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {modulos.map(({ icon: Icon, t, d }) => (
             <div key={t} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5 transition hover:-translate-y-0.5 hover:border-[#065F46]/40">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#065F46]/20 text-[#34D399]">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#10B981]/20 text-[#34D399]">
                 <Icon className="h-5 w-5" />
               </div>
               <div>
@@ -771,8 +770,8 @@ function TudoNumSistema() {
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div className="flex items-start gap-4 rounded-2xl border border-[#065F46]/30 bg-[#065F46]/[0.12] p-6">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#065F46] text-white"><Sparkles className="h-5 w-5" /></div>
+          <div className="flex items-start gap-4 rounded-2xl border border-[#065F46]/30 bg-[#10B981]/[0.12] p-6">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#10B981] text-white"><Sparkles className="h-5 w-5" /></div>
             <div>
               <p className="text-[16px] font-black text-white">Boleto lido por IA</p>
               <p className="mt-1 text-[14.5px] leading-relaxed text-[#CFC8BA]">Manda a foto do boleto e a IA abre o lançamento já preenchido. Zero digitação.</p>
@@ -887,13 +886,13 @@ function Overnight() {
             {consolidado.map(([d, dia, mes], i) => (
               <div key={i} className="flex items-center gap-1 border-b border-black/5 px-1.5 py-[3px] text-[5.5px] last:border-0">
                 <span className="flex-1 text-[#333]">{d}</span>
-                <span className="w-10 text-right text-[#666]">{dia}</span>
+                <span className="w-10 text-right text-[#3F3F46]">{dia}</span>
                 <span className="w-10 text-right font-semibold">{mes}</span>
               </div>
             ))}
           </div>
         </div>
-        <div className="pt-3 text-[5.5px] leading-relaxed text-[#555]">
+        <div className="pt-3 text-[5.5px] leading-relaxed text-[#3F3F46]">
           <p>Atenciosamente,</p>
           <p className="font-bold text-[#16365c]">Tática Gestão Empresarial Ltda.</p>
           <p className="text-[5px] text-[#999]">contato@taticagestao.com.br · Varginha — MG</p>
@@ -909,15 +908,15 @@ function Overnight() {
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Exclusivo Tática · Overnight</p>
             <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
-              Todo dia às 18h, seu financeiro chega no <span className="text-[#065F46]">seu WhatsApp</span>
+              Todo dia às 18h, seu financeiro chega no <span className="text-[#059669]">seu WhatsApp</span>
             </h2>
-            <p className="mt-4 max-w-xl text-[15.5px] leading-relaxed text-[#666]">
+            <p className="mt-4 max-w-xl text-[15.5px] leading-relaxed text-[#3F3F46]">
               O <strong className="text-[#020A17]">Overnight</strong> é um relatório automático que você recebe todo fim de tarde, direto no celular — sem precisar abrir o sistema. Você fecha a clínica já sabendo exatamente como foi o dia.
             </p>
             <ul className="mt-6 space-y-2.5">
               {bullets.map((b) => (
                 <li key={b} className="flex items-start gap-3 text-[15px] font-medium text-[#473f37]">
-                  <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[#065F46]/12 text-[#065F46]">
+                  <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[#10B981]/12 text-[#059669]">
                     <Check className="h-3 w-3" />
                   </span>
                   {b}
@@ -928,7 +927,7 @@ function Overnight() {
               href={whatsappUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-8 inline-flex h-12 items-center gap-2 rounded-md bg-[#065F46] px-7 text-[15px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#064E3B]"
+              className="mt-8 inline-flex h-12 items-center gap-2 rounded-md bg-[#10B981] px-7 text-[15px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#059669]"
             >
               Quero receber meu Overnight <ArrowRight className="h-4 w-4" />
             </a>
@@ -966,11 +965,7 @@ function Overnight() {
 
 function Servicos() {
   return (
-    <section id="servicos" className="relative overflow-hidden bg-gradient-to-br from-[#16407E] via-[#0C2C66] to-[#06183A]">
-      {/* glows: azul claro + verde + escuro */}
-      <div className="pointer-events-none absolute -left-32 -top-32 h-[520px] w-[520px] rounded-full bg-[#3B82F6]/22 blur-[120px]" />
-      <div className="pointer-events-none absolute -bottom-32 right-0 h-[480px] w-[480px] rounded-full bg-[#0E9488]/25 blur-[120px]" />
-      <div className="pointer-events-none absolute left-1/2 top-1/3 h-[420px] w-[420px] rounded-full bg-[#020A17]/35 blur-[130px]" />
+    <section id="servicos" className="relative overflow-hidden tatica-navy">
       {/* riscos claros (ondas) */}
       <svg
         className="pointer-events-none absolute inset-0 h-full w-full opacity-70"
@@ -1010,11 +1005,11 @@ function Servicos() {
               key={s.t}
               className="group rounded-2xl border border-black/5 border-l-4 border-l-transparent bg-white p-7 shadow-[0_2px_14px_rgba(0,0,0,0.04)] transition hover:-translate-y-1 hover:border-l-[#065F46] hover:shadow-[0_8px_30px_rgba(0,0,0,0.10)]"
             >
-              <div className="grid h-9 w-9 place-items-center rounded-md bg-[#065F46]/10 text-[11px] font-black text-[#1351B4]">
+              <div className="grid h-9 w-9 place-items-center rounded-md bg-[#10B981]/10 text-[11px] font-black text-[#1351B4]">
                 {String(i + 1).padStart(2, "0")}
               </div>
               <p className="mt-4 text-[14.5px] font-black uppercase tracking-wider text-[#020A17]">{s.t}</p>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-[#666]">{s.d}</p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-[#3F3F46]">{s.d}</p>
             </div>
           ))}
         </div>
@@ -1032,6 +1027,40 @@ function Servicos() {
   );
 }
 
+function FAQ() {
+  const faqs = [
+    { q: "Preciso trocar meu contador?", a: "Não. A gente trabalha junto com o seu contador — cuidamos da gestão financeira e do dia a dia da clínica; ele segue com a parte contábil e fiscal." },
+    { q: "Quanto tempo até estar funcionando?", a: "A implantação leva, em média, de 15 a 30 dias: configuramos o sistema, migramos os seus dados e treinamos a equipe." },
+    { q: "E se eu já tiver um sistema?", a: "Sem problema. No diagnóstico a gente avalia se vale migrar pro sistema Tática (que já vem incluído) ou integrar com o que você usa. Você decide." },
+    { q: "Preciso dar acesso a tudo do meu financeiro?", a: "Você controla o que compartilha. Tudo é formalizado em contrato com cláusula de sigilo e tratado conforme a LGPD." },
+    { q: "O sistema é cobrado à parte?", a: "Não. O sistema próprio está incluído em todos os planos, sem custo de software adicional." },
+    { q: "Como funciona o diagnóstico gratuito?", a: "Você conversa com a gente, analisamos onde sua clínica perde dinheiro hoje e te mostramos o número — sem compromisso e sob sigilo." },
+  ];
+  return (
+    <section id="faq" className="bg-transparent">
+      <div className="mx-auto max-w-3xl px-5 py-14 md:px-6 md:py-24">
+        <div className="text-center">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Dúvidas</p>
+          <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
+            Perguntas <span className="text-[#059669]">frequentes</span>
+          </h2>
+        </div>
+        <div className="mt-10 space-y-3">
+          {faqs.map((f) => (
+            <details key={f.q} className="group rounded-xl border border-black/8 bg-white px-5 py-4 shadow-[0_2px_14px_rgba(0,0,0,0.04)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[16px] font-bold text-[#020A17]">
+                {f.q}
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#10B981]/10 text-[18px] leading-none text-[#059669] transition group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-3 text-[14.5px] leading-relaxed text-[#3F3F46]">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Planos() {
   return (
     <section id="planos" className="bg-transparent">
@@ -1039,9 +1068,9 @@ function Planos() {
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Investimento</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
-            Pacotes por porte da sua <span className="text-[#065F46]">clínica</span>
+            Pacotes por porte da sua <span className="text-[#059669]">clínica</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#3F3F46]">
             Sistema próprio incluído em todos. O valor final é definido no diagnóstico gratuito, conforme o tamanho da sua clínica.
           </p>
         </div>
@@ -1052,13 +1081,13 @@ function Planos() {
               key={p.nome}
               className={`relative rounded-2xl border-2 transition ${
                 p.destaque
-                  ? "border-[#065F46] bg-[#020A17] text-white shadow-[0_20px_50px_-20px_rgba(34,165,92,0.45)] lg:-translate-y-3"
+                  ? "border-[#065F46] bg-[#060E1C] text-white shadow-[0_20px_50px_-20px_rgba(34,165,92,0.45)] lg:-translate-y-3"
                   : "border-black/10 bg-white text-[#020A17] shadow-[0_2px_16px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:border-[#065F46]/40 hover:shadow-[0_12px_40px_rgba(0,0,0,0.10)]"
               }`}
             >
               {p.destaque && (
                 <div className="absolute left-1/2 top-0 -translate-x-1/2 translate-y-[-50%]">
-                  <Badge className="rounded-full bg-[#065F46] px-4 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white hover:bg-[#065F46]">
+                  <Badge className="rounded-full bg-[#10B981] px-4 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white hover:bg-[#10B981]">
                     Mais popular
                   </Badge>
                 </div>
@@ -1068,13 +1097,13 @@ function Planos() {
                 <h3 className={`text-[24px] font-black tracking-tight ${p.destaque ? "text-white" : "text-[#020A17]"}`}>
                   {p.nome}
                 </h3>
-                <p className={`mt-1.5 text-[14px] leading-snug ${p.destaque ? "text-[#D6CFC1]" : "text-[#666]"}`}>{p.desc}</p>
+                <p className={`mt-1.5 text-[14px] leading-snug ${p.destaque ? "text-[#D6CFC1]" : "text-[#3F3F46]"}`}>{p.desc}</p>
 
                 <div className="mt-5">
                   <span className={`text-[13px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>a partir de</span>
                   <div className="flex items-end gap-1.5">
                     <span className={`text-[30px] font-black tracking-tight ${p.destaque ? "text-white" : "text-[#020A17]"}`}>R$ {p.preco}</span>
-                    <span className={`mb-1.5 text-[14px] ${p.destaque ? "text-[#D6CFC1]" : "text-[#666]"}`}>/mês</span>
+                    <span className={`mb-1.5 text-[14px] ${p.destaque ? "text-[#D6CFC1]" : "text-[#3F3F46]"}`}>/mês</span>
                   </div>
                   <span className={`text-[13px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>+ implantação R$ 4.500 (única)</span>
                 </div>
@@ -1084,7 +1113,7 @@ function Planos() {
                     <li
                       key={b}
                       className={`flex items-start gap-3 py-2.5 text-[14.5px] ${
-                        p.destaque ? "text-[#D6CFC1]" : "text-[#666]"
+                        p.destaque ? "text-[#D6CFC1]" : "text-[#3F3F46]"
                       } ${i < p.bullets.length - 1 ? (p.destaque ? "border-b border-white/8" : "border-b border-[#ECE3D3]") : ""}`}
                     >
                       <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${p.destaque ? "text-[#34D399]" : "text-[#1351B4]"}`} />
@@ -1097,8 +1126,8 @@ function Planos() {
                   asChild
                   className={`mt-8 w-full rounded-md py-6 text-[14.5px] font-bold uppercase tracking-wider ${
                     p.destaque
-                      ? "bg-[#065F46] text-white hover:bg-[#064E3B]"
-                      : "bg-[#065F46] text-white hover:bg-[#064E3B]"
+                      ? "bg-[#10B981] text-white hover:bg-[#059669]"
+                      : "bg-[#10B981] text-white hover:bg-[#059669]"
                   }`}
                 >
                   <a href={whatsappUrl} target="_blank" rel="noreferrer">
@@ -1110,6 +1139,10 @@ function Planos() {
             </Card>
           ))}
         </div>
+
+        <p className="mx-auto mt-8 max-w-2xl text-center text-[14px] leading-relaxed text-[#3F3F46]">
+          <strong className="text-[#020A17]">A implantação (taxa única)</strong> inclui configuração do sistema, migração dos seus dados e treinamento da equipe — e se paga já no 1º mês com a economia que a gente encontra.
+        </p>
       </div>
     </section>
   );
@@ -1122,9 +1155,9 @@ function Consultoria() {
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Solução completa</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
-            Consultoria Financeira <span className="text-[#065F46]">Personalizada</span>
+            Consultoria Financeira <span className="text-[#059669]">Personalizada</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#3F3F46]">
             A Tática oferece consultoria estratégica integrada ao nosso sistema para otimizar
             seus processos e impulsionar o crescimento.
           </p>
@@ -1136,19 +1169,19 @@ function Consultoria() {
               key={t}
               className="flex gap-5 rounded-2xl border border-black/5 border-l-4 border-l-[#065F46] bg-white p-7 shadow-[0_2px_16px_rgba(0,0,0,0.05)] transition hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.10)]"
             >
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#065F46]/10 text-[#1351B4]">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#10B981]/10 text-[#1351B4]">
                 <Icon className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-[16.5px] font-black tracking-tight text-[#020A17]">{t}</p>
-                <p className="mt-1.5 text-[14.5px] leading-relaxed text-[#666]">{d}</p>
+                <p className="mt-1.5 text-[14.5px] leading-relaxed text-[#3F3F46]">{d}</p>
               </div>
             </div>
           ))}
         </div>
 
         <div className="mt-14 text-center">
-          <Button asChild size="lg" className="h-12 rounded-md bg-[#065F46] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#064E3B]">
+          <Button asChild size="lg" className="h-12 rounded-md bg-[#10B981] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#059669]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
               Diagnóstico gratuito
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -1162,8 +1195,7 @@ function Consultoria() {
 
 function Fundadores() {
   return (
-    <section className="relative overflow-hidden bg-[#020A17] text-white">
-      <div className="pointer-events-none absolute -left-32 top-1/2 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-[#065F46]/15 blur-3xl" />
+    <section className="relative overflow-hidden tatica-navy text-white">
       <div className="relative mx-auto max-w-5xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Quem está por trás</p>
@@ -1214,9 +1246,9 @@ function Seguranca() {
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Confiança e segurança</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
-            Seu financeiro em <span className="text-[#065F46]">mãos seguras</span>
+            Seu financeiro em <span className="text-[#059669]">mãos seguras</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#3F3F46]">
             Cuidamos de dado sensível como se fosse o nosso. Tudo formalizado, criptografado e sob sigilo.
           </p>
         </div>
@@ -1224,19 +1256,19 @@ function Seguranca() {
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {itens.map(({ icon: Icon, t, d }) => (
             <div key={t} className="rounded-2xl border border-black/5 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#065F46]/10 text-[#065F46]">
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#10B981]/10 text-[#059669]">
                 <Icon className="h-5 w-5" />
               </div>
               <p className="mt-5 text-[16px] font-black tracking-tight text-[#020A17]">{t}</p>
-              <p className="mt-2 text-[14px] leading-relaxed text-[#666]">{d}</p>
+              <p className="mt-2 text-[14px] leading-relaxed text-[#3F3F46]">{d}</p>
             </div>
           ))}
         </div>
 
-        <div className="mt-8 flex items-center justify-center gap-3 rounded-2xl border border-[#065F46]/20 bg-[#065F46]/[0.06] px-6 py-5 text-center">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-[#065F46]" />
+        <div className="mt-8 flex items-center justify-center gap-3 rounded-2xl border border-[#065F46]/20 bg-[#10B981]/[0.06] px-6 py-5 text-center">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-[#059669]" />
           <p className="text-[15px] font-semibold text-[#020A17]">
-            O diagnóstico é <span className="text-[#065F46]">100% gratuito, sem compromisso e sob sigilo.</span>
+            O diagnóstico é <span className="text-[#059669]">100% gratuito, sem compromisso e sob sigilo.</span>
           </p>
         </div>
       </div>
@@ -1246,17 +1278,16 @@ function Seguranca() {
 
 function CTAFinal() {
   return (
-    <section id="contato" className="bg-[#020A17] text-center text-white">
+    <section id="contato" className="tatica-navy text-center text-white">
       <div className="mx-auto max-w-3xl px-5 py-14 md:px-6 md:py-24">
         <h2 className="text-[clamp(2rem,4.5vw,2.8rem)] font-black leading-[1.12] tracking-tight">
-          Estamos prontos para ser seu <span className="text-[#34D399]">parceiro estratégico</span>
+          Descubra quanto sua clínica <span className="text-[#34D399]">está perdendo</span>
         </h2>
-        <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-[#A79E8E]">
-          Transforme a gestão financeira da sua empresa com especialistas dedicados e tecnologia exclusiva.
-          Dê o próximo passo agora.
+        <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-[#CFC8BA]">
+          Agende seu diagnóstico gratuito: em cerca de 30 minutos, a gente te mostra onde está vazando dinheiro — maquininha, imposto, precificação e repasses.
         </p>
 
-        <Button asChild size="lg" className="mt-9 h-14 rounded-md bg-[#065F46] px-10 text-[16px] font-bold uppercase tracking-wider text-white hover:-translate-y-0.5 hover:bg-[#064E3B] hover:shadow-[0_12px_30px_rgba(44,123,196,0.4)]">
+        <Button asChild size="lg" className="mt-9 h-14 rounded-md bg-[#10B981] px-10 text-[16px] font-bold uppercase tracking-wider text-white hover:-translate-y-0.5 hover:bg-[#059669] hover:shadow-[0_12px_30px_rgba(44,123,196,0.4)]">
           <a href={whatsappUrl} target="_blank" rel="noreferrer">
             Diagnóstico gratuito
             <ArrowRight className="ml-2 h-4 w-4" />
@@ -1270,7 +1301,7 @@ function CTAFinal() {
 
 function Footer() {
   return (
-    <footer className="bg-[#020A17] text-[#8A8174]">
+    <footer className="tatica-navy text-[#8A8174]">
       <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="grid gap-10 md:grid-cols-[2fr_1fr_1fr_1.4fr]">
           <div>
@@ -1286,21 +1317,21 @@ function Footer() {
             <ul className="mt-4 space-y-2.5 text-[14px]">
               {navLinks.map((l) => (
                 <li key={l.href}>
-                  <a href={l.href} className="hover:text-[#065F46]">{l.l}</a>
+                  <a href={l.href} className="hover:text-[#059669]">{l.l}</a>
                 </li>
               ))}
-              <li><Link to="/auth" className="hover:text-[#065F46]">Acessar sistema</Link></li>
-              <li><Link to="/privacidade" className="hover:text-[#065F46]">Política de Privacidade</Link></li>
+              <li><Link to="/auth" className="hover:text-[#059669]">Acessar sistema</Link></li>
+              <li><Link to="/privacidade" className="hover:text-[#059669]">Política de Privacidade</Link></li>
             </ul>
           </div>
 
           <div>
             <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">Redes sociais</p>
             <ul className="mt-4 space-y-2.5 text-[14px]">
-              <li><a href="#" className="hover:text-[#065F46]">Instagram</a></li>
-              <li><a href="#" className="hover:text-[#065F46]">LinkedIn</a></li>
-              <li><a href="#" className="hover:text-[#065F46]">Facebook</a></li>
-              <li><a href="#" className="hover:text-[#065F46]">YouTube</a></li>
+              <li><a href="#" className="hover:text-[#059669]">Instagram</a></li>
+              <li><a href="#" className="hover:text-[#059669]">LinkedIn</a></li>
+              <li><a href="#" className="hover:text-[#059669]">Facebook</a></li>
+              <li><a href="#" className="hover:text-[#059669]">YouTube</a></li>
             </ul>
           </div>
 
@@ -1325,16 +1356,16 @@ function Footer() {
             <p className="mt-1 text-[11.5px] text-[#8A8174]/80">CNPJ 57.202.144/0001-48 · Av. Aristides Ribeiro, 58 — Jardim Ribeiro, Varginha/MG · CEP 37068-120</p>
           </div>
           <div className="flex gap-2.5">
-            <a href="#" aria-label="LinkedIn" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#065F46] hover:text-white">
+            <a href="#" aria-label="LinkedIn" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#10B981] hover:text-white">
               <Linkedin className="h-4 w-4" />
             </a>
-            <a href="#" aria-label="Instagram" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#065F46] hover:text-white">
+            <a href="#" aria-label="Instagram" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#10B981] hover:text-white">
               <Instagram className="h-4 w-4" />
             </a>
-            <a href="#" aria-label="Facebook" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#065F46] hover:text-white">
+            <a href="#" aria-label="Facebook" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#10B981] hover:text-white">
               <Facebook className="h-4 w-4" />
             </a>
-            <a href="#" aria-label="YouTube" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#065F46] hover:text-white">
+            <a href="#" aria-label="YouTube" className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 hover:bg-[#10B981] hover:text-white">
               <Youtube className="h-4 w-4" />
             </a>
           </div>
