@@ -252,7 +252,7 @@ export default function VendaSistema() {
     style.textContent =
       ".tatica-lp{font-family:'Nunito Sans',system-ui,sans-serif;background-color:#F5F0E6;background-image:linear-gradient(to right,rgba(2,10,23,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(2,10,23,.06) 1px,transparent 1px);background-size:78px 78px;background-repeat:repeat}" +
       ".tatica-lp h1,.tatica-lp h2,.tatica-lp h3{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:-.01em}" +
-      ".tatica-marquee{animation:tatica-mq 90s linear infinite}.tatica-marquee:hover{animation-play-state:paused}@keyframes tatica-mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}.tatica-marquee-mask{-webkit-mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent)}" +
+      ".tatica-marquee{animation:tatica-mq 90s linear infinite}.tatica-marquee:hover{animation-play-state:paused}@keyframes tatica-mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}.tatica-marquee-mask{-webkit-mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent)}.tatica-vscroll{animation:tatica-vs 15s ease-in-out infinite}.tatica-vscroll:hover{animation-play-state:paused}@keyframes tatica-vs{0%,16%{transform:translateY(0)}50%,66%{transform:translateY(-464px)}100%{transform:translateY(0)}}" +
       ".tatica-lp::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.55;mix-blend-mode:soft-light;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='gr'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23gr)' opacity='0.5'/%3E%3C/svg%3E\")}";
     document.head.appendChild(style);
     return () => {
@@ -438,9 +438,32 @@ function TopBar() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-[#020A17] via-[#0B1F33] to-[#020A17] text-white">
-      <div className="pointer-events-none absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full bg-[#065F46]/15 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -left-32 h-[400px] w-[400px] rounded-full bg-[#065F46]/10 blur-3xl" />
+    <section className="relative overflow-hidden bg-[#020A17] text-white">
+      {/* glows de gradiente (mesh) */}
+      <div className="pointer-events-none absolute -left-40 -top-40 h-[560px] w-[560px] rounded-full bg-[#065F46]/30 blur-[120px]" />
+      <div className="pointer-events-none absolute -top-24 right-0 h-[520px] w-[520px] rounded-full bg-[#0E9488]/25 blur-[130px]" />
+      <div className="pointer-events-none absolute -bottom-32 left-1/3 h-[460px] w-[460px] rounded-full bg-[#1351B4]/20 blur-[130px]" />
+      {/* linhas onduladas (efeito de fluxo) */}
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-80"
+        preserveAspectRatio="none"
+        viewBox="0 0 1440 760"
+        fill="none"
+        aria-hidden="true"
+      >
+        {Array.from({ length: 22 }).map((_, i) => {
+          const y = 18 + i * 35;
+          const amp = 16 + 14 * Math.sin(i * 0.6);
+          return (
+            <path
+              key={i}
+              d={`M -40 ${y} C 240 ${y - amp}, 480 ${y + amp}, 720 ${y} C 960 ${y - amp}, 1200 ${y + amp}, 1480 ${y}`}
+              stroke="rgba(94,234,212,0.18)"
+              strokeWidth="1.4"
+            />
+          );
+        })}
+      </svg>
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 pb-14 pt-10 md:gap-14 md:px-6 md:pb-24 md:pt-28 md:grid-cols-[1.1fr_0.9fr]">
         <div>
@@ -461,14 +484,6 @@ function Hero() {
             potencializada pelo nosso <strong className="text-[#065F46]">sistema próprio</strong>.
           </p>
 
-          <ul className="mt-7 space-y-2">
-            {heroBullets.map((b) => (
-              <li key={b} className="flex items-start gap-3 text-[15.5px] text-[#D6CFC1]">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#34D399]" />
-                {b}
-              </li>
-            ))}
-          </ul>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
             <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#065F46] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#064E3B] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
@@ -489,8 +504,8 @@ function Hero() {
               key={titulo}
               className={`rounded-2xl border p-6 transition ${
                 destaque
-                  ? "border-[#065F46] bg-[#065F46]/10"
-                  : "border-white/10 bg-white/[0.04]"
+                  ? "border-[#065F46]/60 bg-[#0B201B]"
+                  : "border-white/10 bg-[#0C1722]"
               }`}
             >
               <div className={`grid h-11 w-11 place-items-center rounded-lg ${destaque ? "bg-[#065F46]/25 text-[#34D399]" : "bg-[#065F46]/20 text-[#7AB8F0]"}`}>
@@ -783,11 +798,110 @@ function Overnight() {
     "Consolidado do dia e do mês, num PDF",
     "Chega sozinho, no horário que você escolher",
   ];
-  const linhas: [string, string][] = [
-    ["Vendas do dia", "R$ 2.340"],
-    ["Contas a pagar", "R$ 1.890"],
-    ["Contas a receber", "R$ 3.120"],
+  const vendas: [string, string, string][] = [
+    ["Procedimento capilar", "PIX", "R$ 1.200"],
+    ["Consulta + sessão", "Cartão", "R$ 680"],
+    ["Sessão de laser", "Cartão", "R$ 520"],
+    ["Aplicação", "PIX", "R$ 340"],
   ];
+  const aPagar: [string, string, string][] = [
+    ["Fornecedor de insumos", "08/06", "R$ 1.890"],
+  ];
+  const aReceber: [string, string, string][] = [
+    ["Repasse de cartão", "08/06", "R$ 920"],
+    ["Recebível particular", "08/06", "R$ 1.200"],
+    ["Recebível particular", "08/06", "R$ 680"],
+    ["Convênio", "08/06", "R$ 320"],
+  ];
+  const pagina = (
+    <div className="h-[456px] overflow-hidden bg-white text-[#222] shadow-sm">
+      <div className="bg-[#16365c] px-2.5 py-1.5 text-white">
+        <p className="text-[10px] font-black leading-none tracking-wide">OVERNIGHT</p>
+        <p className="mt-0.5 text-[5.5px] text-white/70">Atualização Financeira Diária · Clínica Exemplo · 08/06/2026</p>
+      </div>
+      <div className="space-y-1.5 p-2">
+        <div>
+          <p className="text-[6px] font-bold text-[#16365c]">1. RESUMO EXECUTIVO — MÊS</p>
+          <div className="mt-1 grid grid-cols-3 gap-1">
+            <div className="rounded bg-[#f4f1ea] p-1 text-center"><p className="text-[5px] text-[#888]">Faturamento</p><p className="text-[7px] font-black text-[#0a7a52]">R$ 82,4k</p></div>
+            <div className="rounded bg-[#f4f1ea] p-1 text-center"><p className="text-[5px] text-[#888]">Despesas</p><p className="text-[7px] font-black text-[#b4292b]">R$ 49,1k</p></div>
+            <div className="rounded bg-[#f4f1ea] p-1 text-center"><p className="text-[5px] text-[#888]">Resultado</p><p className="text-[7px] font-black text-[#0a7a52]">+33,3k</p></div>
+          </div>
+        </div>
+        <div>
+          <p className="text-[6px] font-bold text-[#16365c]">2. VENDAS DO DIA</p>
+          <div className="mt-0.5 overflow-hidden rounded border border-black/10">
+            {vendas.map(([p, f, v], i) => (
+              <div key={i} className="flex items-center gap-1 border-b border-black/5 px-1.5 py-[3px] text-[5.5px] last:border-0">
+                <span className="flex-1 truncate text-[#333]">{p}</span>
+                <span className="text-[#999]">{f}</span>
+                <span className="w-10 text-right font-semibold">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-[6px] font-bold text-[#16365c]">3. CONTAS A PAGAR</p>
+          <div className="mt-0.5 overflow-hidden rounded border border-black/10">
+            {aPagar.map(([d, dt, v], i) => (
+              <div key={i} className="flex items-center gap-1 px-1.5 py-[3px] text-[5.5px]">
+                <span className="flex-1 truncate text-[#333]">{d}</span>
+                <span className="text-[#999]">{dt}</span>
+                <span className="w-10 text-right font-semibold">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-[6px] font-bold text-[#16365c]">4. CONTAS A RECEBER</p>
+          <div className="mt-0.5 overflow-hidden rounded border border-black/10">
+            {aReceber.map(([d, dt, v], i) => (
+              <div key={i} className="flex items-center gap-1 border-b border-black/5 px-1.5 py-[3px] text-[5.5px] last:border-0">
+                <span className="flex-1 truncate text-[#333]">{d}</span>
+                <span className="text-[#999]">{dt}</span>
+                <span className="w-10 text-right font-semibold">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="pt-0.5 text-center text-[5px] text-[#999]">Tática Gestão · documento confidencial · pág. 1 de 2</p>
+      </div>
+    </div>
+  );
+  const consolidado: [string, string, string][] = [
+    ["(+) Entradas", "R$ 2.580", "R$ 71.200"],
+    ["(-) Saídas", "R$ 1.890", "R$ 49.100"],
+    ["(=) Resultado", "+R$ 690", "+R$ 22.100"],
+  ];
+  const pagina2 = (
+    <div className="h-[456px] overflow-hidden bg-white text-[#222] shadow-sm">
+      <div className="space-y-2 p-2">
+        <div>
+          <p className="text-[6px] font-bold text-[#16365c]">5. CONSOLIDADO — DIA E MÊS</p>
+          <div className="mt-0.5 overflow-hidden rounded border border-black/10">
+            <div className="flex items-center gap-1 bg-[#16365c] px-1.5 py-[3px] text-[5px] font-bold text-white">
+              <span className="flex-1">Demonstrativo</span>
+              <span className="w-10 text-right">Dia</span>
+              <span className="w-10 text-right">Mês</span>
+            </div>
+            {consolidado.map(([d, dia, mes], i) => (
+              <div key={i} className="flex items-center gap-1 border-b border-black/5 px-1.5 py-[3px] text-[5.5px] last:border-0">
+                <span className="flex-1 text-[#333]">{d}</span>
+                <span className="w-10 text-right text-[#666]">{dia}</span>
+                <span className="w-10 text-right font-semibold">{mes}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="pt-3 text-[5.5px] leading-relaxed text-[#555]">
+          <p>Atenciosamente,</p>
+          <p className="font-bold text-[#16365c]">Tática Gestão Empresarial Ltda.</p>
+          <p className="text-[5px] text-[#999]">contato@taticagestao.com.br · Varginha — MG</p>
+        </div>
+        <p className="pt-0.5 text-center text-[5px] text-[#999]">Tática Gestão · documento confidencial · pág. 2 de 2</p>
+      </div>
+    </div>
+  );
   return (
     <section className="bg-transparent">
       <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
@@ -820,51 +934,27 @@ function Overnight() {
             </a>
           </div>
 
-          {/* mockup de celular */}
-          <div className="relative mx-auto w-[270px]">
-            <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-br from-[#065F46]/15 to-[#1351B4]/15 blur-2xl" />
-            <div className="rounded-[2.4rem] border-[10px] border-[#020A17] bg-[#020A17] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.5)]">
-              <div className="overflow-hidden rounded-[1.7rem] bg-[#ECE9E1]">
-                <div className="flex items-center gap-2 bg-[#075E54] px-3 py-2.5 text-white">
-                  <div className="grid h-7 w-7 place-items-center rounded-full bg-white/15">
-                    <MessageSquare className="h-4 w-4" />
+          {/* quadro branco de fundo + iPhone com a 1ª página rolando */}
+          <div className="mx-auto w-fit rounded-[2.5rem] bg-white p-5 shadow-[0_30px_70px_-30px_rgba(0,0,0,0.3)] ring-1 ring-black/5 md:p-7">
+            <div className="relative w-[248px] rounded-[2.8rem] border-[10px] border-[#0b0b0d] bg-[#0b0b0d] shadow-2xl">
+              <div className="absolute left-1/2 top-2 z-20 h-[18px] w-[74px] -translate-x-1/2 rounded-full bg-[#0b0b0d]" />
+              <div className="relative h-[520px] overflow-hidden rounded-[2rem] bg-white">
+                <div className="relative z-10 flex items-center gap-2 bg-[#075E54] px-2.5 pb-2 pt-7 text-white">
+                  <div className="grid h-6 w-6 place-items-center rounded-full bg-white/15">
+                    <MessageSquare className="h-3.5 w-3.5" />
                   </div>
                   <div className="leading-tight">
-                    <p className="text-[11px] font-bold">Tática Gestão</p>
-                    <p className="text-[9px] text-white/70">hoje, 18:00</p>
+                    <p className="text-[10px] font-bold">Tática Gestão</p>
+                    <p className="text-[8px] text-white/70">hoje, 18:00 · PDF</p>
                   </div>
                 </div>
-                <div className="p-3">
-                  <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-                    <div className="bg-[#020A17] px-3 py-2.5 text-white">
-                      <p className="text-[12px] font-black tracking-wide">OVERNIGHT</p>
-                      <p className="text-[8px] text-white/55">Atualização financeira diária</p>
-                    </div>
-                    <div className="space-y-1.5 p-2.5">
-                      <div className="grid grid-cols-3 gap-1.5">
-                        <div className="rounded bg-[#F5F0E6] p-1.5 text-center">
-                          <p className="text-[7px] uppercase tracking-wide text-[#8A8174]">Faturou</p>
-                          <p className="text-[10px] font-black text-[#065F46]">R$ 82,4k</p>
-                        </div>
-                        <div className="rounded bg-[#F5F0E6] p-1.5 text-center">
-                          <p className="text-[7px] uppercase tracking-wide text-[#8A8174]">Gastou</p>
-                          <p className="text-[10px] font-black text-[#b4292b]">R$ 49,1k</p>
-                        </div>
-                        <div className="rounded bg-[#F5F0E6] p-1.5 text-center">
-                          <p className="text-[7px] uppercase tracking-wide text-[#8A8174]">Sobrou</p>
-                          <p className="text-[10px] font-black text-[#065F46]">+33,3k</p>
-                        </div>
-                      </div>
-                      {linhas.map(([k, v]) => (
-                        <div key={k} className="flex items-center justify-between rounded bg-[#F7F4ED] px-2 py-1 text-[8.5px]">
-                          <span className="text-[#473f37]">{k}</span>
-                          <span className="font-bold text-[#020A17]">{v}</span>
-                        </div>
-                      ))}
-                    </div>
+                <div className="h-[468px] overflow-hidden bg-[#e9e7e1] p-1.5">
+                  <div className="tatica-vscroll space-y-2">
+                    {pagina}
+                    {pagina2}
                   </div>
-                  <p className="mt-2 text-center text-[8px] text-[#8A8174]">PDF recebido · 18:00</p>
                 </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-7 bg-gradient-to-t from-[#e9e7e1] to-transparent" />
               </div>
             </div>
           </div>
@@ -876,14 +966,39 @@ function Overnight() {
 
 function Servicos() {
   return (
-    <section id="servicos" className="bg-transparent">
-      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+    <section id="servicos" className="relative overflow-hidden bg-gradient-to-br from-[#16407E] via-[#0C2C66] to-[#06183A]">
+      {/* glows: azul claro + verde + escuro */}
+      <div className="pointer-events-none absolute -left-32 -top-32 h-[520px] w-[520px] rounded-full bg-[#3B82F6]/22 blur-[120px]" />
+      <div className="pointer-events-none absolute -bottom-32 right-0 h-[480px] w-[480px] rounded-full bg-[#0E9488]/25 blur-[120px]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-[420px] w-[420px] rounded-full bg-[#020A17]/35 blur-[130px]" />
+      {/* riscos claros (ondas) */}
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-70"
+        preserveAspectRatio="none"
+        viewBox="0 0 1440 760"
+        fill="none"
+        aria-hidden="true"
+      >
+        {Array.from({ length: 22 }).map((_, i) => {
+          const y = 18 + i * 35;
+          const amp = 16 + 14 * Math.sin(i * 0.6);
+          return (
+            <path
+              key={i}
+              d={`M -40 ${y} C 240 ${y - amp}, 480 ${y + amp}, 720 ${y} C 960 ${y - amp}, 1200 ${y + amp}, 1480 ${y}`}
+              stroke="rgba(255,255,255,0.13)"
+              strokeWidth="1.2"
+            />
+          );
+        })}
+      </svg>
+      <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">O que entregamos</p>
-          <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
-            Conheça nossos <span className="text-[#065F46]">serviços</span>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#9DBDF5]">O que entregamos</p>
+          <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-white">
+            Conheça nossos <span className="text-[#34D399]">serviços</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#666]">
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-white/75">
             Soluções completas de gestão financeira, do operacional ao estratégico,
             integradas ao nosso sistema próprio.
           </p>
@@ -905,7 +1020,7 @@ function Servicos() {
         </div>
 
         <div className="mt-12 text-center">
-          <Button asChild size="lg" className="h-12 rounded-md bg-[#065F46] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#064E3B]">
+          <Button asChild size="lg" className="h-12 rounded-md bg-white px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-[#1351B4] hover:bg-white/90">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
               Diagnóstico gratuito
               <ArrowRight className="ml-2 h-4 w-4" />
