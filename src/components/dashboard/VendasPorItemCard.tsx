@@ -177,11 +177,11 @@ export default function VendasPorItemCard({ companyId, periodStart, periodEnd }:
 
                                 {/* Valor + variação (uma linha) */}
                                 <div style={{ textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: C.text1 }}>{fmtR$(it.atual)}</span>{" "}
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: C.text1 }}>{fmtR$(it.atual)}</span>{" "}
                                     {delta === null ? (
-                                        <span style={{ fontSize: 10.5, fontWeight: 600, color: C.green }}>novo</span>
+                                        <span style={{ fontSize: 9.5, fontWeight: 600, color: C.green }}>novo</span>
                                     ) : (
-                                        <span style={{ fontSize: 10.5, fontWeight: 600, color: subiu ? C.green : C.red }}>
+                                        <span style={{ fontSize: 9.5, fontWeight: 600, color: subiu ? C.green : C.red }}>
                                             {delta > 0 ? "+" : ""}{delta.toFixed(0)}%
                                         </span>
                                     )}
