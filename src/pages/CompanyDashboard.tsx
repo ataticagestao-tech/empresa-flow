@@ -146,12 +146,12 @@ export default function CompanyDashboard() {
         }
     }, [selectedCompany?.id, companyId, navigate]);
 
-    // Padrão: mês anterior (último mês fechado), não o mês corrente em andamento.
+    // Padrão da entrada no sistema: mês vigente (mês corrente em andamento).
     const [period, setPeriod] = useState<Period>("mes_especifico");
     const [customStart, setCustomStart] = useState("");
     const [customEnd, setCustomEnd] = useState("");
-    const [specificMonth, setSpecificMonth] = useState(() => subMonths(new Date(), 1).getMonth());
-    const [specificYear, setSpecificYear] = useState(() => subMonths(new Date(), 1).getFullYear());
+    const [specificMonth, setSpecificMonth] = useState(() => new Date().getMonth());
+    const [specificYear, setSpecificYear] = useState(() => new Date().getFullYear());
     const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
     const [regime, setRegime] = useState<"caixa" | "competencia">("competencia");
     const [productsPage, setProductsPage] = useState(0);
