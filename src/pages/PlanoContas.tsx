@@ -6,10 +6,24 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PLANO_PATRIMONIAL, GRUPO_LABELS, type ContaModelo } from "@/data/planoContasPatrimonial";
+import { PLANO_RESULTADO_CLINICA } from "@/data/planoContasClinica";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { BookOpen, Plus, X, Check, ChevronRight, ChevronDown, Download } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
-import { ClassificacaoCustos } from "@/pages/ClassificacaoCustos";
+import { classificaCustoDespesa } from "@/modules/finance/domain/custoFixoVariavel";
+
+// ─── Segmentos de modelo padrão ──────────────────────────────────────
+// Genérico = só patrimonial (1–5, padrão atual). Saúde/Clínica = plano de
+// resultado da clínica (1–4, já classificado) + patrimonial deslocado p/ 5–9
+// (evita colisão de código com o resultado).
+const shiftTopSegment = (code: string, by: number): string => {
+  const seg = code.split(".");
+  seg[0] = String(Number(seg[0]) + by);
+  return seg.join(".");
+};
+const PATRIMONIAL_5_9: ContaModelo[] = PLANO_PATRIMONIAL.map((c) => ({ ...c, code: shiftTopSegment(c.code, 4) }));
+const MODELO_CLINICA: ContaModelo[] = [...PLANO_RESULTADO_CLINICA, ...PATRIMONIAL_5_9];
+type ModeloSegmento = "generico" | "clinica";
 
 interface Conta {
   id: string; code: string; name: string; level: number;
@@ -17,6 +31,7 @@ interface Conta {
   is_analytical: boolean; is_synthetic: boolean;
   show_in_dre: boolean; dre_group: string | null;
   dre_order: number | null; parent_id: string | null; status: string;
+  expense_nature: string | null;
 }
 
 interface TreeNode extends Conta {
@@ -76,6 +91,11 @@ export default function PlanoContas() {
   const [modeloExpandidos, setModeloExpandidos] = useState<Set<string>>(new Set());
   const [modeloSearch, setModeloSearch] = useState("");
   const [addingCodes, setAddingCodes] = useState<Set<string>>(new Set());
+  const [modeloSegmento, setModeloSegmento] = useState<ModeloSegmento>("generico");
+  // Lista de contas do modelo ativo conforme o segmento escolhido
+  const modeloAtivo = modeloSegmento === "clinica" ? MODELO_CLINICA : PLANO_PATRIMONIAL;
+  // Edição inline da classificação Fixo/Variável/Custo na própria tabela
+  const [savingNatId, setSavingNatId] = useState<string | null>(null);
 
   const { data: contas = [], isLoading } = useQuery({
     queryKey: ["chart_of_accounts", selectedCompany?.id],
@@ -83,7 +103,7 @@ export default function PlanoContas() {
       if (!selectedCompany?.id) return [];
       const { data, error } = await (activeClient as any)
         .from("chart_of_accounts")
-        .select("id, code, name, level, account_type, account_nature, is_analytical, is_synthetic, show_in_dre, dre_group, dre_order, parent_id, status")
+        .select("id, code, name, level, account_type, account_nature, is_analytical, is_synthetic, show_in_dre, dre_group, dre_order, parent_id, status, expense_nature")
         .eq("company_id", selectedCompany.id)
         .eq("status", "active")
         .order("code");
@@ -99,6 +119,55 @@ export default function PlanoContas() {
 
   // Set of existing codes for checking duplicates in the modelo panel
   const existingCodes = useMemo(() => new Set(contas.map(c => c.code)), [contas]);
+
+  // ─── Classificação Fixo/Variável/Custo inline (só contas analíticas de custo/despesa) ───
+  const podeClassificar = (c: Conta) =>
+    c.is_analytical && (c.account_type === "cost" || c.account_type === "expense");
+
+  const handleNaturezaChange = async (conta: Conta, val: string) => {
+    const expense_nature = val === "auto" ? null : val;
+    setSavingNatId(conta.id);
+    try {
+      const { error } = await (activeClient as any)
+        .from("chart_of_accounts")
+        .update({ expense_nature })
+        .eq("id", conta.id);
+      if (error) throw error;
+      // Atualiza a lista + invalida o que depende da classificação (PE/CMV/classificação).
+      ["chart_of_accounts", "chart_of_accounts_custos", "ponto_equilibrio", "ponto_equilibrio_consolidado", "ponto_equilibrio_serie", "margens"].forEach(
+        (k) => queryClient.invalidateQueries({ queryKey: [k] }),
+      );
+    } catch (err: any) {
+      toast.error("Erro ao classificar: " + (err.message || "desconhecido"));
+    } finally {
+      setSavingNatId(null);
+    }
+  };
+
+  // Renderiza a célula da coluna "Fixo/Var/Custo" para uma conta analítica.
+  const renderClassificacao = (conta: Conta) => {
+    if (!podeClassificar(conta)) return <span className="w-32 shrink-0" />;
+    const val = conta.expense_nature === "custo" ? "custo" : conta.expense_nature === "variavel" ? "variavel" : conta.expense_nature === "fixa" ? "fixa" : "auto";
+    const sugestao = classificaCustoDespesa(conta.code, conta.name, conta.dre_group);
+    const sugLabel = sugestao === "custo" ? "custo" : sugestao === "variavel" ? "variável" : "fixo";
+    return (
+      <span className="w-32 shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
+        <select
+          value={val}
+          disabled={savingNatId === conta.id}
+          onChange={(e) => handleNaturezaChange(conta, e.target.value)}
+          className={`border rounded px-1.5 py-0.5 text-[11px] bg-white focus:border-[#059669] focus:outline-none ${
+            val === "auto" ? "border-[#E4E7EC] text-[#98A2B3]" : "border-[#D0D5DD] text-[#1D2939]"
+          } ${savingNatId === conta.id ? "opacity-50" : ""}`}
+        >
+          <option value="auto">Auto ({sugLabel})</option>
+          <option value="custo">Custo (CMV)</option>
+          <option value="variavel">Variável</option>
+          <option value="fixa">Fixo</option>
+        </select>
+      </span>
+    );
+  };
 
   const filteredContas = useMemo(() => {
     let result = contas;
@@ -239,6 +308,8 @@ export default function PlanoContas() {
     status: "active",
     classificacao_bp: item.classificacao_bp || null,
     classificacao_dfc: item.classificacao_dfc || null,
+    dre_group: item.dre_group || null,
+    expense_nature: item.expense_nature || null,
   });
 
   // ─── Ensure demonstrativo lines exist + create mappings for inserted accounts ───
@@ -369,7 +440,7 @@ export default function PlanoContas() {
     let skipped = 0;
     const insertedCodes: string[] = [];
 
-    for (const lvl of [1, 2, 3]) {
+    for (const lvl of [1, 2, 3, 4]) {
       const batch = items.filter(c => c.level === lvl);
       for (const item of batch) {
         try {
@@ -395,7 +466,7 @@ export default function PlanoContas() {
   // ─── Add entire grupo from modelo ───
   const addGrupoFromModelo = async (grupoCode: string) => {
     if (!selectedCompany?.id) return;
-    const items = PLANO_PATRIMONIAL.filter(c => c.code === grupoCode || c.code.startsWith(grupoCode + "."));
+    const items = modeloAtivo.filter(c => c.code === grupoCode || c.code.startsWith(grupoCode + "."));
     const toAdd = items.filter(c => !existingCodes.has(c.code));
 
     if (toAdd.length === 0) { toast.info("Todas as contas deste grupo já existem"); return; }
@@ -418,7 +489,7 @@ export default function PlanoContas() {
   // ─── Add ALL patrimonial accounts ───
   const addAllPatrimonial = async () => {
     if (!selectedCompany?.id) return;
-    const toAdd = PLANO_PATRIMONIAL.filter(c => !existingCodes.has(c.code));
+    const toAdd = modeloAtivo.filter(c => !existingCodes.has(c.code));
     if (toAdd.length === 0) { toast.info("Todas as contas do modelo já existem"); return; }
     const ok = await confirm({
       title: `Adicionar ${toAdd.length} contas patrimoniais?`,
@@ -458,7 +529,7 @@ export default function PlanoContas() {
         .delete()
         .eq("company_id", selectedCompany.id);
 
-      const { added, skipped, insertedCodes } = await insertAccountsBatch(PLANO_PATRIMONIAL);
+      const { added, skipped, insertedCodes } = await insertAccountsBatch(modeloAtivo);
 
       // Auto-create demonstrativo lines + mappings
       await ensureDemonstrativosAndMappings(insertedCodes);
@@ -484,15 +555,17 @@ export default function PlanoContas() {
 
   // ─── Modelo padrão filtered tree ───
   const modeloFiltered = useMemo(() => {
-    if (!modeloSearch.trim()) return PLANO_PATRIMONIAL;
+    if (!modeloSearch.trim()) return modeloAtivo;
     const q = modeloSearch.toLowerCase();
-    return PLANO_PATRIMONIAL.filter(c => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
-  }, [modeloSearch]);
+    return modeloAtivo.filter(c => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+  }, [modeloSearch, modeloAtivo]);
 
+  // Árvore do modelo: grupo (nível 1) → sub (nível 2) → analítica (níveis 3+).
+  // Plano de clínica tem nível 4 (procedimento), então o "filho final" agrega 3 e 4.
   const modeloTree = useMemo(() => {
     const grupos = modeloFiltered.filter(c => c.level === 1);
     const subs = modeloFiltered.filter(c => c.level === 2);
-    const analiticas = modeloFiltered.filter(c => c.level === 3);
+    const analiticas = modeloFiltered.filter(c => c.level >= 3);
     return grupos.map(g => ({
       ...g,
       filhos: subs
@@ -574,12 +647,12 @@ export default function PlanoContas() {
             <p className="text-[11px] text-white/80 mt-0.5">Estrutura de contas contábeis para classificar receitas, custos e despesas</p>
           </div>
           <div className="flex px-4 border-b border-[#EAECF0] overflow-x-auto">
-            {["todas", "receitas", "custos", "despesas", "patrimoniais", "analiticas", "fixo_variavel"].map(f => (
+            {["todas", "receitas", "custos", "despesas", "patrimoniais", "analiticas"].map(f => (
               <button key={f} onClick={() => setFilterType(f)}
                 className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${
                   filterType === f ? "text-[#059669] border-[#059669]" : "text-[#555] border-transparent hover:text-[#1D2939]"
                 }`}>
-                {f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : f === "patrimoniais" ? "Patrimoniais" : f === "analiticas" ? "Analíticas" : "Fixo / Variável"}
+                {f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : f === "patrimoniais" ? "Patrimoniais" : "Analíticas"}
               </button>
             ))}
           </div>
@@ -636,7 +709,7 @@ export default function PlanoContas() {
                 onChange={e => setModeloSearch(e.target.value)}
                 className="border border-[#e6c200] rounded-md px-3 py-1.5 text-sm bg-white focus:border-[#EA580C] focus:outline-none flex-1" />
               <span className="text-[11px] font-bold text-[#EA580C] shrink-0">
-                {PLANO_PATRIMONIAL.length} contas no modelo · {PLANO_PATRIMONIAL.filter(c => existingCodes.has(c.code)).length} já adicionadas
+                {modeloAtivo.length} contas no modelo · {modeloAtivo.filter(c => existingCodes.has(c.code)).length} já adicionadas
               </span>
             </div>
 
@@ -763,10 +836,7 @@ export default function PlanoContas() {
           </div>
         )}
 
-        {/* Aba Fixo/Variável — tela de classificação de custos */}
-        {filterType === "fixo_variavel" ? (
-          <ClassificacaoCustos />
-        ) : isLoading ? (
+        {isLoading ? (
           <div className="text-center py-12 text-sm text-[#555]">Carregando plano de contas...</div>
         ) : filteredContas.length === 0 ? (
           <div className="text-center py-12">
@@ -782,6 +852,7 @@ export default function PlanoContas() {
               <span className="flex-1 min-w-0">Conta</span>
               <span className="w-16 text-right">Contas</span>
               <span className="w-28">Natureza</span>
+              <span className="w-32 text-right text-[11px]">Fixo/Var/Custo</span>
               <span className="w-20 text-right">Ações</span>
             </div>
             {tree.map(grupo => (
@@ -804,6 +875,7 @@ export default function PlanoContas() {
                       return <span className="text-[10.5px] font-semibold" style={{ color }}>{b.label}</span>;
                     })()}
                   </span>
+                  <span className="w-32 shrink-0" />
                   <span className="w-20 flex justify-end">{renderActions(grupo)}</span>
                 </div>
                 {editingId === grupo.id && renderEditRow(grupo)}
@@ -818,6 +890,7 @@ export default function PlanoContas() {
                       <span className="text-[13px] font-semibold text-black flex-1 min-w-0 pl-4 truncate">{sub.name}</span>
                       <span className="text-[11px] text-[#667085] w-16 text-right tabular-nums">{sub.filhos.length}</span>
                       <span className="w-28"></span>
+                      <span className="w-32 shrink-0" />
                       <span className="w-20 flex justify-end">{renderActions(sub)}</span>
                     </div>
                     {editingId === sub.id && renderEditRow(sub)}
@@ -832,6 +905,7 @@ export default function PlanoContas() {
                             <span className="text-[13px] text-black flex-1 min-w-0 pl-8 truncate">{analitica.name}</span>
                             <span className="w-16"></span>
                             <span className="w-28 text-[10.5px] font-semibold" style={{ color: /receita/i.test(badge.label) ? "#039855" : /despesa|custo/i.test(badge.label) ? "#E53E3E" : "#667085" }}>{badge.label}</span>
+                            {renderClassificacao(analitica)}
                             <span className="w-20 flex justify-end">{renderActions(analitica)}</span>
                           </div>
                           {editingId === analitica.id && renderEditRow(analitica)}
@@ -849,61 +923,77 @@ export default function PlanoContas() {
 
       {/* ─── Popup: Escolher modo de aplicação ─── */}
       {showModeloPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !replacingAll && setShowModeloPopup(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !replacingAll && setShowModeloPopup(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="bg-[#071D41] px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#071D41] px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <BookOpen size={18} className="text-white" />
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Modelo Padrão Patrimonial</h2>
+                <BookOpen size={15} className="text-white" />
+                <h2 className="text-[12px] font-bold text-white uppercase tracking-wider">Modelo Padrão de Contas</h2>
               </div>
               <button onClick={() => !replacingAll && setShowModeloPopup(false)} className="text-white/70 hover:text-white">
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-[#555]">
-                Como deseja aplicar o modelo padrão de contas patrimoniais?
-              </p>
+            <div className="p-4 space-y-3">
+              {/* Seletor de segmento */}
+              <div>
+                <p className={`${LB} mb-1.5`}>Segmento</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { key: "generico" as ModeloSegmento, titulo: "Genérico", sub: "Ativo/Passivo/PL" },
+                    { key: "clinica" as ModeloSegmento, titulo: "Saúde / Clínica", sub: "Receita/Custo/Despesa + patrimonial" },
+                  ]).map((s) => (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => setModeloSegmento(s.key)}
+                      disabled={replacingAll}
+                      className={`text-left rounded-lg p-2 border transition-colors disabled:opacity-60 ${
+                        modeloSegmento === s.key ? "border-[#059669] bg-[#ECFDF4]" : "border-[#E4E7EC] bg-white hover:bg-[#F6F2EB]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1">
+                        {modeloSegmento === s.key && <Check size={12} className="text-[#059669] shrink-0" />}
+                        <span className="text-[12px] font-bold text-[#1D2939]">{s.titulo}</span>
+                      </div>
+                      <p className="text-[10px] text-[#667085] mt-0.5 leading-tight">{s.sub}</p>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10.5px] text-[#98A2B3] mt-1.5 leading-tight">
+                  {modeloSegmento === "clinica"
+                    ? `${MODELO_CLINICA.length} contas, já classificadas (custo/variável/fixa) p/ Ponto de Equilíbrio e CMV.`
+                    : `${PLANO_PATRIMONIAL.length} contas patrimoniais.`}
+                </p>
+              </div>
 
               {/* Option 1: Replace all */}
               <button
                 onClick={replaceAllWithModelo}
                 disabled={replacingAll}
-                className="w-full text-left border border-[#E53E3E] rounded-lg p-4 hover:bg-[#FEE2E2] transition-colors group disabled:opacity-60"
+                className="w-full text-left border border-[#E53E3E] rounded-lg px-3 py-2 hover:bg-[#FEE2E2] transition-colors disabled:opacity-60"
               >
-                <div className="flex items-center gap-3 mb-1.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#E53E3E] flex items-center justify-center shrink-0">
-                    <Download size={16} className="text-white" />
-                  </div>
-                  <span className="text-sm font-bold text-[#E53E3E]">
-                    {replacingAll ? "Substituindo..." : "Substituir plano inteiro"}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <Download size={14} className="text-[#E53E3E] shrink-0" />
+                  <span className="text-[13px] font-bold text-[#E53E3E]">{replacingAll ? "Substituindo..." : "Substituir plano inteiro"}</span>
                 </div>
-                <p className="text-xs text-[#555] ml-11">
-                  Remove todas as contas atuais e aplica o modelo padrão completo.
-                  <span className="font-bold text-[#E53E3E]"> Atenção: as contas existentes serão desativadas.</span>
-                </p>
+                <p className="text-[11px] text-[#667085] ml-6 leading-tight">Desativa as contas atuais e aplica o modelo completo.</p>
               </button>
 
               {/* Option 2: Add only missing */}
               <button
                 onClick={() => { setShowModeloPopup(false); setShowModelo(true); }}
                 disabled={replacingAll}
-                className="w-full text-left border border-[#059669] rounded-lg p-4 hover:bg-[#ECFDF4] transition-colors group disabled:opacity-60"
+                className="w-full text-left border border-[#059669] rounded-lg px-3 py-2 hover:bg-[#ECFDF4] transition-colors disabled:opacity-60"
               >
-                <div className="flex items-center gap-3 mb-1.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#059669] flex items-center justify-center shrink-0">
-                    <Plus size={16} className="text-white" />
-                  </div>
-                  <span className="text-sm font-bold text-[#059669]">Escolher categorias para adicionar</span>
+                <div className="flex items-center gap-2">
+                  <Plus size={14} className="text-[#059669] shrink-0" />
+                  <span className="text-[13px] font-bold text-[#059669]">Escolher contas para adicionar</span>
                 </div>
-                <p className="text-xs text-[#555] ml-11">
-                  Abre o painel de referência para você selecionar quais contas ou grupos adicionar.
-                  <span className="font-bold text-[#039855]"> Contas existentes não serão alteradas.</span>
-                </p>
+                <p className="text-[11px] text-[#667085] ml-6 leading-tight">Sem mexer nas contas existentes.</p>
               </button>
             </div>
           </div>

@@ -281,9 +281,11 @@ export default function ContasPagar() {
     recorrencia: 'sem' as Recorrencia,
     numParcelas: 3,
     codigoBarras: '',
+    chavePix: '',
     fileUrl: '',
     isFixedCost: false,
   })
+  const [pixTouched, setPixTouched] = useState(false) // usuário digitou/alterou a chave PIX manualmente
 
   const MONTHS = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -801,7 +803,9 @@ export default function ContasPagar() {
       contaBancariaId: bankAccounts[0]?.id || '',
       juros: 0,
       desconto: 0,
-      observacao: isFuncionario ? (credor.pix || '') : (cp.codigo_barras || ''),
+      // Chave PIX do cadastro do credor (fornecedor/funcionário); cai pro
+      // código de barras só quando não há PIX cadastrado.
+      observacao: credor.pix || (isFuncionario ? '' : (cp.codigo_barras || '')),
       credorTipo: credor.tipo,
     })
     setShowPayModal(true)
@@ -1078,9 +1082,18 @@ export default function ContasPagar() {
     recorrencia: 'sem' as Recorrencia,
     numParcelas: 3,
     codigoBarras: '',
+    chavePix: '',
     fileUrl: '',
     isFixedCost: false,
   })
+
+  // Chave PIX gravada no cadastro do credor (fornecedor/funcionário)
+  const getCredorPix = (tipo: CredorTipo, id: string): string => {
+    if (!id) return ''
+    if (tipo === 'fornecedor') return suppliers.find(s => s.id === id)?.dados_bancarios_pix || ''
+    if (tipo === 'funcionario') { const e = employees.find(e => e.id === id); return e?.chave_pix_folha || '' }
+    return ''
+  }
 
   const openNewModal = () => {
     setNewForm(resetNewForm())
@@ -1089,6 +1102,7 @@ export default function ContasPagar() {
     setCatAutoReason(null)
     setCentroTouched(false)
     setFixarCatFornecedor(false)
+    setPixTouched(false)
     setShowMaisOpcoes(true)
     setShowNewModal(true)
   }
@@ -1138,6 +1152,7 @@ export default function ContasPagar() {
       recorrencia: 'sem',
       numParcelas: 3,
       codigoBarras: cp.codigo_barras || '',
+      chavePix: getCredorPix(credorTipo, credorId),
       fileUrl: cp.file_url || '',
       isFixedCost: !!cp.is_fixed_cost,
     })
@@ -1147,6 +1162,7 @@ export default function ContasPagar() {
     setCatAutoReason(null)
     setCentroTouched(true)     // edição: idem para centro de custo
     setFixarCatFornecedor(false)
+    setPixTouched(false)
     setShowMaisOpcoes(true)    // edição: mostra tudo
     setShowNewModal(true)
   }
@@ -1252,6 +1268,51 @@ export default function ContasPagar() {
     }
   }
 
+  // Quando o usuário digita/edita a chave PIX, grava no cadastro do credor
+  // (suppliers.dados_bancarios_pix / employees.chave_pix_folha) para que ela
+  // apareça automaticamente na hora de pagar.
+  const persistCredorPix = async (db: any) => {
+    if (!pixTouched || !newForm.credorId) return
+    const pix = newForm.chavePix.trim()
+    if (!pix) return
+    if (pix === getCredorPix(newForm.credorTipo, newForm.credorId)) return
+    try {
+      if (newForm.credorTipo === 'fornecedor') {
+        await db.from('suppliers').update({ dados_bancarios_pix: pix }).eq('id', newForm.credorId)
+      } else if (newForm.credorTipo === 'funcionario') {
+        await db.from('employees').update({ chave_pix_folha: pix }).eq('id', newForm.credorId)
+      }
+    } catch (err) {
+      console.error('[persistCredorPix]', err)
+    }
+  }
+
+  // Fechar o modal sem perder o que foi preenchido sem querer (clique fora / X / Cancelar)
+  const isNewFormDirty = () => {
+    const f = newForm
+    return !!(
+      f.descricao || f.credorId || f.credorNome || f.valor > 0 ||
+      f.contaContabilId || f.centroCustoId || f.codigoBarras ||
+      f.chavePix || f.fileUrl || f.competencia || f.recorrencia !== 'sem'
+    )
+  }
+
+  const attemptCloseModal = async () => {
+    if (submitting) return
+    if (isNewFormDirty()) {
+      const ok = await confirm({
+        title: 'Descartar esta conta?',
+        description: 'Você preencheu dados que ainda não foram salvos. Se fechar agora, tudo será perdido.',
+        confirmLabel: 'Descartar',
+        cancelLabel: 'Continuar preenchendo',
+        variant: 'destructive',
+      })
+      if (!ok) return
+    }
+    setShowNewModal(false)
+    setEditingCpId(null)
+  }
+
   const handleCreateCP = async () => {
     if (!selectedCompany || !newForm.valor || !newForm.dataVencimento || (!newForm.descricao && !newForm.credorNome)) return
 
@@ -1344,11 +1405,42 @@ export default function ContasPagar() {
         }
       } else {
         await persistFornecedorCategoriaPadrao(db)
+        await persistCredorPix(db)
         setShowNewModal(false)
         setEditingCpId(null)
         await loadData()
       }
     } else {
+      // ─── Anti-recorrência-duplicada ─────────────────────────────────
+      // Antes de gerar uma série de parcelas, confere se já não existe
+      // lançamento futuro do mesmo credor/valor (pode ser uma recorrência
+      // já criada — evita "gerar uma recorrência em cima de outra").
+      if (newForm.recorrencia !== 'sem') {
+        const { data: futuros } = await db
+          .from('contas_pagar')
+          .select('id, data_vencimento')
+          .eq('company_id', selectedCompany.id)
+          .eq('credor_nome', toTitleCase(credorNome))
+          .eq('valor', newForm.valor)
+          .gte('data_vencimento', newForm.dataVencimento)
+          .is('deleted_at', null)
+          .neq('status', 'cancelado')
+          .order('data_vencimento', { ascending: true })
+          .limit(1)
+        if (futuros && futuros.length > 0) {
+          setSubmitting(false)
+          const ok = await confirm({
+            title: 'Já existe lançamento futuro parecido',
+            description: `Encontrei conta(s) de "${credorNome}" no valor de ${formatBRL(newForm.valor)} com vencimento a partir de ${formatData(futuros[0].data_vencimento)}. Pode ser uma recorrência já criada. Gerar mesmo assim as ${newForm.numParcelas} parcelas?`,
+            confirmLabel: 'Gerar mesmo assim',
+            cancelLabel: 'Não gerar',
+            variant: 'destructive',
+          })
+          if (!ok) return
+          setSubmitting(true)
+        }
+      }
+
       // Criação
       const inserts: any[] = []
       if (newForm.recorrencia === 'sem') {
@@ -1379,6 +1471,7 @@ export default function ContasPagar() {
         }
       } else {
         await persistFornecedorCategoriaPadrao(db)
+        await persistCredorPix(db)
         setShowNewModal(false)
         await loadData()
       }
@@ -2968,7 +3061,7 @@ export default function ContasPagar() {
 
         {/* ─── Modal: Nova / Editar CP ──────────────────────────────── */}
         {showNewModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => { setShowNewModal(false); setEditingCpId(null) }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => { attemptCloseModal() }}>
             <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#FFFFFF', borderRadius: 14, boxShadow: '0 12px 40px rgba(15,30,51,0.22)' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-20" style={{ backgroundColor: '#071D41', borderRadius: '14px 14px 0 0' }}>
                 <div>
@@ -2979,7 +3072,7 @@ export default function ContasPagar() {
                     {editingCpId ? 'Alterar dados da conta' : 'Cadastrar nova despesa'}
                   </p>
                 </div>
-                <button onClick={() => { setShowNewModal(false); setEditingCpId(null) }} className="text-white/55 hover:text-white transition">
+                <button onClick={() => { attemptCloseModal() }} className="text-white/55 hover:text-white transition">
                   <X size={18} />
                 </button>
               </div>
@@ -3055,7 +3148,7 @@ export default function ContasPagar() {
                       <button
                         key={tipo.key}
                         type="button"
-                        onClick={() => setNewForm({ ...newForm, credorTipo: tipo.key, credorId: '', credorNome: '', ...(catTouched ? {} : { contaContabilId: '' }), ...(centroTouched ? {} : { centroCustoId: '' }) })}
+                        onClick={() => setNewForm({ ...newForm, credorTipo: tipo.key, credorId: '', credorNome: '', ...(catTouched ? {} : { contaContabilId: '' }), ...(centroTouched ? {} : { centroCustoId: '' }), ...(pixTouched ? {} : { chavePix: '' }) })}
                         className="text-xs font-medium px-3 py-1.5 rounded-full transition"
                         style={newForm.credorTipo === tipo.key ? { backgroundColor: '#059669', color: '#ffffff' } : { backgroundColor: 'transparent', color: '#667085', border: '1px solid #E4E7EC' }}
                       >
@@ -3071,8 +3164,8 @@ export default function ContasPagar() {
                       if (newForm.credorTipo === 'fornecedor') { nome = suppliers.find(s => s.id === id)?.razao_social || '' }
                       else if (newForm.credorTipo === 'funcionario') { const emp = employees.find(e => e.id === id); nome = emp?.nome_completo || emp?.name || '' }
                       else if (newForm.credorTipo === 'cliente') { nome = clients.find(c => c.id === id)?.razao_social || '' }
-                      // troca de credor: re-sugere categoria/centro e preenche descrição se vazia
-                      setNewForm({ ...newForm, credorId: id, credorNome: nome, ...(catTouched ? {} : { contaContabilId: '' }), ...(centroTouched ? {} : { centroCustoId: '' }), ...((nome && !newForm.descricao.trim()) ? { descricao: nome } : {}) })
+                      // troca de credor: re-sugere categoria/centro, puxa a chave PIX do cadastro e preenche descrição se vazia
+                      setNewForm({ ...newForm, credorId: id, credorNome: nome, ...(catTouched ? {} : { contaContabilId: '' }), ...(centroTouched ? {} : { centroCustoId: '' }), ...(pixTouched ? {} : { chavePix: getCredorPix(newForm.credorTipo, id) }), ...((nome && !newForm.descricao.trim()) ? { descricao: nome } : {}) })
                     }}
                     className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
                     style={{ color: '#1D2939', height: 38 }}
@@ -3112,8 +3205,8 @@ export default function ContasPagar() {
                   </div>
                 </div>
 
-                {/* Categoria contábil + Centro de custo (preenchem automático) */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Categoria contábil + Centro de custo (preenchem automático) — largura total p/ não truncar o texto */}
+                <div className="space-y-4">
                   <div ref={contaContabilRef} className="relative">
                     <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Categoria contábil</label>
                     <input
@@ -3182,6 +3275,34 @@ export default function ContasPagar() {
                     <input type="checkbox" checked={fixarCatFornecedor} onChange={(e) => setFixarCatFornecedor(e.target.checked)} style={{ accentColor: '#059669' }} />
                     Usar sempre esta categoria e centro de custo para este fornecedor
                   </label>
+                )}
+
+                {/* Chave PIX (puxa do cadastro do credor; editável) */}
+                {newForm.credorTipo !== 'cliente' && (
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase" style={{ color: '#1A1A1A', letterSpacing: '0.04em', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
+                      Chave PIX <span style={{ textTransform: 'none', fontWeight: 400, color: '#98A2B3' }}>(para pagamento via PIX)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newForm.chavePix}
+                      onChange={(e) => { setPixTouched(true); setNewForm({ ...newForm, chavePix: e.target.value }) }}
+                      placeholder={newForm.credorId ? 'CPF/CNPJ, e-mail, telefone ou chave aleatória' : 'Selecione o credor ou digite a chave PIX'}
+                      autoComplete="off"
+                      className="w-full px-3 text-[13px] rounded-lg bg-white border border-[#E4E7EC] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/20 outline-none transition"
+                      style={{ color: '#1D2939', height: 38 }}
+                    />
+                    {!pixTouched && newForm.credorId && newForm.chavePix && (
+                      <p className="inline-flex items-center gap-1" style={{ fontSize: 11, color: '#059669', marginTop: 4 }}>
+                        <Sparkles size={12} /> Puxada do cadastro do credor
+                      </p>
+                    )}
+                    {pixTouched && newForm.credorId && newForm.chavePix.trim() && newForm.chavePix.trim() !== getCredorPix(newForm.credorTipo, newForm.credorId) && (
+                      <p style={{ fontSize: 11, color: '#475467', marginTop: 4 }}>
+                        Esta chave será salva no cadastro do credor.
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {/* Mais opções (avançado) */}
@@ -3265,7 +3386,7 @@ export default function ContasPagar() {
                 {/* Botões */}
                 <div className="flex items-center justify-end sticky bottom-0" style={{ backgroundColor: '#FFFFFF', borderTop: '1px solid #475467', gap: 8, paddingTop: 16, marginTop: 12 }}>
                   <button
-                    onClick={() => { setShowNewModal(false); setEditingCpId(null) }}
+                    onClick={() => { attemptCloseModal() }}
                     className="px-4 py-2 rounded-lg text-[13px] font-medium transition"
                     style={{ color: '#344054', border: '1px solid #475467' }}
                   >

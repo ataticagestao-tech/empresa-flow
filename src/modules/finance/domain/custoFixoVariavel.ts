@@ -11,6 +11,8 @@
  */
 
 export type CustoNatureza = "fixa" | "variavel";
+/** Classificação gerencial em 3 baldes (espelha chart_of_accounts.expense_nature). */
+export type CustoDespesaClasse = "fixa" | "variavel" | "custo";
 
 /** Normaliza: NFD + remove acentos + minúsculas (para casar texto livre). */
 function normalize(s: string | null | undefined): string {
@@ -21,15 +23,21 @@ function normalize(s: string | null | undefined): string {
 }
 
 /**
- * Classifica uma conta como 'fixa' ou 'variavel' a partir do código, nome e dre_group.
- * Junta os três num único texto de busca normalizado e aplica os buckets de VARIÁVEL.
- * Se nada casar, é FIXA.
+ * Heurística de 3 baldes a partir de código, nome e dre_group:
+ *  - 'custo'    → CMV/CPV/CSP (custo direto do que foi vendido: mercadorias, insumos,
+ *                 medicamentos manipulados/injetáveis, equipe cirúrgica, honorário médico).
+ *  - 'variavel' → escala com a venda mas não é custo do produto/serviço
+ *                 (impostos s/ venda, taxa de cartão/maquininha, comissão/royalties, frete/expedição).
+ *  - 'fixa'     → tudo o mais (aluguel, salário, software, energia…).
+ *
+ * É a fonte da verdade da heurística; `classificaFixoVariavel` (2 baldes, p/ Ponto de
+ * Equilíbrio) deriva daqui mapeando 'custo' → 'variavel'.
  */
-export function classificaFixoVariavel(
+export function classificaCustoDespesa(
   code: string | null | undefined,
   name: string | null | undefined,
   dreGroup: string | null | undefined,
-): CustoNatureza {
+): CustoDespesaClasse {
   const txt = `${normalize(name)} ${normalize(dreGroup)} ${normalize(code)}`;
   const has = (s: string) => txt.includes(s);
   // Casa a sigla como PALAVRA inteira (evita falso-positivo: "vendas" contém "das",
@@ -80,6 +88,7 @@ export function classificaFixoVariavel(
   }
 
   // ── Bucket 4: CMV / CPV / CSP / MERCADORIAS / INSUMOS / MEDICAMENTOS ──
+  // Custo direto do que foi vendido → entra na MARGEM BRUTA (balde 'custo').
   if (
     has("cmv") ||
     has("cpv") ||
@@ -95,7 +104,7 @@ export function classificaFixoVariavel(
     has("servicos medicos") ||
     has("compra de servicos medicos")
   ) {
-    return "variavel";
+    return "custo";
   }
 
   // ── Bucket 5: FRETE / EMBALAGEM / EXPEDIÇÃO (custo logístico da venda) ──
@@ -116,6 +125,34 @@ export function classificaFixoVariavel(
   // material, depreciação/amortização, tarifa bancária, juros, IOF, IPTU, IRPJ, CSLL,
   // DARF trimestral — e qualquer outra despesa não reconhecida como variável.
   return "fixa";
+}
+
+/**
+ * Classifica uma conta como 'fixa' ou 'variavel' (2 baldes) para o Ponto de Equilíbrio.
+ * Deriva da heurística de 3 baldes: 'custo' escala com a venda, logo conta como VARIÁVEL.
+ */
+export function classificaFixoVariavel(
+  code: string | null | undefined,
+  name: string | null | undefined,
+  dreGroup: string | null | undefined,
+): CustoNatureza {
+  return classificaCustoDespesa(code, name, dreGroup) === "fixa" ? "fixa" : "variavel";
+}
+
+/**
+ * Resolve a natureza FIXA × VARIÁVEL (Ponto de Equilíbrio) respeitando a classificação
+ * manual (chart_of_accounts.expense_nature) com prioridade: 'fixa' → fixa; 'variavel' e
+ * 'custo' → variável; qualquer outro valor / NULL → heurística.
+ */
+export function resolveNaturezaPE(
+  expenseNature: string | null | undefined,
+  code: string | null | undefined,
+  name: string | null | undefined,
+  dreGroup: string | null | undefined,
+): CustoNatureza {
+  if (expenseNature === "fixa") return "fixa";
+  if (expenseNature === "variavel" || expenseNature === "custo") return "variavel";
+  return classificaFixoVariavel(code, name, dreGroup);
 }
 
 /**

@@ -18,6 +18,10 @@ export interface ContaModelo {
   bp_line?: string;
   /** Código da linha do demonstrativo DFC para mapeamento automático */
   dfc_line?: string;
+  /** Grupo DRE (receita_bruta, custos, despesas_operacionais, deducoes, resultado_financeiro…) — contas de resultado */
+  dre_group?: string;
+  /** Classificação gerencial: custo (CMV/CSP), variavel ou fixa — alimenta Ponto de Equilíbrio e CMV */
+  expense_nature?: "custo" | "variavel" | "fixa";
 }
 
 export const PLANO_PATRIMONIAL: ContaModelo[] = [
@@ -183,4 +187,9 @@ export const GRUPO_LABELS: Record<string, { label: string; color: string; bg: st
   passivo_circulante: { label: "Passivo Circulante", color: "#E53E3E", bg: "#FEE2E2" },
   passivo_nao_circulante: { label: "Passivo Não Circulante", color: "#EA580C", bg: "#FFF0EB" },
   patrimonio_liquido: { label: "Patrimônio Líquido", color: "#1E3A8A", bg: "#ECFDF4" },
+  // Grupos de resultado (modelo Saúde/Clínica)
+  receitas: { label: "Receitas", color: "#039855", bg: "#ECFDF3" },
+  custos: { label: "Custos (CSP)", color: "#E53E3E", bg: "#FEE2E2" },
+  despesas: { label: "Despesas Operacionais", color: "#EA580C", bg: "#FFF0EB" },
+  investimentos: { label: "Investimentos (CAPEX)", color: "#1E3A8A", bg: "#ECFDF4" },
 };

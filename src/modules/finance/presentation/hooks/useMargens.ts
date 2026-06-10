@@ -136,10 +136,16 @@ function normalize(s: string | null | undefined): string {
 }
 
 /**
- * Classifica uma CP a partir do account_type + dre_group (na ordem definida).
- * CP sem conta (accountType/dreGroup null) → operacional (despesa não categorizada).
+ * Classifica uma CP a partir do account_type + dre_group + expense_nature (manual).
+ * A classificação MANUAL (expense_nature) tem prioridade: 'custo' = CMV (margem bruta),
+ * 'fixa'/'variavel' = despesa (não é CMV). Sem classificação manual, cai na heurística
+ * por account_type + dre_group. CP sem conta → operacional (despesa não categorizada).
  */
-function classificaCp(accountType: string | null | undefined, dreGroup: string | null | undefined): CpClasse {
+function classificaCp(
+  accountType: string | null | undefined,
+  dreGroup: string | null | undefined,
+  expenseNature?: string | null,
+): CpClasse {
   const at = (accountType || "").toLowerCase();
   const norm = normalize(dreGroup);
 
@@ -147,13 +153,22 @@ function classificaCp(accountType: string | null | undefined, dreGroup: string |
   if (at === "asset" || at === "liability" || at === "equity" || at === "revenue") return "excluir";
   if (norm.includes("nao dre")) return "excluir";
 
-  // 2. CUSTO — entra na Margem Bruta.
+  // 2. CUSTO (CMV/CSP) — entra na Margem Bruta. Manual 'custo' OU conta tipo cost /
+  //    grupo de custo. Conta de custo continua CMV mesmo marcada 'fixa'/'variavel'
+  //    (ex.: Custo Fixo) — o fixo/variável dela só importa pro Ponto de Equilíbrio.
+  if (expenseNature === "custo") return "custo";
   if (at === "cost" || norm.includes("custo") || norm.includes("cmv") || norm.includes("csp")) return "custo";
 
-  // 3. OUTRAS / FINANCEIRAS — entram só na Margem Líquida.
+  // 3. Despesa marcada manualmente (fixa/variavel) que NÃO é custo → despesa.
+  if (expenseNature === "fixa" || expenseNature === "variavel") {
+    if (norm.includes("outras") || norm.includes("financ")) return "outras";
+    return "operacional";
+  }
+
+  // 4. OUTRAS / FINANCEIRAS — entram só na Margem Líquida.
   if (norm.includes("outras") || norm.includes("financ")) return "outras";
 
-  // 4. DESPESA OPERACIONAL — default para o resto.
+  // 5. DESPESA OPERACIONAL — default para o resto.
   return "operacional";
 }
 
@@ -167,7 +182,12 @@ interface CpRow {
   competencia: string | null;
   data_vencimento: string | null;
   conta_contabil_id: string | null;
-  chart_of_accounts: { account_type: string | null; dre_group: string | null; name: string | null } | null;
+  chart_of_accounts: {
+    account_type: string | null;
+    dre_group: string | null;
+    name: string | null;
+    expense_nature: string | null;
+  } | null;
 }
 
 /** Categoria de TAXA DE MAQUININHA (MDR/adquirência) — NÃO confundir com "Cartão de Crédito" (fatura da empresa). */
@@ -203,7 +223,7 @@ export async function fetchMargensRaw(
   const { data: cpData, error: cpErr } = await db
     .from("contas_pagar")
     .select(
-      "valor, competencia, data_vencimento, conta_contabil_id, chart_of_accounts:conta_contabil_id ( account_type, dre_group, name )",
+      "valor, competencia, data_vencimento, conta_contabil_id, chart_of_accounts:conta_contabil_id ( account_type, dre_group, name, expense_nature )",
     )
     .eq("company_id", companyId)
     .is("deleted_at", null)
@@ -239,7 +259,11 @@ export async function fetchMargensRaw(
     // (Não mexe em "Cartão de Crédito" / fatura da empresa — essa é despesa real e separada.)
     if (taxaCartao > 0 && isTaxaMaquininha(cp.chart_of_accounts?.name)) continue;
 
-    const classe = classificaCp(cp.chart_of_accounts?.account_type, cp.chart_of_accounts?.dre_group);
+    const classe = classificaCp(
+      cp.chart_of_accounts?.account_type,
+      cp.chart_of_accounts?.dre_group,
+      cp.chart_of_accounts?.expense_nature,
+    );
     if (classe === "excluir") continue;
     if (classe === "custo") custo += valor;
     else if (classe === "outras") outras += valor;

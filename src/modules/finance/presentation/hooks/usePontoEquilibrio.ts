@@ -4,7 +4,7 @@ import { ptBR } from "date-fns/locale";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  classificaFixoVariavel,
+  resolveNaturezaPE,
   isExcluidoDoResultado,
   isNaoDesembolsavel,
 } from "@/modules/finance/domain/custoFixoVariavel";
@@ -197,11 +197,8 @@ export async function fetchPontoEquilibrioRaw(
     if (isExcluidoDoResultado(acc?.account_type, acc?.dre_group)) continue;
 
     // 2. Natureza: manual (expense_nature) MANDA; senão heurística.
-    const manual = acc?.expense_nature;
-    const natureza =
-      manual === "fixa" || manual === "variavel"
-        ? manual
-        : classificaFixoVariavel(acc?.code, acc?.name, acc?.dre_group);
+    //    'custo' (CMV/CPV/CSP) escala com a venda → conta como VARIÁVEL no PE.
+    const natureza = resolveNaturezaPE(acc?.expense_nature, acc?.code, acc?.name, acc?.dre_group);
 
     // 3. Acumula.
     if (natureza === "variavel") {

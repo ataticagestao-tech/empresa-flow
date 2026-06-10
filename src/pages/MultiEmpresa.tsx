@@ -14,7 +14,7 @@ import { useIndicadores } from "@/hooks/useIndicadores";
 import { useToast } from "@/components/ui/use-toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
-  classificaFixoVariavel,
+  resolveNaturezaPE,
   isExcluidoDoResultado,
   isNaoDesembolsavel,
 } from "@/modules/finance/domain/custoFixoVariavel";
@@ -697,10 +697,8 @@ async function calcGrupoDashboard(
     if (!perCompCat) { perCompCat = new Map(); dreCatByCompany.set(r.company_id, perCompCat); }
     perCompCat.set(catNome, (perCompCat.get(catNome) || 0) + valor);
 
-    const manual = acc?.expense_nature;
-    const nat = manual === "fixa" || manual === "variavel"
-      ? manual
-      : classificaFixoVariavel(acc?.code, acc?.name, acc?.dre_group);
+    // 'custo' (CMV/CPV/CSP) escala com a venda → conta como VARIÁVEL no PE.
+    const nat = resolveNaturezaPE(acc?.expense_nature, acc?.code, acc?.name, acc?.dre_group);
     if (nat === "variavel") b.custoVar += valor;
     else {
       b.custoFixo += valor;
