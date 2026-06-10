@@ -26,6 +26,7 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useHistoricoIndicador } from "@/hooks/useIndicadores";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /* ── Design Tokens — alinhado ao Design System v1 ──────────── */
 const C = {
@@ -159,6 +160,7 @@ export default function CompanyDashboard() {
     const PRODUCTS_PER_PAGE = 5;
     const PAYABLES_PER_PAGE = 5;
     const periodMenuRef = useRef<HTMLDivElement>(null);
+    const isMobile = useIsMobile();
 
     useEffect(() => { setProductsPage(0); setPayablesPage(0); }, [period, regime, specificMonth, specificYear, customStart, customEnd]);
 
@@ -1306,7 +1308,7 @@ export default function CompanyDashboard() {
                 <DashboardTabs active="visao" />
             </div>
             <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "stretch", flexWrap: "wrap" }}>
-            <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ flex: 1, minWidth: 320, fontFamily: "var(--font-base)" }}>
+            <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-3 sm:p-6 pb-6 sm:pb-8 min-h-[calc(100vh-190px)]" style={{ flex: 1, minWidth: isMobile ? 0 : 320, fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ marginBottom: 14 }}>
                 <div className="bg-[#071D41]" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, padding: "12px 16px" }}>
@@ -1325,7 +1327,7 @@ export default function CompanyDashboard() {
                         >
                             {companyName}
                         </button>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: 500 }}>
+                        <div style={{ display: "inline-flex", flexWrap: "wrap", alignItems: "center", gap: 10, fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: 500 }}>
                             <span>
                                 {format(new Date(periodStart + "T00:00:00"), "dd 'de' MMM", { locale: ptBR })}
                                 {" — "}
@@ -1339,7 +1341,7 @@ export default function CompanyDashboard() {
                 </div>
 
                 {/* Regime + Period Filter (abaixo da barra preta) */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginBottom: 24 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end", gap: 10, marginBottom: 24 }}>
                         {/* Regime toggle */}
                         <SegmentedControl<"caixa" | "competencia">
                             value={regime}
@@ -1478,7 +1480,7 @@ export default function CompanyDashboard() {
                 )}
 
                 {/* ── 3 KPI Cards (mockup v1) ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
                     {/* 1. Faturamento */}
                     <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 16, display: "flex", flexDirection: "column", gap: 7}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1613,7 +1615,7 @@ export default function CompanyDashboard() {
                             ))}
                         </div>
                     )}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, padding: 20, alignItems: "stretch" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 16, padding: isMobile ? 12 : 20, alignItems: "stretch" }}>
                         {/* Heatmap grid */}
                         <div style={{ display: "flex", flexDirection: "column", background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", overflow: "hidden", minWidth: 0 }}>
                           <div style={{ padding: "14px 16px", background: "#071D41" }}>
@@ -1655,7 +1657,7 @@ export default function CompanyDashboard() {
                           </div>
                         </div>
                         {/* Stats */}
-                        <div style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignSelf: "stretch", minWidth: 0 }}>
+                        <div style={{ gridColumn: isMobile ? "auto" : "span 2", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, alignSelf: "stretch", minWidth: 0 }}>
                             {/* Produtos vendidos - ranking */}
                             <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                                 <div style={{ padding: "14px 16px", background: "#071D41" }}>
@@ -1819,7 +1821,7 @@ export default function CompanyDashboard() {
                 </div>
 
                 {/* ── Gráficos analíticos em 2 colunas (mais estreitos) ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start", marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, alignItems: "start", marginBottom: 16 }}>
                 {/* ── Receita vs. Despesas (comparativo mês a mês do ano) ── */}
                 <ChartCard
                     title="Receita vs. Despesas"
