@@ -248,13 +248,13 @@ export default function VendaSistema() {
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href =
-      "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Nunito+Sans:wght@400;600;700;800&display=swap";
+      "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&family=Nunito+Sans:wght@400;600;700;800&display=swap";
     document.head.appendChild(link);
     const style = document.createElement("style");
     style.textContent =
       ".tatica-lp{font-family:'Nunito Sans',system-ui,sans-serif;background-color:#FFFFFF;background-image:linear-gradient(to right,rgba(12,42,82,.08) 1px,transparent 1px),linear-gradient(to bottom,rgba(12,42,82,.08) 1px,transparent 1px);background-size:64px 64px;background-repeat:repeat}" +
       ".tatica-navy{background-color:#060E1C;background-image:linear-gradient(to right,rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.06) 1px,transparent 1px);background-size:64px 64px}" +
-      ".tatica-lp h1,.tatica-lp h2,.tatica-lp h3{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:-.01em}" +
+      ".tatica-lp h1,.tatica-lp h2,.tatica-lp h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;letter-spacing:-.01em}" +
       ".tatica-marquee{animation:tatica-mq 90s linear infinite}.tatica-marquee:hover{animation-play-state:paused}@keyframes tatica-mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}.tatica-marquee-mask{-webkit-mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent)}.tatica-vscroll{animation:tatica-vs 15s ease-in-out infinite}.tatica-vscroll:hover{animation-play-state:paused}@keyframes tatica-vs{0%,16%{transform:translateY(0)}50%,66%{transform:translateY(-464px)}100%{transform:translateY(0)}}" +
       ".tatica-lp::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.55;mix-blend-mode:soft-light;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='gr'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23gr)' opacity='0.5'/%3E%3C/svg%3E\")}";
     document.head.appendChild(style);
@@ -270,11 +270,11 @@ export default function VendaSistema() {
       <div className="h-[72px] md:h-[92px]" aria-hidden="true" />
       <Hero />
       <Sobre />
+      <Servicos />
       <Sistema />
       <GaleriaSistema />
       <TudoNumSistema />
       <Overnight />
-      <Servicos />
       <FAQ />
       <Planos />
       <Consultoria />
@@ -453,15 +453,18 @@ function Hero() {
 
           <h1 className="mt-5 text-[clamp(1.9rem,7vw,3.4rem)] font-black leading-[1.1] tracking-tight md:mt-6">
             Cuide dos seus pacientes.<br />
-            <span className="text-[#059669]">A Tática cuida</span><br />
+            <span className="text-[#1351B4]">A Tática cuida</span><br />
             do seu financeiro.
           </h1>
 
-          <p className="mt-5 max-w-xl text-[18px] leading-relaxed text-[#020A17]">
-            Gestão financeira especializada para <strong className="text-[#020A17]">clínicas e consultórios da área médica</strong>,
-            feita por quem entende maquininha de procedimento parcelado, precificação e repasse de profissionais —
-            potencializada pelo nosso <strong className="text-[#059669]">sistema próprio</strong>.
-          </p>
+          <div className="mt-5 max-w-xl space-y-3.5 text-[15.5px] leading-relaxed text-[#1A1A1A]">
+            <p>
+              <strong className="text-[#1351B4]">BPO Financeiro e Administrativo</strong> especializado em clínicas: gestão de <strong className="text-[#1351B4]">repasses, precificação e contratos</strong>.
+            </p>
+            <p>
+              Controle total da sua operação através de uma <strong className="text-[#1351B4]">equipe especialista</strong> e <strong className="text-[#1351B4]">sistema próprio</strong>, desenhado para <strong className="text-[#1351B4]">clínicas e hospitais</strong>.
+            </p>
+          </div>
 
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
@@ -479,6 +482,11 @@ function Hero() {
 
         <div className="relative h-full min-h-[380px] w-full overflow-hidden rounded-2xl border border-black/8 bg-[#060E1C] shadow-[0_36px_80px_-32px_rgba(12,42,82,0.5)]">
           <img src="/images/equipe/medica.png" alt="Médica usando o sistema da Tática" className="h-full w-full object-cover object-center" />
+          <div className="absolute inset-x-4 bottom-4 rounded-xl bg-white/95 px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur md:inset-x-5 md:bottom-5">
+            <p className="text-[13.5px] font-medium leading-snug text-[#1A1A1A]">
+              Cuidamos do seu <strong className="text-[#1351B4]">contas a pagar, receber</strong>, conciliação de <strong className="text-[#1351B4]">procedimentos parcelados</strong> e administração de <strong className="text-[#1351B4]">contratos cirúrgicos</strong> para garantir completa fluidez e unicidade das informações da sua empresa.
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -963,65 +971,73 @@ function Overnight() {
   );
 }
 
+const fazemos = [
+  "Assumimos o financeiro inteiro da clínica (BPO completo)",
+  "Precificação, tributário, maquininha e repasse sob controle",
+  "Sistema próprio incluído, com relatórios que você entende",
+  "Trabalhamos junto com o seu contador",
+  "Foco 100% em clínicas e consultórios médicos",
+  "Diagnóstico antes de propor qualquer coisa",
+];
+
+const naoFazemos = [
+  "Software solto pra você se virar sozinho",
+  "Relatório complicado que ninguém entende",
+  "Solução genérica de “qualquer setor”",
+  "Promessa de resultado sem olhar seus números",
+  "Sumir depois de assinar o contrato",
+  "Substituir o seu contador (a gente soma com ele)",
+];
+
 function Servicos() {
   return (
-    <section id="servicos" className="relative overflow-hidden tatica-navy">
-      {/* riscos claros (ondas) */}
-      <svg
-        className="pointer-events-none absolute inset-0 h-full w-full opacity-70"
-        preserveAspectRatio="none"
-        viewBox="0 0 1440 760"
-        fill="none"
-        aria-hidden="true"
-      >
-        {Array.from({ length: 22 }).map((_, i) => {
-          const y = 18 + i * 35;
-          const amp = 16 + 14 * Math.sin(i * 0.6);
-          return (
-            <path
-              key={i}
-              d={`M -40 ${y} C 240 ${y - amp}, 480 ${y + amp}, 720 ${y} C 960 ${y - amp}, 1200 ${y + amp}, 1480 ${y}`}
-              stroke="rgba(255,255,255,0.13)"
-              strokeWidth="1.2"
-            />
-          );
-        })}
-      </svg>
-      <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+    <section id="servicos" className="relative overflow-hidden tatica-navy text-white">
+      <div className="relative mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#9DBDF5]">O que entregamos</p>
-          <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-white">
-            Conheça nossos <span className="text-[#34D399]">serviços</span>
+          <h2 className="text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-white">
+            O que <span className="text-[#34D399]">fazemos</span> e o que <span className="text-[#FB923C]">não fazemos</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-white/75">
-            Soluções completas de gestão financeira, do operacional ao estratégico,
-            integradas ao nosso sistema próprio.
+            Transparência desde o primeiro dia. Você sabe exatamente o que esperar da Tática.
           </p>
         </div>
 
-        <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {servicos.map((s, i) => (
-            <div
-              key={s.t}
-              className="group rounded-2xl border border-black/5 border-l-4 border-l-transparent bg-white p-7 shadow-[0_2px_14px_rgba(0,0,0,0.04)] transition hover:-translate-y-1 hover:border-l-[#065F46] hover:shadow-[0_8px_30px_rgba(0,0,0,0.10)]"
-            >
-              <div className="grid h-9 w-9 place-items-center rounded-md bg-[#10B981]/10 text-[11px] font-black text-[#1351B4]">
-                {String(i + 1).padStart(2, "0")}
-              </div>
-              <p className="mt-4 text-[14.5px] font-black uppercase tracking-wider text-[#020A17]">{s.t}</p>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-[#3F3F46]">{s.d}</p>
+        <div className="mt-9 grid gap-6 md:grid-cols-2">
+          <div className="rounded-2xl border border-[#10B981]/30 bg-[#10B981]/[0.07] p-8">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#10B981] text-white">
+                <Check className="h-5 w-5" />
+              </span>
+              <p className="text-[17px] font-black uppercase tracking-wide text-white">O que fazemos</p>
             </div>
-          ))}
+            <ul className="mt-6 space-y-3.5">
+              {fazemos.map((t) => (
+                <li key={t} className="flex items-start gap-3 text-[15.5px] leading-snug text-white/90">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#34D399]" />
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-[#FB923C]/25 bg-[#FB923C]/[0.06] p-8">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#F97316] text-white">
+                <X className="h-5 w-5" />
+              </span>
+              <p className="text-[17px] font-black uppercase tracking-wide text-white">O que não fazemos</p>
+            </div>
+            <ul className="mt-6 space-y-3.5">
+              {naoFazemos.map((t) => (
+                <li key={t} className="flex items-start gap-3 text-[15.5px] leading-snug text-white/85">
+                  <X className="mt-0.5 h-4 w-4 shrink-0 text-[#FB923C]" />
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
-        <div className="mt-12 text-center">
-          <Button asChild size="lg" className="h-12 rounded-md bg-white px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-[#1351B4] hover:bg-white/90">
-            <a href={whatsappUrl} target="_blank" rel="noreferrer">
-              Falar no WhatsApp
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </a>
-          </Button>
-        </div>
       </div>
     </section>
   );
