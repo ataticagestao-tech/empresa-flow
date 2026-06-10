@@ -580,47 +580,164 @@ function Sobre() {
   );
 }
 
+const b3 = [
+  { t: "IBOV", v: "168.619 pts", c: "0,70%", up: false },
+  { t: "Petrobras PN", v: "R$ 41,65", c: "1,17%", up: true },
+  { t: "Petrobras ON", v: "R$ 46,81", c: "1,50%", up: true },
+  { t: "Vale ON", v: "R$ 77,70", c: "1,02%", up: false },
+  { t: "Itaú PN", v: "R$ 39,36", c: "0,36%", up: true },
+  { t: "Dólar", v: "R$ 5,17", c: "0,22%", up: false },
+  { t: "Bradesco PN", v: "R$ 13,84", c: "0,58%", up: true },
+];
+
+const moedas = {
+  dolar: { nome: "Dólar", valor: "R$ 5,1763", varc: "4,15%", compra: "5,1757", venda: "5,1763", line: "0,52 20,50 40,46 60,30 80,34 100,28 120,40 140,38 160,30 180,34 200,26 220,24 240,16 260,18 280,8 300,6" },
+  euro: { nome: "Euro", valor: "R$ 5,9791", varc: "2,80%", compra: "5,9774", venda: "5,9791", line: "0,42 20,46 40,38 60,44 80,34 100,40 120,30 140,36 160,28 180,32 200,24 220,30 240,22 260,18 280,20 300,12" },
+};
+
 function Sistema() {
   const [zoom, setZoom] = useState<{ src: string; label: string } | null>(null);
+  const [moeda, setMoeda] = useState<"dolar" | "euro">("dolar");
+  const sel = moedas[moeda];
   return (
     <>
-    <section id="sistema" className="relative overflow-hidden tatica-navy text-white">
+    <section id="sistema" className="relative overflow-hidden bg-transparent text-[#020A17]">
       <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
-        <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Nosso grande diferencial</p>
-          <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black leading-tight tracking-tight">
-            Sistema <span className="text-[#34D399]">Próprio</span>
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-[16px] leading-relaxed text-[#A79E8E]">
-            Enquanto outros dependem de ferramentas genéricas, a Tática opera com plataforma desenvolvida
-            internamente para entregar mais agilidade, precisão e controle.
-          </p>
-        </div>
-
-        <div className="relative mt-12 md:mt-14">
-          <div className="overflow-hidden">
-            <div className="tatica-marquee flex w-max gap-5 py-2">
-              {[...telasSistema, ...telasSistema].map((t, i) => (
-                <figure key={i} className="w-[280px] shrink-0 md:w-[360px]">
-                  <button
-                    type="button"
-                    onClick={() => setZoom(t)}
-                    className="block w-full cursor-zoom-in rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-left shadow-[0_20px_40px_-25px_rgba(0,0,0,0.8)] transition hover:border-[#34D399]/40"
-                  >
-                    <img src={t.src} alt={t.label} loading="lazy" className="block w-full rounded-md ring-1 ring-white/10" />
-                  </button>
-                  <figcaption className="mt-2 text-center text-[12.5px] font-semibold text-[#A79E8E]">{t.label}</figcaption>
-                </figure>
-              ))}
+        <div className="overflow-hidden rounded-full border border-black/8 bg-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)]">
+          <div className="flex items-stretch">
+            <div className="flex shrink-0 items-center rounded-l-full bg-[#060E1C] px-4 md:px-5">
+              <span className="text-[12px] font-black uppercase tracking-wide text-white">Bolsa B3</span>
+            </div>
+            <div className="overflow-hidden py-2.5">
+              <div className="tatica-marquee flex w-max items-center gap-7 px-4">
+                {[...b3, ...b3].map((q, i) => (
+                  <span key={i} className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px]">
+                    <strong className="text-[#1A1A1A]">{q.t}</strong>
+                    <span className="text-[#6B7280]">{q.v}</span>
+                    <span className={`font-semibold ${q.up ? "text-[#059669]" : "text-[#EF4444]"}`}>{q.up ? "▲" : "▼"} {q.c}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mx-auto mt-7 max-w-2xl rounded-xl border border-white/10 bg-white/[0.05] px-6 py-5 text-center">
-          <p className="text-[16px] leading-relaxed text-[#EBE6D8]">
-            São <strong className="text-[#34D399]">telas reais do sistema</strong>, incluído no seu plano — a mesma plataforma que a nossa equipe usa pra cuidar do financeiro da sua clínica, <strong className="text-[#34D399]">do lançamento ao resultado</strong>.
-          </p>
-          <p className="mt-2.5 text-[12px] font-bold uppercase tracking-[0.12em] text-[#9DBDF5]">Passe o mouse pra pausar · clique pra ampliar</p>
+        <div className="mt-12 grid items-stretch gap-10 md:mt-14 md:grid-cols-[1.1fr_0.9fr]">
+          <div className="flex flex-col">
+            <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#1351B4]">Nosso grande diferencial</p>
+            <h2 className="mt-3 text-[clamp(2.2rem,5vw,3.4rem)] font-black leading-[1.05] tracking-tight text-[#020A17]">
+              Sistema <span className="text-[#059669]">Próprio</span>
+            </h2>
+            <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-[#3F3F46]">
+              Enquanto outras empresas te empurram sistemas <strong className="text-[#020A17]">engessados, antiquados e genéricos</strong> só pra embolsar comissão, a Tática vai na contramão e trabalha com <strong className="text-[#1351B4]">transparência</strong>: pensamos minuciosamente na necessidade do <strong className="text-[#020A17]">segmento médico</strong> pra te entregar o que há de mais moderno em gestão.
+            </p>
+            <div className="my-auto pt-8">
+              <p className="text-[14px] font-bold uppercase tracking-wide text-[#020A17]">Um sistema que une:</p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {["Economia", "Informativos da sua área", "RH", "Fiscal", "Financeiro", "Estoque", "Vendas", "Indicadores", "e muito mais"].map((m) => (
+                  <span key={m} className="rounded-full border border-[#1351B4]/20 bg-[#1351B4]/[0.06] px-3 py-1 text-[12px] font-semibold text-[#1351B4]">{m}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-black/8 bg-white p-6 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.22)]">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[15px] font-black tracking-tight text-[#020A17]">{sel.nome} <span className="text-[11px] font-medium text-[#9AA0A6]">· 45 dias</span></p>
+                <p className="mt-0.5 text-[26px] font-black tracking-tight text-[#020A17]">{sel.valor}</p>
+              </div>
+              <span className="mt-1 whitespace-nowrap text-[14px] font-bold text-[#059669]">▲ {sel.varc}</span>
+            </div>
+            <div className="mt-3">
+              <svg viewBox="0 0 300 64" preserveAspectRatio="none" className="h-16 w-full">
+                <defs>
+                  <linearGradient id="dolarFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <polygon fill="url(#dolarFill)" points={`${sel.line} 300,64 0,64`} />
+                <polyline fill="none" stroke="#059669" strokeWidth="2" strokeLinejoin="round" points={sel.line} />
+              </svg>
+              <div className="mt-1 flex justify-between text-[10px] text-[#9AA0A6]">
+                <span>27/04</span><span>12/05</span><span>22/05</span><span>10/06</span>
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-black/5 pt-4">
+              <div className="flex items-baseline justify-between">
+                <p className="text-[15px] font-black tracking-tight text-[#020A17]">Moedas</p>
+                <span className="text-[10px] font-semibold text-[#9AA0A6]">clique pra trocar o gráfico</span>
+              </div>
+              <div className="mt-2 grid grid-cols-[1fr_64px_64px] gap-x-3 px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#9AA0A6]">
+                <span />
+                <span className="text-right">Compra</span>
+                <span className="text-right">Venda</span>
+              </div>
+              {(["dolar", "euro"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setMoeda(k)}
+                  className={`grid w-full grid-cols-[1fr_64px_64px] items-center gap-x-3 rounded-md px-2 py-1.5 text-[13px] transition ${moeda === k ? "bg-[#1351B4]/[0.08] ring-1 ring-[#1351B4]/20" : "hover:bg-black/[0.04]"}`}
+                >
+                  <span className={`text-left font-semibold ${moeda === k ? "text-[#1351B4]" : "text-[#020A17]"}`}>{moedas[k].nome}</span>
+                  <span className="text-right text-[#3F3F46]">{moedas[k].compra}</span>
+                  <span className="text-right text-[#3F3F46]">{moedas[k].venda}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 border-t border-black/5 pt-4">
+              <p className="text-[15px] font-black tracking-tight text-[#020A17]">Índices</p>
+              <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 text-[13px]">
+                {[
+                  ["Selic (a.a.)", "14,50%"],
+                  ["CDI (a.d.)", "0,0534%"],
+                  ["IPCA 12m", "4,39%"],
+                  ["IPCA mês", "0,67%"],
+                  ["IGP-M", "0,84%"],
+                  ["INPC", "0,81%"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between border-b border-black/5 pb-1.5">
+                    <span className="text-[#3F3F46]">{k}</span>
+                    <span className="font-semibold text-[#020A17]">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative mt-12 ml-[calc(50%-50vw)] w-screen bg-[#060E1C] py-7 md:mt-14 md:py-10">
+          <div className="mx-auto mb-8 h-px max-w-6xl bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+          <div className="mx-auto max-w-6xl overflow-hidden px-5 md:px-6">
+            <div className="tatica-marquee flex w-max gap-5 py-2">
+            {[...telasSistema, ...telasSistema].map((t, i) => (
+              <figure key={i} className="w-[280px] shrink-0 md:w-[360px]">
+                <button
+                  type="button"
+                  onClick={() => setZoom(t)}
+                  className="block w-full cursor-zoom-in rounded-xl border border-black/8 bg-white p-2.5 text-left shadow-[0_12px_30px_-18px_rgba(0,0,0,0.35)] transition hover:border-[#059669]/40"
+                >
+                  <img src={t.src} alt={t.label} loading="lazy" className="block w-full rounded-md ring-1 ring-black/5" />
+                </button>
+                <figcaption className="mt-2 text-center text-[12.5px] font-semibold text-white/90">{t.label}</figcaption>
+              </figure>
+            ))}
+            </div>
+          </div>
+
+          <div className="mx-auto mt-8 h-px max-w-6xl bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+          <div className="mx-auto mt-8 max-w-2xl rounded-xl bg-white px-6 py-5 text-center shadow-[0_14px_34px_-10px_rgba(0,0,0,0.4)]">
+            <p className="text-[16px] leading-relaxed text-[#1A1A1A]">
+              São <strong className="text-[#1351B4]">telas reais do sistema</strong>, incluído no seu plano — a mesma plataforma que a nossa equipe usa pra cuidar do financeiro da sua clínica, <strong className="text-[#1351B4]">do lançamento ao resultado</strong>.
+            </p>
+            <p className="mt-3 text-center leading-relaxed">
+              <span className="box-decoration-clone rounded-[2px] bg-[#FDE047] px-1.5 py-0.5 text-[12px] font-bold uppercase tracking-[0.12em] text-[#1A1A1A]">Passe o mouse pra pausar · clique pra ampliar</span>
+            </p>
+          </div>
         </div>
 
         <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -629,30 +746,30 @@ function Sistema() {
               key={t}
               type="button"
               onClick={() => setZoom({ src: img, label: t })}
-              className="group cursor-zoom-in rounded-2xl border border-white/10 bg-white/[0.04] p-7 text-left transition hover:-translate-y-1 hover:border-[#065F46]/50 hover:bg-white/[0.06]"
+              className="group cursor-zoom-in rounded-2xl border border-black/8 bg-white p-7 text-left shadow-[0_2px_14px_rgba(0,0,0,0.04)] transition hover:-translate-y-1 hover:border-[#059669]/40 hover:shadow-[0_12px_30px_rgba(0,0,0,0.1)]"
             >
               <div className="flex items-start justify-between">
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#10B981]/15 text-[#34D399]">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#10B981]/10 text-[#059669]">
                   <Icon className="h-5 w-5" />
                 </div>
-                <span className="mt-1 text-[11px] font-semibold text-[#34D399] opacity-0 transition group-hover:opacity-100">ver tela →</span>
+                <span className="mt-1 text-[11px] font-semibold text-[#059669] opacity-0 transition group-hover:opacity-100">ver tela →</span>
               </div>
-              <p className="mt-5 text-[17px] font-bold tracking-tight text-white">{t}</p>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-[#A79E8E]">{d}</p>
+              <p className="mt-5 text-[17px] font-bold tracking-tight text-[#020A17]">{t}</p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-[#3F3F46]">{d}</p>
             </button>
           ))}
         </div>
 
-        <div className="mt-12 rounded-2xl border border-[#065F46]/40 bg-[#10B981]/10 p-8 md:p-10">
+        <div className="mt-12 rounded-2xl border border-[#059669]/25 bg-[#10B981]/[0.07] p-8 md:p-10">
           <div className="grid items-start gap-7 md:grid-cols-[auto_1fr]">
-            <div className="grid h-16 w-16 place-items-center rounded-xl bg-[#10B981]/25 text-[#059669]">
+            <div className="grid h-16 w-16 place-items-center rounded-xl bg-[#10B981]/15 text-[#059669]">
               <Cpu className="h-7 w-7" />
             </div>
             <div>
-              <h3 className="text-[20px] font-black tracking-tight text-[#34D399]">
+              <h3 className="text-[20px] font-black tracking-tight text-[#059669]">
                 Por que sistema próprio faz diferença?
               </h3>
-              <p className="mt-3 text-[15.5px] leading-relaxed text-[#D6CFC1]">
+              <p className="mt-3 text-[15.5px] leading-relaxed text-[#3F3F46]">
                 Ferramentas de terceiros limitam a personalização e cobram por cada usuário.
                 Com o sistema Tática, você tem uma plataforma evoluindo continuamente, sem custos extras por acesso.
               </p>
@@ -663,7 +780,7 @@ function Sistema() {
                   "Suporte técnico direto da equipe desenvolvedora",
                   "Atualizações constantes incluídas no plano",
                 ].map((x) => (
-                  <li key={x} className="flex items-start gap-2.5 text-[14.5px] text-[#CFC8BA]">
+                  <li key={x} className="flex items-start gap-2.5 text-[14.5px] text-[#3F3F46]">
                     <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#1351B4]" />
                     {x}
                   </li>
