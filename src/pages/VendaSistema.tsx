@@ -679,7 +679,7 @@ function Sistema() {
 
             <div className="mt-5 border-t border-black/5 pt-4">
               <div className="flex items-baseline justify-between">
-                <p className="text-[15px] font-black tracking-tight text-[#020A17]">Moedas</p>
+                <p className="text-[15px] font-black tracking-tight text-[#020A17]">Câmbio de insumos</p>
                 <span className="text-[10px] font-semibold text-[#9AA0A6]">clique pra trocar o gráfico</span>
               </div>
               <div className="mt-2 grid grid-cols-[1fr_64px_64px] gap-x-3 px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#9AA0A6]">
@@ -702,15 +702,15 @@ function Sistema() {
             </div>
 
             <div className="mt-5 border-t border-black/5 pt-4">
-              <p className="text-[15px] font-black tracking-tight text-[#020A17]">Índices</p>
+              <p className="text-[15px] font-black tracking-tight text-[#020A17]">Índices da saúde</p>
               <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 text-[13px]">
                 {[
+                  ["Reajuste ANS", "6,91%"],
+                  ["Inflação médica", "12,3%"],
+                  ["IPCA Saúde 12m", "5,12%"],
                   ["Selic (a.a.)", "14,50%"],
-                  ["CDI (a.d.)", "0,0534%"],
-                  ["IPCA 12m", "4,39%"],
-                  ["IPCA mês", "0,67%"],
-                  ["IGP-M", "0,84%"],
-                  ["INPC", "0,81%"],
+                  ["IGP-M aluguel", "4,18%"],
+                  ["Benef. planos", "52,2 mi"],
                 ].map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between border-b border-black/5 pb-1.5">
                     <span className="text-[#3F3F46]">{k}</span>
