@@ -1208,11 +1208,11 @@ function Planos() {
           </p>
         </div>
 
-        <div className="mt-16 grid gap-7 lg:grid-cols-3">
-          {planos.map((p) => (
+        <div className="mt-16 grid grid-cols-2 gap-3 sm:gap-7 lg:grid-cols-3">
+          {planos.map((p, idx) => (
             <Card
               key={p.nome}
-              className={`relative rounded-2xl border-2 transition ${
+              className={`relative rounded-2xl border-2 transition ${idx === planos.length - 1 ? "col-span-2 lg:col-span-1" : ""} ${
                 p.destaque
                   ? "border-[#065F46] bg-[#060E1C] text-white shadow-[0_20px_50px_-20px_rgba(34,165,92,0.45)] lg:-translate-y-3"
                   : "border-black/10 bg-white text-[#020A17] shadow-[0_2px_16px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:border-[#065F46]/40 hover:shadow-[0_12px_40px_rgba(0,0,0,0.10)]"
@@ -1226,26 +1226,26 @@ function Planos() {
                 </div>
               )}
 
-              <CardContent className="p-6 md:p-8">
-                <h3 className={`text-[24px] font-black tracking-tight ${p.destaque ? "text-white" : "text-[#020A17]"}`}>
+              <CardContent className="p-4 sm:p-6 md:p-8">
+                <h3 className={`text-[17px] font-black tracking-tight sm:text-[24px] ${p.destaque ? "text-white" : "text-[#020A17]"}`}>
                   {p.nome}
                 </h3>
-                <p className={`mt-1.5 text-[14px] leading-snug ${p.destaque ? "text-[#D6CFC1]" : "text-[#3F3F46]"}`}>{p.desc}</p>
+                <p className={`mt-1.5 text-[12px] leading-snug sm:text-[14px] ${p.destaque ? "text-[#D6CFC1]" : "text-[#3F3F46]"}`}>{p.desc}</p>
 
-                <div className="mt-5">
-                  <span className={`text-[13px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>a partir de</span>
+                <div className="mt-4 sm:mt-5">
+                  <span className={`text-[11px] sm:text-[13px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>a partir de</span>
                   <div className="flex items-end gap-1.5">
-                    <span className={`text-[30px] font-black tracking-tight ${p.destaque ? "text-white" : "text-[#020A17]"}`}>R$ {p.preco}</span>
-                    <span className={`mb-1.5 text-[14px] ${p.destaque ? "text-[#D6CFC1]" : "text-[#3F3F46]"}`}>/mês</span>
+                    <span className={`text-[22px] font-black tracking-tight sm:text-[30px] ${p.destaque ? "text-white" : "text-[#020A17]"}`}>R$ {p.preco}</span>
+                    <span className={`mb-1 text-[12px] sm:mb-1.5 sm:text-[14px] ${p.destaque ? "text-[#D6CFC1]" : "text-[#3F3F46]"}`}>/mês</span>
                   </div>
-                  <span className={`text-[13px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>+ implantação R$ 4.500 (única)</span>
+                  <span className={`text-[11px] sm:text-[13px] ${p.destaque ? "text-[#A79E8E]" : "text-[#8A8174]"}`}>+ implantação R$ 4.500 (única)</span>
                 </div>
 
-                <ul className="mt-6 space-y-0">
+                <ul className="mt-4 space-y-0 sm:mt-6">
                   {p.bullets.map((b, i) => (
                     <li
                       key={b}
-                      className={`flex items-start gap-3 py-2.5 text-[14.5px] ${
+                      className={`flex items-start gap-2 py-1.5 text-[12px] sm:gap-3 sm:py-2.5 sm:text-[14.5px] ${
                         p.destaque ? "text-[#D6CFC1]" : "text-[#3F3F46]"
                       } ${i < p.bullets.length - 1 ? (p.destaque ? "border-b border-white/8" : "border-b border-[#ECE3D3]") : ""}`}
                     >
@@ -1257,7 +1257,7 @@ function Planos() {
 
                 <Button
                   asChild
-                  className={`mt-8 w-full rounded-md py-6 text-[14.5px] font-bold uppercase tracking-wider ${
+                  className={`mt-6 w-full rounded-md py-4 text-[12px] font-bold uppercase tracking-wider sm:mt-8 sm:py-6 sm:text-[14.5px] ${
                     p.destaque
                       ? "bg-[#10B981] text-white hover:bg-[#059669]"
                       : "bg-[#10B981] text-white hover:bg-[#059669]"
