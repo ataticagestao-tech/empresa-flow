@@ -740,22 +740,22 @@ function Sistema() {
           </div>
         </div>
 
-        <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
           {sistemaCards.map(({ icon: Icon, t, d, img }) => (
             <button
               key={t}
               type="button"
               onClick={() => setZoom({ src: img, label: t })}
-              className="group cursor-zoom-in rounded-2xl border border-black/8 bg-white p-7 text-left shadow-[0_2px_14px_rgba(0,0,0,0.04)] transition hover:-translate-y-1 hover:border-[#059669]/40 hover:shadow-[0_12px_30px_rgba(0,0,0,0.1)]"
+              className="group cursor-zoom-in rounded-2xl border border-black/8 bg-white p-4 text-left shadow-[0_2px_14px_rgba(0,0,0,0.04)] transition hover:-translate-y-1 hover:border-[#059669]/40 hover:shadow-[0_12px_30px_rgba(0,0,0,0.1)] sm:p-7"
             >
               <div className="flex items-start justify-between">
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#10B981]/10 text-[#059669]">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#10B981]/10 text-[#059669] sm:h-12 sm:w-12">
                   <Icon className="h-5 w-5" />
                 </div>
-                <span className="mt-1 text-[11px] font-semibold text-[#059669] opacity-0 transition group-hover:opacity-100">ver tela →</span>
+                <span className="mt-1 hidden text-[11px] font-semibold text-[#059669] opacity-0 transition group-hover:opacity-100 sm:inline">ver tela →</span>
               </div>
-              <p className="mt-5 text-[17px] font-bold tracking-tight text-[#020A17]">{t}</p>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-[#3F3F46]">{d}</p>
+              <p className="mt-3 text-[14px] font-bold leading-tight tracking-tight text-[#020A17] sm:mt-5 sm:text-[17px]">{t}</p>
+              <p className="mt-1.5 text-[12.5px] leading-snug text-[#3F3F46] sm:mt-2 sm:text-[14.5px] sm:leading-relaxed">{d}</p>
             </button>
           ))}
         </div>
@@ -880,15 +880,15 @@ function TudoNumSistema() {
           ))}
         </div>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           {modulos.map(({ icon: Icon, t, d }) => (
-            <div key={t} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5 transition hover:-translate-y-0.5 hover:border-[#065F46]/40">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#10B981]/20 text-[#34D399]">
-                <Icon className="h-5 w-5" />
+            <div key={t} className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 transition hover:-translate-y-0.5 hover:border-[#065F46]/40 sm:gap-4 sm:p-5">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#10B981]/20 text-[#34D399] sm:h-11 sm:w-11">
+                <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
               <div>
-                <p className="text-[15.5px] font-black tracking-tight text-white">{t}</p>
-                <p className="text-[13.5px] text-[#A79E8E]">{d}</p>
+                <p className="text-[13px] font-black leading-tight tracking-tight text-white sm:text-[15.5px]">{t}</p>
+                <p className="text-[11.5px] leading-tight text-[#A79E8E] sm:text-[13.5px]">{d}</p>
               </div>
             </div>
           ))}
@@ -1296,18 +1296,18 @@ function Consultoria() {
           </p>
         </div>
 
-        <div className="mt-14 grid gap-5 md:grid-cols-2">
+        <div className="mt-14 grid grid-cols-2 gap-3 md:gap-5">
           {consultoria.map(({ icon: Icon, t, d }) => (
             <div
               key={t}
-              className="flex gap-5 rounded-2xl border border-black/5 border-l-4 border-l-[#065F46] bg-white p-7 shadow-[0_2px_16px_rgba(0,0,0,0.05)] transition hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.10)]"
+              className="flex gap-3 rounded-2xl border border-black/5 border-l-4 border-l-[#065F46] bg-white p-4 shadow-[0_2px_16px_rgba(0,0,0,0.05)] transition hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.10)] sm:gap-5 sm:p-7"
             >
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#10B981]/10 text-[#1351B4]">
-                <Icon className="h-5 w-5" />
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#10B981]/10 text-[#1351B4] sm:h-12 sm:w-12">
+                <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
               <div>
-                <p className="text-[16.5px] font-black tracking-tight text-[#020A17]">{t}</p>
-                <p className="mt-1.5 text-[14.5px] leading-relaxed text-[#3F3F46]">{d}</p>
+                <p className="text-[13px] font-black leading-tight tracking-tight text-[#020A17] sm:text-[16.5px]">{t}</p>
+                <p className="mt-1 text-[12px] leading-snug text-[#3F3F46] sm:mt-1.5 sm:text-[14.5px] sm:leading-relaxed">{d}</p>
               </div>
             </div>
           ))}
@@ -1386,14 +1386,14 @@ function Seguranca() {
           </p>
         </div>
 
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-14 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           {itens.map(({ icon: Icon, t, d }) => (
-            <div key={t} className="rounded-2xl border border-black/5 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#10B981]/10 text-[#059669]">
+            <div key={t} className="rounded-2xl border border-black/5 bg-white p-4 shadow-[0_2px_16px_rgba(0,0,0,0.05)] sm:p-6">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#10B981]/10 text-[#059669] sm:h-12 sm:w-12">
                 <Icon className="h-5 w-5" />
               </div>
-              <p className="mt-5 text-[16px] font-black tracking-tight text-[#020A17]">{t}</p>
-              <p className="mt-2 text-[14px] leading-relaxed text-[#3F3F46]">{d}</p>
+              <p className="mt-3 text-[13px] font-black leading-tight tracking-tight text-[#020A17] sm:mt-5 sm:text-[16px]">{t}</p>
+              <p className="mt-1.5 text-[12px] leading-snug text-[#3F3F46] sm:mt-2 sm:text-[14px] sm:leading-relaxed">{d}</p>
             </div>
           ))}
         </div>
