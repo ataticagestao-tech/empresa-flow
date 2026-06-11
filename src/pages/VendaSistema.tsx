@@ -86,7 +86,7 @@ const sistemaCards = [
   { icon: BarChart3, t: "DRE em tempo real", d: "Veja se a clínica lucra ou perde todo mês, com margem e resultado por conta — sem esperar o contador.", img: "/images/sistema/dre.png" },
   { icon: LineChart, t: "Indicadores de controller", d: "Ponto de equilíbrio, margem, ciclo de caixa e liquidez calculados sozinhos — na tela do seu celular.", img: "/images/sistema/dashboard.png" },
   { icon: Bell, t: "Cobrança automática", d: "Régua de cobrança que avisa o cliente inadimplente sozinha. O sistema cobra enquanto você atende.", img: "/images/sistema/regua-cobranca.png" },
-  { icon: Building2, t: "Multi-unidade num login", d: "Mais de uma sala ou CNPJ? Veja tudo consolidado num painel só, trocando de empresa num clique.", img: "/images/sistema/empresas.png" },
+  { icon: Building2, t: "Multi-unidade num login", d: "Mais de uma sala ou CNPJ? Veja tudo consolidado num painel só, trocando de unidade num clique.", img: "/images/sistema/empresas.png" },
 ];
 
 const telasSistema = [
@@ -120,7 +120,7 @@ const telasSistema = [
 ];
 
 const servicos = [
-  { t: "Diagnóstico Financeiro", d: "Mapeamos onde sua clínica perde dinheiro hoje — maquininha, imposto, precificação e repasses — com dados reais do seu negócio." },
+  { t: "Diagnóstico Financeiro", d: "Mapeamos onde sua clínica perde dinheiro hoje — maquininha, imposto, precificação e repasses — com dados reais da sua clínica." },
   { t: "Custo de cartão sob controle", d: "A maioria das clínicas paga taxa e antecipação acima do necessário — e nem percebe no meio do parcelado. Acho o vazamento e renegocio com a força de quem fecha isso para várias clínicas, protegendo a sua margem." },
   { t: "Precificação de Procedimentos", d: "Definimos o preço certo de cada procedimento com base em custo real, repasse e margem — fim do preço no chute." },
   { t: "Enquadramento Tributário", d: "Revisão de CNAE e regime para a clínica não pagar imposto a mais — economia que aparece já no mês seguinte." },
@@ -178,11 +178,11 @@ const planos = [
 
 const consultoria = [
   { icon: Compass, t: "Diagnóstico Completo", d: "Analisamos sua operação financeira utilizando nosso sistema para mapear desafios e oportunidades com precisão e dados reais." },
-  { icon: Target, t: "Soluções Sob Medida", d: "Criamos estratégias personalizadas, alinhadas aos objetivos do seu negócio e implementadas diretamente na plataforma Tática." },
+  { icon: Target, t: "Soluções Sob Medida", d: "Criamos estratégias personalizadas, alinhadas aos objetivos da sua clínica e implementadas diretamente na plataforma Tática." },
   { icon: Lightbulb, t: "Apoio em Decisões Críticas", d: "Fornecemos insights financeiros precisos gerados pelo nosso sistema para que você tome decisões assertivas e aumente a lucratividade." },
   { icon: TrendingUp, t: "Planejamento de Longo Prazo", d: "Auxiliamos no planejamento financeiro com projeção de cenários, garantindo crescimento sustentável e estabilidade." },
-  { icon: Users2, t: "Parceiro de Crescimento", d: "Somos mais que consultores: somos parceiros dedicados com tecnologia própria para ajudar seu negócio a atingir seu pleno potencial." },
-  { icon: Briefcase, t: "CFO as a Service", d: "Tenha um Chief Financial Officer dedicado ao crescimento da sua empresa, com toda a inteligência do Sistema Tática ao seu lado." },
+  { icon: Users2, t: "Parceiro de Crescimento", d: "Somos mais que consultores: somos parceiros dedicados, com tecnologia própria, pra fazer sua clínica crescer com segurança." },
+  { icon: Briefcase, t: "CFO as a Service", d: "Ter um especialista financeiro dedicado à sua clínica é como ter um anestesista de confiança: você opera, ele cuida do que você não pode parar pra controlar." },
 ];
 
 const fundadores = [
@@ -495,7 +495,7 @@ function Hero() {
           <img src="/images/equipe/medica.png" alt="Médica usando o sistema da Tática" className="h-full w-full object-cover object-center" />
           <div className="absolute inset-x-4 bottom-4 rounded-xl bg-white/95 px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur md:inset-x-5 md:bottom-5">
             <p className="text-[13.5px] font-medium leading-snug text-[#1A1A1A]">
-              Cuidamos do seu <strong className="text-[#1351B4]">contas a pagar, receber</strong>, conciliação de <strong className="text-[#1351B4]">procedimentos parcelados</strong> e administração de <strong className="text-[#1351B4]">contratos cirúrgicos</strong> para garantir completa fluidez e unicidade das informações da sua empresa.
+              Cuidamos do seu <strong className="text-[#1351B4]">contas a pagar, receber</strong>, conciliação de <strong className="text-[#1351B4]">procedimentos parcelados</strong> e administração de <strong className="text-[#1351B4]">contratos cirúrgicos</strong> para garantir completa fluidez e unicidade das informações da sua clínica.
             </p>
           </div>
         </div>
@@ -787,7 +787,7 @@ function Sistema() {
               <ul className="mt-4 grid gap-2 md:grid-cols-2">
                 {[
                   "Sem licenças adicionais de software",
-                  "Customizável conforme o seu negócio cresce",
+                  "Customizável conforme a sua clínica cresce",
                   "Suporte técnico direto da equipe desenvolvedora",
                   "Atualizações constantes incluídas no plano",
                 ].map((x) => (
@@ -867,7 +867,7 @@ function TudoNumSistema() {
     { icon: Users2, t: "RH & Folha", d: "Admissão, ponto e pagamento" },
     { icon: Layers, t: "Estoque", d: "Entradas, saídas e compras" },
     { icon: TrendingUp, t: "Vendas", d: "Ticket médio e mais vendidos" },
-    { icon: Building2, t: "Multi-empresa", d: "Várias unidades num login" },
+    { icon: Building2, t: "Multi-clínica", d: "Todas as unidades num login só" },
   ];
   return (
     <section className="relative overflow-hidden tatica-navy text-white">
@@ -1451,7 +1451,7 @@ function Footer() {
           <div>
             <LogoOficial size="sm" variant="light" className="!items-start" />
             <p className="mt-4 max-w-xs text-[14px] leading-relaxed">
-              Gestão financeira especializada com sistema próprio para empresas que querem crescer
+              Gestão financeira especializada com sistema próprio para clínicas e consultórios médicos que querem crescer
               com clareza, controle e lucratividade real.
             </p>
           </div>
