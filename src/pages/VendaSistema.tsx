@@ -446,7 +446,7 @@ function Hero() {
     <section className="relative overflow-hidden bg-transparent text-[#020A17]">
       <div className="relative mx-auto grid max-w-6xl items-stretch gap-10 px-5 pb-16 pt-8 md:gap-14 md:px-6 md:pb-24 md:pt-16 lg:grid-cols-[0.92fr_1.08fr]">
         <div>
-          <Badge className="whitespace-nowrap rounded-full bg-[#1351B4] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.04em] text-white shadow-[0_8px_22px_-8px_rgba(19,81,180,0.65)] hover:bg-[#1351B4]">
+          <Badge className="max-w-full whitespace-normal rounded-2xl bg-[#1351B4] px-3.5 py-1.5 text-[10px] font-bold uppercase leading-snug tracking-[0.04em] text-white shadow-[0_8px_22px_-8px_rgba(19,81,180,0.65)] hover:bg-[#1351B4] lg:whitespace-nowrap lg:rounded-full">
             <Sparkles className="mr-1.5 h-3 w-3" />
             Consultoria & BPO financeiro · especialista na área médica
           </Badge>
