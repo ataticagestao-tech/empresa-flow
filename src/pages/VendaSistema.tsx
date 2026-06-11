@@ -1119,35 +1119,35 @@ function Servicos() {
           </p>
         </div>
 
-        <div className="mt-9 grid gap-6 md:grid-cols-2">
-          <div className="rounded-2xl border border-[#10B981]/30 bg-[#10B981]/[0.07] p-8">
-            <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#10B981] text-white">
-                <Check className="h-5 w-5" />
+        <div className="mt-9 grid grid-cols-2 gap-3 md:gap-6">
+          <div className="rounded-2xl border border-[#10B981]/30 bg-[#10B981]/[0.07] p-4 sm:p-6 md:p-8">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#10B981] text-white sm:h-9 sm:w-9">
+                <Check className="h-4 w-4 sm:h-5 sm:w-5" />
               </span>
-              <p className="text-[17px] font-black uppercase tracking-wide text-white">O que fazemos</p>
+              <p className="text-[12px] font-black uppercase leading-tight tracking-wide text-white sm:text-[15px] md:text-[17px]">O que fazemos</p>
             </div>
-            <ul className="mt-6 space-y-3.5">
+            <ul className="mt-4 space-y-2.5 sm:mt-6 sm:space-y-3.5">
               {fazemos.map((t) => (
-                <li key={t} className="flex items-start gap-3 text-[15.5px] leading-snug text-white/90">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#34D399]" />
+                <li key={t} className="flex items-start gap-1.5 text-[12px] leading-snug text-white/90 sm:gap-3 sm:text-[14px] md:text-[15.5px]">
+                  <Check className="mt-0.5 h-3 w-3 shrink-0 text-[#34D399] sm:h-4 sm:w-4" />
                   {t}
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="rounded-2xl border border-[#FB923C]/25 bg-[#FB923C]/[0.06] p-8">
-            <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#F97316] text-white">
-                <X className="h-5 w-5" />
+          <div className="rounded-2xl border border-[#FB923C]/25 bg-[#FB923C]/[0.06] p-4 sm:p-6 md:p-8">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#F97316] text-white sm:h-9 sm:w-9">
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </span>
-              <p className="text-[17px] font-black uppercase tracking-wide text-white">O que não fazemos</p>
+              <p className="text-[12px] font-black uppercase leading-tight tracking-wide text-white sm:text-[15px] md:text-[17px]">O que não fazemos</p>
             </div>
-            <ul className="mt-6 space-y-3.5">
+            <ul className="mt-4 space-y-2.5 sm:mt-6 sm:space-y-3.5">
               {naoFazemos.map((t) => (
-                <li key={t} className="flex items-start gap-3 text-[15.5px] leading-snug text-white/85">
-                  <X className="mt-0.5 h-4 w-4 shrink-0 text-[#FB923C]" />
+                <li key={t} className="flex items-start gap-1.5 text-[12px] leading-snug text-white/85 sm:gap-3 sm:text-[14px] md:text-[15.5px]">
+                  <X className="mt-0.5 h-3 w-3 shrink-0 text-[#FB923C] sm:h-4 sm:w-4" />
                   {t}
                 </li>
               ))}
