@@ -270,6 +270,7 @@ export default function VendaSistema() {
       <div className="h-[72px] md:h-[92px]" aria-hidden="true" />
       <Hero />
       <Sobre />
+      <Especialidades />
       <Servicos />
       <Sistema />
       <GaleriaSistema />
@@ -592,13 +593,14 @@ function Sobre() {
 }
 
 const b3 = [
-  { t: "IBOV", v: "168.619 pts", c: "0,70%", up: false },
-  { t: "Petrobras PN", v: "R$ 41,65", c: "1,17%", up: true },
-  { t: "Petrobras ON", v: "R$ 46,81", c: "1,50%", up: true },
-  { t: "Vale ON", v: "R$ 77,70", c: "1,02%", up: false },
-  { t: "Itaú PN", v: "R$ 39,36", c: "0,36%", up: true },
-  { t: "Dólar", v: "R$ 5,17", c: "0,22%", up: false },
-  { t: "Bradesco PN", v: "R$ 13,84", c: "0,58%", up: true },
+  { t: "Reajuste ANS 24/25", v: "6,91%" },
+  { t: "Inflação médica (VCMH)", v: "12,3% a.a." },
+  { t: "IPCA Saúde 12m", v: "5,12%" },
+  { t: "Selic", v: "14,50% a.a." },
+  { t: "CDI", v: "14,40% a.a." },
+  { t: "IGP-M 12m", v: "4,18%" },
+  { t: "Dólar (insumos)", v: "R$ 5,17" },
+  { t: "Salário mínimo", v: "R$ 1.518" },
 ];
 
 const moedas = {
@@ -617,15 +619,14 @@ function Sistema() {
         <div className="overflow-hidden rounded-full border border-black/8 bg-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)]">
           <div className="flex items-stretch">
             <div className="flex shrink-0 items-center rounded-l-full bg-[#060E1C] px-4 md:px-5">
-              <span className="text-[12px] font-black uppercase tracking-wide text-white">Bolsa B3</span>
+              <span className="text-[12px] font-black uppercase tracking-wide text-white">Saúde &amp; Economia</span>
             </div>
             <div className="overflow-hidden py-2.5">
               <div className="tatica-marquee flex w-max items-center gap-7 px-4">
                 {[...b3, ...b3].map((q, i) => (
                   <span key={i} className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px]">
                     <strong className="text-[#1A1A1A]">{q.t}</strong>
-                    <span className="text-[#6B7280]">{q.v}</span>
-                    <span className={`font-semibold ${q.up ? "text-[#059669]" : "text-[#EF4444]"}`}>{q.up ? "▲" : "▼"} {q.c}</span>
+                    <span className="font-semibold text-[#059669]">{q.v}</span>
                   </span>
                 ))}
               </div>
@@ -917,7 +918,7 @@ function TudoNumSistema() {
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#1351B4] text-white"><LineChart className="h-5 w-5" /></div>
             <div>
               <p className="text-[16px] font-black text-white">Do micro ao macro</p>
-              <p className="mt-1 text-[14.5px] leading-relaxed text-[#CFC8BA]">Selic, IPCA, dólar e Bolsa B3 em tempo real, no mesmo painel dos seus indicadores.</p>
+              <p className="mt-1 text-[14.5px] leading-relaxed text-[#CFC8BA]">Reajuste da ANS, inflação médica, Selic e dólar em tempo real, no mesmo painel dos seus indicadores.</p>
             </div>
           </div>
         </div>
@@ -1101,11 +1102,11 @@ function Overnight() {
 
 const fazemos = [
   "Assumimos o financeiro inteiro da clínica (BPO completo)",
-  "Precificação, tributário, maquininha e repasse sob controle",
+  "Conciliamos procedimentos parcelados no cartão, parcela por parcela",
+  "Controlamos custo de maquininha e antecipação, protegendo sua margem",
+  "Organizamos o repasse financeiro entre os sócios da clínica",
   "Sistema próprio incluído, com relatórios que você entende",
-  "Trabalhamos junto com o seu contador",
   "Foco 100% em clínicas e consultórios médicos",
-  "Diagnóstico antes de propor qualquer coisa",
 ];
 
 const naoFazemos = [
@@ -1116,6 +1117,36 @@ const naoFazemos = [
   "Sumir depois de assinar o contrato",
   "Substituir o seu contador (a gente soma com ele)",
 ];
+
+const especialidades = [
+  "Clínica Geral", "Dermatologia", "Cirurgia Plástica", "Odontologia",
+  "Oftalmologia", "Ortopedia", "Ginecologia", "Pediatria", "Cardiologia",
+  "Estética Médica", "Tricologia & Capilar", "Fisioterapia", "Nutrição",
+  "Psicologia", "Otorrinolaringologia", "Urologia",
+];
+
+function Especialidades() {
+  return (
+    <section className="bg-transparent">
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
+        <div className="text-center">
+          <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#1351B4]">Feito pra área médica</p>
+          <h2 className="mt-3 text-[clamp(1.7rem,4vw,2.5rem)] font-black leading-[1.1] tracking-tight text-[#020A17]">
+            Atendemos clínicas e consultórios de <span className="text-[#059669]">todas as especialidades</span>
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-[#3F3F46]">
+            O BPO e o sistema da Tática se adaptam à rotina de cada especialidade — da estética ao cirúrgico.
+          </p>
+        </div>
+        <div className="mt-9 flex flex-wrap justify-center gap-2.5">
+          {especialidades.map((e) => (
+            <span key={e} className="rounded-full border border-black/8 bg-white px-4 py-2 text-[13.5px] font-semibold text-[#020A17] shadow-[0_2px_10px_rgba(0,0,0,0.04)]">{e}</span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function Servicos() {
   return (
@@ -1433,7 +1464,7 @@ function CTAFinal() {
 
         <Button asChild size="lg" className="mt-9 h-14 rounded-md bg-[#10B981] px-10 text-[16px] font-bold uppercase tracking-wider text-white hover:-translate-y-0.5 hover:bg-[#059669] hover:shadow-[0_12px_30px_rgba(44,123,196,0.4)]">
           <a href={whatsappUrl} target="_blank" rel="noreferrer">
-            Falar no WhatsApp
+            Agendar diagnóstico gratuito
             <ArrowRight className="ml-2 h-4 w-4" />
           </a>
         </Button>
