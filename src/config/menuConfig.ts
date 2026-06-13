@@ -80,8 +80,8 @@ export const menuGroups: MenuGroup[] = [
     icon: LayoutDashboard,
     items: [
       { titleKey: 'Visão Geral', icon: LayoutDashboard, url: '/dashboard', isHardcoded: true },
-      { titleKey: 'Indicadores', icon: TrendingUp, url: '/indicadores', isHardcoded: true },
-      { titleKey: 'Multi-empresa', icon: GitMerge, url: '/multiempresa', isHardcoded: true, module: 'multiempresa' },
+      { titleKey: 'Indicadores', icon: TrendingUp, url: '/indicadores', isHardcoded: true, hidden: true },
+      { titleKey: 'Multi-empresa', icon: GitMerge, url: '/multiempresa', isHardcoded: true, module: 'multiempresa', hidden: true },
     ]
   },
   // ① CADASTRAR — configura uma vez e reutiliza no sistema todo
