@@ -21,7 +21,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
     AlertTriangle, Trash2, History, Shield, Plus,
-    Pencil, Search, Plug, CheckCircle2, XCircle, Clock,
+    Pencil, Search, Clock,
     Download, Eye, EyeOff, ChevronDown, ChevronUp,
     Moon, FileText, Loader2, Send, MessageCircle, X,
 } from "lucide-react";
@@ -48,21 +48,8 @@ const MODULOS = [
 ];
 const ACOES = ["ler", "escrever", "aprovar"] as const;
 
-const INTEGRACOES_INFO: Record<string, { label: string; desc: string }> = {
-    resend: { label: "Resend", desc: "Envio de e-mails transacionais" },
-    evolution_api: { label: "Evolution API", desc: "WhatsApp Business" },
-    sefaz: { label: "SEFAZ", desc: "Notas fiscais eletrônicas" },
-    prefeitura_nfse: { label: "Prefeitura NFS-e", desc: "Notas de serviço" },
-    focus_nfe: { label: "Focus NF-e", desc: "Emissão de NF-e" },
-    enotas: { label: "eNotas", desc: "Gateway de notas fiscais" },
-    nuvem_fiscal: { label: "Nuvem Fiscal", desc: "Plataforma fiscal" },
-    pluggy: { label: "Pluggy", desc: "Open finance" },
-    belvo: { label: "Belvo", desc: "Open finance" },
-    asaas: { label: "Asaas", desc: "Cobranças e pagamentos" },
-    stripe: { label: "Stripe", desc: "Pagamentos internacionais" },
-    d4sign: { label: "D4Sign", desc: "Assinatura digital" },
-    clicksign: { label: "Clicksign", desc: "Assinatura eletrônica" },
-};
+// (Integrações migrou para a página própria src/pages/Integracoes.tsx,
+//  acessível pela Central de Cadastros.)
 
 // ─── Componente principal ───────────────────────────────────
 export default function Configuracoes() {
@@ -94,7 +81,7 @@ export default function Configuracoes() {
     return (
         <AppLayout title="Configurações">
             <div className="animate-fade-in">
-                <PagePanel title="Configurações" subtitle="Preferências gerais, fiscais e integrações">
+                <PagePanel title="Configurações" subtitle="Preferências gerais, fiscais e de sistema">
 
                 <Tabs defaultValue="geral" className="w-full">
                     <TabsList className="flex w-full max-w-2xl mb-6 overflow-x-auto">
@@ -102,7 +89,6 @@ export default function Configuracoes() {
                         <TabsTrigger value="overnight">Overnight</TabsTrigger>
                         <TabsTrigger value="perfis">Perfis de Acesso</TabsTrigger>
                         <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
-                        <TabsTrigger value="integracoes">Integrações</TabsTrigger>
                         <TabsTrigger value="perigo" className="text-[#E53E3E] data-[state=active]:text-red-700">Zona de Perigo</TabsTrigger>
                     </TabsList>
 
@@ -161,11 +147,6 @@ export default function Configuracoes() {
                     {/* ─── Auditoria ─── */}
                     <TabsContent value="auditoria">
                         <LogAtividades />
-                    </TabsContent>
-
-                    {/* ─── Integrações ─── */}
-                    <TabsContent value="integracoes">
-                        <IntegracoesPanel />
                     </TabsContent>
 
                     {/* ─── Zona de Perigo ─── */}
@@ -698,104 +679,6 @@ function LogAtividades() {
     );
 }
 
-// ═════════════════════════════════════════════════════════════
-// Integrações
-// ═════════════════════════════════════════════════════════════
-function IntegracoesPanel() {
-    const { activeClient } = useAuth();
-    const { selectedCompany } = useCompany();
-
-    const { data: integracoes, isLoading } = useQuery({
-        queryKey: ["integracoes", selectedCompany?.id],
-        queryFn: async () => {
-            if (!selectedCompany?.id) return [];
-            const { data, error } = await activeClient
-                .from("integracoes")
-                .select("id, nome, status, ultimo_teste, ultimo_erro, ativo, created_at, updated_at")
-                .eq("company_id", selectedCompany.id);
-            if (error) return []; // RLS might block, return empty
-            return data || [];
-        },
-        enabled: !!selectedCompany?.id,
-    });
-
-    const statusIcon = (status: string) => {
-        switch (status) {
-            case "ativo": return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-            case "erro": return <XCircle className="h-4 w-4 text-red-500" />;
-            case "configurando": return <Clock className="h-4 w-4 text-amber-500" />;
-            default: return <XCircle className="h-4 w-4 text-gray-400" />;
-        }
-    };
-
-    const statusLabel = (status: string) => {
-        const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-            ativo: { label: "Ativo", variant: "default" },
-            inativo: { label: "Inativo", variant: "outline" },
-            erro: { label: "Erro", variant: "destructive" },
-            configurando: { label: "Configurando", variant: "secondary" },
-        };
-        const info = map[status] || { label: status, variant: "outline" as const };
-        return <Badge variant={info.variant} className="text-[11px]">{info.label}</Badge>;
-    };
-
-    // Build list with all known integrations
-    const allIntegrations = useMemo(() => {
-        const configured = new Map((integracoes || []).map((i: any) => [i.nome, i]));
-        return Object.entries(INTEGRACOES_INFO).map(([key, info]) => ({
-            key,
-            ...info,
-            configured: configured.has(key),
-            data: configured.get(key),
-        }));
-    }, [integracoes]);
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Plug className="h-5 w-5" />
-                    Integrações
-                </CardTitle>
-                <CardDescription>Status das integrações configuradas para esta empresa.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {allIntegrations.map((integ) => (
-                        <div key={integ.key}
-                            className={`rounded-lg border p-4 transition-colors ${integ.configured ? "bg-white" : "bg-muted/30 opacity-60"}`}>
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <h4 className="text-[13px] font-semibold">{integ.label}</h4>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">{integ.desc}</p>
-                                </div>
-                                {integ.configured ? statusIcon(integ.data?.status) : <XCircle className="h-4 w-4 text-gray-300" />}
-                            </div>
-                            {integ.configured && integ.data && (
-                                <div className="mt-3 flex items-center gap-2">
-                                    {statusLabel(integ.data.status)}
-                                    {integ.data.ultimo_teste && (
-                                        <span className="text-[11px] text-muted-foreground">
-                                            Teste: {format(new Date(integ.data.ultimo_teste), "dd/MM HH:mm")}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                            {integ.configured && integ.data?.ultimo_erro && (
-                                <p className="text-[11px] text-red-500 mt-1 truncate" title={integ.data.ultimo_erro}>
-                                    {integ.data.ultimo_erro}
-                                </p>
-                            )}
-                            {!integ.configured && (
-                                <p className="text-[11px] text-muted-foreground mt-2">Não configurado</p>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
 
 // ═════════════════════════════════════════════════════════════
 // Overnight Financeiro

@@ -293,6 +293,7 @@ const TOOLS = [
                 categoria_id: { type: "string", description: "UUID da categoria do plano de contas. Null = usa 'Despesas Diversas'." },
                 centro_custo_id: { type: "string" },
                 observacao: { type: "string" },
+                codigo_barras: { type: "string", description: "Linha digitável / código de barras do boleto (47-48 dígitos). Quando a CP vier de um BOLETO ANEXADO, SEMPRE passe o codigo_barras que veio no OCR. Null se não for boleto." },
             },
             required: ["empresa_id", "credor_nome", "descricao", "valor", "data_vencimento"],
         },
@@ -1368,6 +1369,10 @@ serve(async (req: Request) => {
     // 3.5. Se veio mídia (foto/PDF), lê e CLASSIFICA: comprovante (PIX/TED → DAR
     // BAIXA numa CR/CP) ou boleto (→ lançar CP). Funciona em Cloud e Evolution.
     let textoEnriquecido = msg.text || "";
+    // Quando o empresário manda um BOLETO, guardamos aqui a URL do PDF/foto já
+    // subido pro storage, pra anexar na CP automaticamente quando o agente
+    // chamar lancar_cp (o anexo não passa pela LLM, é injetado no servidor).
+    let boletoFileUrl: string | null = null;
     if (msg.midia && msgId) {
         await enviarResposta(phoneNorm, "📄 Recebi sua mídia, analisando...");
         const remoteJid = body?.data?.key?.remoteJid || "";
@@ -1456,7 +1461,31 @@ serve(async (req: Request) => {
                     }
                 }
 
-                textoEnriquecido = `[BOLETO ANEXADO PELO EMPRESÁRIO — dados extraídos por OCR]\n${partes.join("\n")}\n\nCaption/texto da mensagem: "${msg.text || "(sem texto)"}"\n\nAja como se o empresário pedisse pra lançar essa CP. Pergunte qual empresa se houver mais de uma (use empresa_do_boleto como sugestão se preencheu). Siga o fluxo normal de lançar_cp.${avisoPagador}`;
+                // Sobe o PDF/foto do boleto pro storage (mesmo bucket/pasta do
+                // lançamento manual) pra anexar na CP. Best-effort: se falhar, a CP
+                // ainda é lançada, só sem anexo.
+                try {
+                    const empresaUpload = contexto.empresa_ativa_id;
+                    const ext = midia.mimetype === "application/pdf"
+                        ? "pdf"
+                        : (midia.mimetype.split("/")[1] || "bin").replace(/[^a-z0-9]/gi, "");
+                    const bytes = Uint8Array.from(atob(midia.base64), (c) => c.charCodeAt(0));
+                    const msgIdSafe = String(msgId).replace(/[^a-zA-Z0-9]/g, "").slice(0, 60) || crypto.randomUUID();
+                    const path = `${empresaUpload}/payables/wa-${msgIdSafe}.${ext}`;
+                    const { error: upErr } = await service.storage
+                        .from("documents")
+                        .upload(path, bytes, { contentType: midia.mimetype, upsert: true });
+                    if (upErr) {
+                        console.error("[orquestrador] upload boleto falhou:", upErr.message);
+                    } else {
+                        const { data: pub } = service.storage.from("documents").getPublicUrl(path);
+                        boletoFileUrl = pub?.publicUrl ?? null;
+                    }
+                } catch (e: any) {
+                    console.error("[orquestrador] exceção upload boleto:", e?.message);
+                }
+
+                textoEnriquecido = `[BOLETO ANEXADO PELO EMPRESÁRIO — dados extraídos por OCR]\n${partes.join("\n")}\n\nCaption/texto da mensagem: "${msg.text || "(sem texto)"}"\n\nAja como se o empresário pedisse pra lançar essa CP. Pergunte qual empresa se houver mais de uma (use empresa_do_boleto como sugestão se preencheu). Siga o fluxo normal de lançar_cp. IMPORTANTE: ao chamar lancar_cp, passe o campo codigo_barras com o valor exato que veio no OCR acima (o PDF/foto já é anexado automaticamente).${avisoPagador}`;
             } else {
                 textoEnriquecido = `Empresário mandou uma mídia que não consegui identificar como comprovante nem boleto. Caption: "${msg.text || "(sem texto)"}". Pergunte o que ele quer que você faça.`;
             }
@@ -1505,6 +1534,16 @@ serve(async (req: Request) => {
             const toolResults: any[] = [];
             for (const block of content) {
                 if (block.type === "tool_use") {
+                    // Anexa o boleto na CP automaticamente: o arquivo não trafega
+                    // pela LLM, então injetamos a URL do storage no servidor.
+                    if (
+                        block.name === "lancar_cp" &&
+                        boletoFileUrl &&
+                        block.input &&
+                        !(block.input as any).file_url
+                    ) {
+                        (block.input as any).file_url = boletoFileUrl;
+                    }
                     const result = await executarTool(block.name, block.input, contexto);
                     toolResults.push({
                         type: "tool_result",

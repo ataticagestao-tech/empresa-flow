@@ -21,6 +21,7 @@ import {
   Shield,
   MessageCircle,
   CheckSquare,
+  Plug,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
@@ -108,6 +109,15 @@ const SECTIONS: CadastroSection[] = [
     icon: Receipt,
     cards: [
       { title: "Configuração NFSe", description: "Dados de emissão da nota fiscal de serviço", url: "/configuracoes/nfse", icon: Settings, module: "fiscal" },
+    ],
+  },
+  {
+    id: "integracoes",
+    title: "Integrações",
+    description: "Serviços externos conectados a esta empresa",
+    icon: Plug,
+    cards: [
+      { title: "Integrações", description: "Conecte Asaas, NFS-e e outros serviços externos", url: "/integracoes", icon: Plug },
     ],
   },
   {

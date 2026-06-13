@@ -101,6 +101,10 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     const [localizacao, setLocalizacao] = useState("");
     const [controlaValidade, setControlaValidade] = useState(false);
     const [controlaLote, setControlaLote] = useState(false);
+    // Comissão
+    const [comissiona, setComissiona] = useState(false);
+    const [comissaoTipo, setComissaoTipo] = useState<"percentual" | "valor">("percentual");
+    const [comissaoValor, setComissaoValor] = useState("");
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -136,6 +140,19 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             setLocalizacao(product.localizacao || "");
             setControlaValidade(!!product.controla_validade);
             setControlaLote(!!product.controla_lote);
+            setComissiona(!!(product as any).comissiona);
+            setComissaoTipo(((product as any).comissao_tipo as "percentual" | "valor") || "percentual");
+            {
+                const cv = (product as any).comissao_valor;
+                const tipo = (product as any).comissao_tipo || "percentual";
+                setComissaoValor(
+                    cv == null || Number(cv) === 0
+                        ? ""
+                        : tipo === "valor"
+                            ? numberToMoeda(Number(cv))
+                            : String(Number(cv)).replace(".", ","),
+                );
+            }
             form.reset({
                 description: product.description,
                 type: product.activity || "produto",
@@ -213,6 +230,13 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 localizacao: localizacao || null,
                 controla_validade: controlaValidade,
                 controla_lote: controlaLote,
+                comissiona,
+                comissao_tipo: comissaoTipo,
+                comissao_valor: !comissiona
+                    ? 0
+                    : comissaoTipo === "valor"
+                        ? parseMoeda(comissaoValor)
+                        : (parseFloat(comissaoValor.replace(",", ".")) || 0),
             };
 
             const doSave = async (p: Record<string, any>) => {
@@ -227,6 +251,14 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             // Retry without conta_contabil_id if column doesn't exist yet
             if (error && error.message?.includes("conta_contabil_id")) {
                 delete payload.conta_contabil_id;
+                ({ error } = await doSave(payload));
+            }
+
+            // Retry without comissão fields if migration not applied yet
+            if (error && /comissi?ona|comissao/.test(error.message || "")) {
+                delete payload.comissiona;
+                delete payload.comissao_tipo;
+                delete payload.comissao_valor;
                 ({ error } = await doSave(payload));
             }
 
@@ -527,6 +559,56 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                             </label>
                         </div>
                     </div>
+                </div>
+
+                {/* ─── Comissão ─── */}
+                <div className="pt-3 border-t border-[#eee]">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#98A2B3] mb-3">Comissão</p>
+                    <label className="flex items-center gap-2 cursor-pointer text-[13px] mb-3">
+                        <input
+                            type="checkbox"
+                            checked={comissiona}
+                            onChange={(e) => setComissiona(e.target.checked)}
+                            className="accent-[#059669]"
+                        />
+                        Este produto/serviço gera comissão ao profissional que executa
+                    </label>
+                    {comissiona && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">Tipo</label>
+                                <Select value={comissaoTipo} onValueChange={(v) => { setComissaoTipo(v as "percentual" | "valor"); setComissaoValor(""); }}>
+                                    <SelectTrigger className="text-[13px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="percentual">Percentual (%)</SelectItem>
+                                        <SelectItem value="valor">Valor fixo (R$ por unidade)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                                    {comissaoTipo === "valor" ? "Valor da comissão" : "Percentual da comissão"}
+                                </label>
+                                <Input
+                                    value={comissaoValor}
+                                    onChange={(e) =>
+                                        setComissaoValor(
+                                            comissaoTipo === "valor"
+                                                ? formatarMoeda(e.target.value)
+                                                : e.target.value.replace(/[^\d,.]/g, ""),
+                                        )
+                                    }
+                                    placeholder={comissaoTipo === "valor" ? "R$ 0,00" : "Ex: 10"}
+                                    className="text-[13px]"
+                                />
+                                <p className="text-[11px] text-[#98A2B3] mt-1">
+                                    {comissaoTipo === "valor"
+                                        ? "Comissão = valor × quantidade do item."
+                                        : "Comissão = % sobre o valor do item. Cada funcionário pode ter um % próprio no cadastro dele."}
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Botões */}

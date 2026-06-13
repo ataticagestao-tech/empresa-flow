@@ -13,6 +13,7 @@ import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 import { RegistrarPagamentoDialog } from '@/modules/clients/presentation/components/RegistrarPagamentoDialog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
+import { CobrarAsaasDialog, type CobrarAlvo } from '@/components/cobranca/CobrarAsaasDialog'
 import { RoleGate } from '@/components/auth/RoleGate'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
@@ -57,6 +58,8 @@ interface VendaItem {
   quantidade: number
   valor_unitario: number
   valor_total: number
+  produto_id?: string | null
+  profissional_id?: string | null
 }
 
 interface ContaReceber {
@@ -117,6 +120,7 @@ interface NovoItem {
   valor_unitario: number
   produto_id?: string
   conta_contabil_id?: string | null
+  profissional_id?: string
 }
 
 interface ContratoAbertoCliente {
@@ -242,6 +246,7 @@ export default function Vendas() {
   // Alias do client ativo — todas as queries de Vendas devem passar por aqui
   // pra respeitar o projeto em que a empresa logada está hospedada.
   const db = activeClient as any
+  const [cobrarAlvo, setCobrarAlvo] = useState<CobrarAlvo | null>(null)
 
   // ─── Data state ──────────────────────────────────────────────
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
@@ -432,6 +437,50 @@ export default function Vendas() {
 
   // ─── Computed ────────────────────────────────────────────────
   const companyId = selectedCompany?.id
+
+  // ─── Funcionários ativos + serviços que cada um atende ───────
+  // Alimenta o seletor "Profissional" por item da venda.
+  const { data: funcionarios = [] } = useQuery({
+    queryKey: ['vendas_funcionarios', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await db
+        .from('employees')
+        .select('id, name, nome_completo, status')
+        .eq('company_id', companyId)
+        .order('name')
+      if (error) return []
+      return (data || []).filter((e: any) => {
+        const s = e.status ?? 'ativo'
+        return s !== 'inativo' && s !== 'demitido'
+      })
+    },
+  })
+
+  const { data: servicosPorProduto = {} } = useQuery({
+    queryKey: ['vendas_func_servicos', companyId],
+    enabled: !!companyId,
+    queryFn: async (): Promise<Record<string, string[]>> => {
+      const { data, error } = await db
+        .from('funcionario_servicos')
+        .select('product_id, employee_id, ativo')
+        .eq('company_id', companyId)
+      if (error) return {}
+      const map: Record<string, string[]> = {}
+      ;(data || []).forEach((r: any) => {
+        if (r.ativo === false) return
+        ;(map[r.product_id] = map[r.product_id] || []).push(r.employee_id)
+      })
+      return map
+    },
+  })
+
+  const nomeFunc = (f: any) => f.nome_completo || f.name || 'Sem nome'
+  const profissionaisDoItem = (it: NovoItem) => {
+    const ids = it.produto_id ? (servicosPorProduto as Record<string, string[]>)[it.produto_id] : null
+    if (ids && ids.length > 0) return (funcionarios as any[]).filter(f => ids.includes(f.id))
+    return funcionarios as any[]
+  }
 
   // ─── Vendas (React Query: cacheia entre navegações) ──────────
   // A consulta pesada (vendas + itens + CRs do período) fica em cache: reabrir a
@@ -1127,14 +1176,27 @@ export default function Vendas() {
     setFormDataVenda(venda.data_venda)
 
     if (venda.vendas_itens && venda.vendas_itens.length > 0) {
+      // Busca produto_id/profissional_id direto da tabela (não vêm na listagem
+      // para não quebrar a tela caso a migration de comissão ainda não rode).
+      let extras: Record<string, { produto_id?: string | null; profissional_id?: string | null }> = {}
+      try {
+        const { data: itensDb } = await db
+          .from('vendas_itens')
+          .select('id, produto_id, profissional_id')
+          .eq('venda_id', venda.id)
+        ;(itensDb || []).forEach((r: any) => { extras[r.id] = r })
+      } catch { /* migration ainda não aplicada — segue sem profissional */ }
+
       setFormItens(venda.vendas_itens.map(it => {
+        const ex = extras[it.id] || {}
         const prod = produtos.find(p => p.description.trim().toLowerCase() === it.descricao.trim().toLowerCase())
         return {
           descricao: it.descricao,
           quantidade: it.quantidade,
           valor_unitario: it.valor_unitario,
-          produto_id: prod?.id,
+          produto_id: ex.produto_id || prod?.id,
           conta_contabil_id: prod?.conta_contabil_id ?? null,
+          profissional_id: ex.profissional_id || undefined,
         }
       }))
     }
@@ -1735,6 +1797,8 @@ export default function Vendas() {
         descricao: toTitleCase(it.descricao.trim()),
         quantidade: it.quantidade,
         valor_unitario: it.valor_unitario,
+        produto_id: it.produto_id || null,
+        profissional_id: it.profissional_id || null,
       }))
 
       // ─── Montar CRs (todos os splits consolidados em UM array) ───
@@ -3191,6 +3255,7 @@ export default function Vendas() {
                     <thead>
                       <tr className="bg-[#F6F2EB] text-[11px] font-bold text-[#555] uppercase tracking-wider">
                         <th className="text-left px-3 py-2">Descrição</th>
+                        <th className="text-left px-3 py-2 w-44">Profissional</th>
                         <th className="text-center px-3 py-2 w-20">Qtd</th>
                         <th className="text-center px-3 py-2 w-28">Valor unit.</th>
                         <th className="text-right px-3 py-2 w-28">Subtotal</th>
@@ -3211,6 +3276,18 @@ export default function Vendas() {
                                 {it.descricao || 'Selecionar do catálogo...'}
                               </span>
                             </button>
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <select
+                              value={it.profissional_id || ''}
+                              onChange={e => updateItem(idx, 'profissional_id', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-[#1D2939] focus:outline-none focus:border-[#059669]"
+                            >
+                              <option value="">—</option>
+                              {profissionaisDoItem(it).map((f: any) => (
+                                <option key={f.id} value={f.id}>{nomeFunc(f)}</option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-2 py-1.5">
                             <input
@@ -3644,6 +3721,24 @@ export default function Vendas() {
                             }`}>
                               {cr.status === 'pago' ? 'Pago' : cr.status === 'parcial' ? 'Parcial' : 'Aberto'}
                             </span>
+                            {cr.status !== 'pago' && cr.status !== 'cancelado' && (
+                              <button
+                                onClick={() => setCobrarAlvo({
+                                  id: cr.id,
+                                  company_id: modalDetalhes.company_id,
+                                  pagador_nome: modalDetalhes.cliente_nome,
+                                  pagador_cpf_cnpj: modalDetalhes.cliente_cpf_cnpj,
+                                  valor: cr.valor,
+                                  valor_pago: cr.valor_pago,
+                                  data_vencimento: cr.data_vencimento,
+                                  venda_id: modalDetalhes.id,
+                                })}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-50 px-2 py-0.5 rounded transition-colors"
+                                title="Gerar cobrança Pix/boleto"
+                              >
+                                <QrCode size={12} /> Cobrar
+                              </button>
+                            )}
                           </div>
                         </div>
                       )
@@ -3670,6 +3765,9 @@ export default function Vendas() {
           </div>
         </div>
       )}
+
+      {/* Diálogo: Cobrar por Pix/boleto (Asaas) */}
+      <CobrarAsaasDialog alvo={cobrarAlvo} onClose={() => setCobrarAlvo(null)} />
 
       {/* ================================================================
          MODAL CONFIRMAR EXCLUSÃO

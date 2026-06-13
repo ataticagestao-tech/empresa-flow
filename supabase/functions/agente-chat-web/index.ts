@@ -119,6 +119,12 @@ DRE / FLUXO DE CAIXA:
 - "me mostra o DRE", "qual o resultado do mês" → gerar_dre. Resuma as linhas principais: *Receita Líquida*, *Lucro Bruto*, *Resultado Operacional*, *Resultado Líquido* (uma por linha).
 - "me mostra o fluxo de caixa", "como tá o caixa" → gerar_fluxo_caixa. Resuma entradas/saídas por atividade e o resultado.
 - Período default é o mês corrente; se pedir outro, resolva as datas antes.
+- gerar_dre/gerar_fluxo_caixa dão TEXTO pra resumir aqui. Se o usuário quiser em ARQUIVO/PDF, use gerar_relatorio_pdf.
+
+RELATÓRIO EM PDF (gerar_relatorio_pdf):
+- "me gera o PDF do fluxo de maio", "quero as contas a pagar em arquivo", "exporta o DRE em PDF" → use gerar_relatorio_pdf.
+- tipo: fluxo_caixa (por dia), contas_pagar, contas_receber (EM ABERTO por padrão; escopo="todas" pra incluir pagas), dre, faturamento. Resolva o período pra datas antes (default mês corrente).
+- Aqui no chat web a tool devolve um 'download_url'. Mostre o link pro usuário baixar (ex.: "Pronto ✅ Baixe aqui: <download_url>") e repasse o 'resumo'. O link vale por 2h.
 
 IMPORTANTE:
 - CP é lançada SEMPRE em aberto, mesmo se ele disse "paguei". Lançamento e baixa são separados: se ele manda "paguei a conta da X" e a CP JÁ existe em aberto, vá direto pro FLUXO DE BAIXA. Se NÃO existe, lance primeiro e depois pode dar baixa.
@@ -145,7 +151,7 @@ const TOOLS = [
     { name: "criar_fornecedor", description: "Cria fornecedor novo. SÓ chame depois de obter razao_social E cpf_cnpj. NUNCA invente CPF/CNPJ — peça explicitamente.", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, razao_social: { type: "string" }, cpf_cnpj: { type: "string", description: "Obrigatório. Peça se não souber." }, nome_fantasia: { type: "string" } }, required: ["empresa_id", "razao_social", "cpf_cnpj"] } },
     { name: "listar_contas_bancarias", description: "Lista contas bancárias ativas da empresa. Use pra escolher conta de origem quando há mais de uma.", input_schema: { type: "object", properties: { empresa_id: { type: "string" } }, required: ["empresa_id"] } },
     { name: "listar_categorias", description: "Lista categorias do plano de contas. Use pra achar a categoria certa antes de lançar CP. Se nenhuma bater, vai usar 'Despesas Diversas'.", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, tipo: { type: "string", enum: ["receita", "despesa"], description: "Default: despesa" }, termo: { type: "string", description: "Filtro por nome. Opcional." } }, required: ["empresa_id"] } },
-    { name: "lancar_cp", description: "Lança Conta a Pagar EM ABERTO (status='aberto'). NÃO marca como paga. SEMPRE confirme antes (valor, credor, vencimento, categoria).", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, credor_id: { type: "string", description: "UUID do credor. Null se não cadastrado." }, credor_tipo: { type: "string", enum: ["fornecedor", "funcionario", "socio", "outro"], description: "Default: fornecedor." }, credor_nome: { type: "string" }, descricao: { type: "string" }, valor: { type: "number", description: "Valor em reais (1500.50)" }, data_vencimento: { type: "string", description: "YYYY-MM-DD" }, categoria_id: { type: "string", description: "UUID. Null = 'Despesas Diversas'." }, centro_custo_id: { type: "string" }, observacao: { type: "string" } }, required: ["empresa_id", "credor_nome", "descricao", "valor", "data_vencimento"] } },
+    { name: "lancar_cp", description: "Lança Conta a Pagar EM ABERTO (status='aberto'). NÃO marca como paga. SEMPRE confirme antes (valor, credor, vencimento, categoria).", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, credor_id: { type: "string", description: "UUID do credor. Null se não cadastrado." }, credor_tipo: { type: "string", enum: ["fornecedor", "funcionario", "socio", "outro"], description: "Default: fornecedor." }, credor_nome: { type: "string" }, descricao: { type: "string" }, valor: { type: "number", description: "Valor em reais (1500.50)" }, data_vencimento: { type: "string", description: "YYYY-MM-DD" }, categoria_id: { type: "string", description: "UUID. Null = 'Despesas Diversas'." }, centro_custo_id: { type: "string" }, observacao: { type: "string" }, codigo_barras: { type: "string", description: "Linha digitável / código de barras do boleto (47-48 dígitos). Quando a CP vier de uma imagem de BOLETO, leia e passe o código de barras. Null se não for boleto." } }, required: ["empresa_id", "credor_nome", "descricao", "valor", "data_vencimento"] } },
     { name: "listar_cp_abertas", description: "Lista Contas a Pagar em aberto/parcial/vencidas. Use pra ACHAR a conta a dar baixa. Filtra por credor/descrição via 'termo'. Retorna cp_id, credor, descrição, saldo e vencimento.", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, termo: { type: "string", description: "Filtra por credor ou descrição. Opcional." } }, required: ["empresa_id"] } },
     { name: "baixar_cp", description: "Dá baixa (registra pagamento) de uma CP em aberto — marca paga e cria a movimentação. Ache antes com listar_cp_abertas e pergunte de qual conta saiu. CONFIRME antes.", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, cp_id: { type: "string" }, conta_bancaria_id: { type: "string" }, data_pagamento: { type: "string", description: "YYYY-MM-DD. Default hoje." }, valor_pago: { type: "number", description: "Default = saldo restante." }, forma_pagamento: { type: "string", description: "pix, dinheiro, transferencia, boleto, cartao. Default pix." } }, required: ["empresa_id", "cp_id", "conta_bancaria_id"] } },
     { name: "listar_cr_abertas", description: "Lista Contas a Receber em aberto/parcial/vencidas. Use pra ACHAR o recebimento. Filtra por pagador/descrição via 'termo'. Retorna cr_id, pagador, saldo e vencimento.", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, termo: { type: "string", description: "Filtra por pagador ou descrição. Opcional." } }, required: ["empresa_id"] } },
@@ -161,6 +167,7 @@ const TOOLS = [
     { name: "gerar_fluxo_caixa", description: "Gera a DFC (entradas/saídas por atividade) de um período. Resuma as principais linhas.", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, data_inicio: { type: "string", description: "YYYY-MM-DD. Default 1º dia do mês." }, data_fim: { type: "string", description: "YYYY-MM-DD. Default hoje." } }, required: ["empresa_id"] } },
     { name: "reenviar_overnight", description: "Gera o Overnight de uma DATA específica e manda o PDF pro WhatsApp configurado. Resolva a data relativa antes (YYYY-MM-DD).", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, data: { type: "string", description: "YYYY-MM-DD." } }, required: ["empresa_id", "data"] } },
     { name: "enviar_overnight", description: "Dispara AGORA o Overnight (PDF) por WhatsApp pros números configurados da empresa. Use pra 'me manda o overnight', 'manda o relatório do dia'. Se não estiver ativado, a tool avisa.", input_schema: { type: "object", properties: { empresa_id: { type: "string" } }, required: ["empresa_id"] } },
+    { name: "gerar_relatorio_pdf", description: "Gera um relatório financeiro EM PDF. Tipos: fluxo_caixa (entradas/saídas por dia), contas_pagar e contas_receber (só EM ABERTO por padrão), dre, faturamento. Use pra 'me gera o PDF de...', 'quero o relatório de... em PDF/arquivo'. Resolva o período pra datas antes (default mês corrente). No chat web a tool devolve um 'download_url' — passe esse link pro usuário baixar. Não é destrutivo. Repasse o 'resumo' que a tool retorna.", input_schema: { type: "object", properties: { empresa_id: { type: "string" }, tipo: { type: "string", enum: ["fluxo_caixa", "contas_pagar", "contas_receber", "dre", "faturamento"] }, data_inicio: { type: "string", description: "YYYY-MM-DD. Default 1º dia do mês." }, data_fim: { type: "string", description: "YYYY-MM-DD. Default hoje." }, escopo: { type: "string", enum: ["abertas", "todas"], description: "Só pra contas_pagar/contas_receber. 'abertas' (default) = só o que falta; 'todas' = inclui pagas no período." } }, required: ["empresa_id", "tipo"] } },
 ];
 
 // ── tipos ────────────────────────────────────────────────────
@@ -376,6 +383,31 @@ serve(async (req: Request) => {
         empresa_ativa_id: empresaAtivaId,
     };
 
+    // Se veio imagem (boleto/nota), sobe pro storage pra anexar na CP caso o
+    // agente lance uma. O arquivo não trafega pela LLM — injetamos a URL no
+    // servidor quando lancar_cp for chamada. Best-effort: falha não bloqueia.
+    let anexoFileUrl: string | null = null;
+    if (image) {
+        try {
+            const ext = image.media_type === "application/pdf"
+                ? "pdf"
+                : (image.media_type.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "");
+            const bytes = Uint8Array.from(atob(image.data), (c) => c.charCodeAt(0));
+            const path = `${empresaAtivaId}/payables/web-${crypto.randomUUID()}.${ext}`;
+            const { error: upErr } = await service.storage
+                .from("documents")
+                .upload(path, bytes, { contentType: image.media_type, upsert: true });
+            if (upErr) {
+                console.error("[chat-web] upload anexo falhou:", upErr.message);
+            } else {
+                const { data: pub } = service.storage.from("documents").getPublicUrl(path);
+                anexoFileUrl = pub?.publicUrl ?? null;
+            }
+        } catch (e: any) {
+            console.error("[chat-web] exceção upload anexo:", e?.message);
+        }
+    }
+
     // 5. Histórico + contexto automático
     const historico = await carregarHistorico(service, user.id, empresaAtivaId);
 
@@ -428,6 +460,16 @@ serve(async (req: Request) => {
             const toolResults: any[] = [];
             for (const block of content) {
                 if (block.type === "tool_use") {
+                    // Anexa a imagem (boleto/nota) na CP automaticamente: o arquivo
+                    // não trafega pela LLM, injetamos a URL do storage no servidor.
+                    if (
+                        block.name === "lancar_cp" &&
+                        anexoFileUrl &&
+                        block.input &&
+                        !(block.input as any).file_url
+                    ) {
+                        (block.input as any).file_url = anexoFileUrl;
+                    }
                     const result = await executarTool(block.name, block.input, contexto);
                     toolResults.push({
                         type: "tool_result",

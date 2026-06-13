@@ -22,6 +22,8 @@ interface Input {
     categoria_id?: string;
     centro_custo_id?: string;
     observacao?: string;
+    codigo_barras?: string;   // linha digitável do boleto (47-48 dígitos)
+    file_url?: string;        // URL do anexo (PDF/foto do boleto) já no storage
 }
 
 serve(async (req) => {
@@ -63,10 +65,21 @@ serve(async (req) => {
             p_categoria_id: input.categoria_id ?? null,
             p_centro_custo_id: input.centro_custo_id ?? null,
             p_observacao: input.observacao ?? null,
+            p_codigo_barras: input.codigo_barras ?? null,
+            p_file_url: input.file_url ?? null,
             p_credor_tipo: input.credor_tipo ?? "fornecedor",
         });
 
-        if (error) return j({ error: error.message }, 500);
+        if (error) {
+            // boleto repetido: o trigger de unicidade de codigo_barras dispara 23505
+            if (error.code === "23505" || /codigo_barras/i.test(error.message)) {
+                return j({
+                    error: "Já existe uma conta a pagar em aberto com esse mesmo código de barras nessa empresa. Esse boleto provavelmente já foi lançado.",
+                    duplicado: true,
+                }, 409);
+            }
+            return j({ error: error.message }, 500);
+        }
 
         const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
         return j({

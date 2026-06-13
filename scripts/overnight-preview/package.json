@@ -1,0 +1,13 @@
+{
+  "name": "overnight-preview",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Preview local (Node) do PDF do Overnight, reaproveitando o render da edge function.",
+  "scripts": {
+    "preview": "node --import ./loader.mjs preview.mjs"
+  },
+  "dependencies": {
+    "pdf-lib": "1.17.1"
+  }
+}

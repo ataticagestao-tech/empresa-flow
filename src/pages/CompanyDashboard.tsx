@@ -31,12 +31,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 /* ── Design Tokens — alinhado ao Design System v1 ──────────── */
 const C = {
     darkCard: "#1D2939",     // text-1 (neutro escuro, substitui navy)
-    gold: "#059669",          // brand-mid (substitui ouro)
-    goldBg: "#ECFDF4",        // brand-soft
+    gold: "#80C342",          // verde ANBIMA (era emerald)
+    goldBg: "#EEF6E2",        // brand-soft
     goldBorder: "#BFDBFE",    // brand border claro
-    green: "#039855",         // success
-    greenSoft: "#ECFDF3",     // success-bg
-    greenBadge: "#039855",
+    green: "#80C342",         // success
+    greenSoft: "#EEF6E2",     // success-bg
+    greenBadge: "#80C342",
     red: "#E53E3E",           // error
     redSoft: "#FEE2E2",       // error-bg
     redBg: "#E53E3E",
@@ -1276,10 +1276,10 @@ export default function CompanyDashboard() {
     const heatmapColor = (value: number, max: number) => {
         if (value === 0 || max === 0) return "#FFFFFF";
         const r = value / max;
-        if (r < 0.25) return "#A7F3D0";
-        if (r < 0.5) return "#34D399";
-        if (r < 0.75) return "#10B981";
-        return "#047857";
+        if (r < 0.25) return "#D6ECBD";
+        if (r < 0.5) return "#AED77E";
+        if (r < 0.75) return "#94CF5A";
+        return "#4F8A28";
     };
 
     const tooltipStyle = {
@@ -1399,7 +1399,7 @@ export default function CompanyDashboard() {
                                             display: "flex", alignItems: "center", gap: 8, width: "100%",
                                             padding: "8px 12px", borderRadius: 6,
                                             background: period === p.key ? C.goldBg : "transparent",
-                                            color: period === p.key ? "#059669" : C.text1,
+                                            color: period === p.key ? "#5C9A2E" : C.text1,
                                             fontSize: 13, fontWeight: period === p.key ? 600 : 500,
                                             border: "none", cursor: "pointer", textAlign: "left",
                                         }}
@@ -1433,7 +1433,7 @@ export default function CompanyDashboard() {
                                                         padding: "6px 4px", fontSize: 12, borderRadius: 6,
                                                         border: "none", cursor: "pointer",
                                                         background: specificMonth === i ? C.goldBg : "transparent",
-                                                        color: specificMonth === i ? "#059669" : C.text1,
+                                                        color: specificMonth === i ? "#5C9A2E" : C.text1,
                                                         fontWeight: specificMonth === i ? 600 : 500,
                                                     }}
                                                 >
@@ -1484,7 +1484,7 @@ export default function CompanyDashboard() {
                     {/* 1. Faturamento */}
                     <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 16, display: "flex", flexDirection: "column", gap: 7}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#EEF6E2", color: "#5C9A2E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingUp size={16} strokeWidth={2.25} />
                             </div>
                             <div style={{ fontSize: 16, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -1501,7 +1501,7 @@ export default function CompanyDashboard() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
                             {receitaPeriodoAnterior > 0 ? (
                                 <>
-                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendFat >= 0 ? "#5C9A2E" : "#E53E3E", flexShrink: 0 }}>
                                         {trendFat >= 0 ? "▲" : "▼"} {Math.abs(trendFat).toFixed(1)}%
                                     </span>
                                     <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>vs. {fmt(receitaPeriodoAnterior)} mês ant.</span>
@@ -1532,7 +1532,7 @@ export default function CompanyDashboard() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
                             {despesaPeriodoAnterior > 0 ? (
                                 <>
-                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendDesp <= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendDesp <= 0 ? "#5C9A2E" : "#E53E3E", flexShrink: 0 }}>
                                         {trendDesp <= 0 ? "▼" : "▲"} {Math.abs(trendDesp).toFixed(1)}%
                                     </span>
                                     <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>vs. {fmt(despesaPeriodoAnterior)} mês ant.</span>
@@ -1546,7 +1546,7 @@ export default function CompanyDashboard() {
                     {/* 3. Resultado Líquido */}
                     <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 16, display: "flex", flexDirection: "column", gap: 7}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: resultadoPeriodo >= 0 ? "#ECFDF5" : "#FEF2F2", color: resultadoPeriodo >= 0 ? "#059669" : "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: resultadoPeriodo >= 0 ? "#EEF6E2" : "#FEF2F2", color: resultadoPeriodo >= 0 ? "#5C9A2E" : "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <Wallet size={16} strokeWidth={2.25} />
                             </div>
                             <div style={{ fontSize: 16, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -1559,11 +1559,11 @@ export default function CompanyDashboard() {
                                 </span>
                             </div>
                         </div>
-                        <div style={{ fontSize: "clamp(18px, 1.8vw, 28px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(resultadoPeriodo)}</div>
+                        <div style={{ fontSize: "clamp(18px, 1.8vw, 28px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#5C9A2E" : "#E53E3E", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(resultadoPeriodo)}</div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
                             {resultadoPeriodoAnterior !== 0 ? (
                                 <>
-                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendResultado >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendResultado >= 0 ? "#5C9A2E" : "#E53E3E", flexShrink: 0 }}>
                                         {trendResultado >= 0 ? "▲" : "▼"} {Math.abs(trendResultado).toFixed(1)}%
                                     </span>
                                     <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>vs. {fmt(resultadoPeriodoAnterior)} mês ant.</span>
@@ -1590,7 +1590,7 @@ export default function CompanyDashboard() {
                             action={
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: C.textMuted }}>
                                     <span>Menos</span>
-                                    {["#F3F4F6", "#A7F3D0", "#34D399", "#10B981", "#047857"].map((c, i) => (
+                                    {["#F3F4F6", "#D6ECBD", "#AED77E", "#94CF5A", "#4F8A28"].map((c, i) => (
                                         <span key={i} style={{ width: 14, height: 14, background: c, borderRadius: 3, border: c === "#F3F4F6" ? `1px solid ${C.border}` : "none" }} />
                                     ))}
                                     <span>Mais</span>
@@ -1600,7 +1600,7 @@ export default function CompanyDashboard() {
                     </div>
                     {/* Mini-stats strip */}
                     {heatmap.total > 0 && (
-                        <div style={{ display: "flex", gap: 0, padding: "0 20px", background: "#059669" }}>
+                        <div style={{ display: "flex", gap: 0, padding: "0 20px", background: "#4F8A28" }}>
                             {[
                                 { label: "Total", value: fmt(heatmap.total) },
                                 { label: "Ticket médio", value: (monthlySales?.totalVendas ?? 0) > 0 ? fmt((monthlySales?.totalFaturamento ?? 0) / (monthlySales?.totalVendas ?? 1)) : "—" },
@@ -1671,7 +1671,7 @@ export default function CompanyDashboard() {
                                     const startIdx = page * PRODUCTS_PER_PAGE;
                                     const pageItems = monthlySales.productBreakdown.slice(startIdx, startIdx + PRODUCTS_PER_PAGE);
                                     // Mesma cor da fatia do donut "Distribuição": top 5 coloridos, resto cinza ("Outros")
-                                    const distPalette = ["#047857", "#059669", "#10B981", "#34D399", "#6EE7B7", "#9CA3AF"];
+                                    const distPalette = ["#4F8A28", "#6BA82F", "#80C342", "#9FD061", "#C2E29A", "#9CA3AF"];
                                     const colorByProduto = new Map<string, string>();
                                     [...monthlySales.productBreakdown]
                                         .sort((a, b) => b.faturamento - a.faturamento)
@@ -1702,7 +1702,7 @@ export default function CompanyDashboard() {
                                                     className="text-[10px]"
                                                     headerClassName="bg-[#F9FAFB] text-[#1D2939] font-bold uppercase tracking-wide px-1.5 py-1"
                                                     cellClassName="text-[#1D2939] px-1.5 py-[3px]"
-                                                    rowClassName={(p) => p.semProduto ? "bg-[#FFF0EB] text-muted-foreground italic" : "bg-white"}
+                                                    rowClassName={(p) => p.semProduto ? "bg-[#FDF1D6] text-muted-foreground italic" : "bg-white"}
                                                 />
                                               </div>
                                             </div>
@@ -1752,7 +1752,7 @@ export default function CompanyDashboard() {
                                             </div>
                                         );
                                     }
-                                    const palette = ["#15803D", "#16A34A", "#22C55E", "#4ADE80", "#86EFAC", "#9CA3AF"];
+                                    const palette = ["#4F8A28", "#6BA82F", "#80C342", "#9FD061", "#C2E29A", "#9CA3AF"];
                                     const TOP = 5;
                                     const sorted = [...items].sort((a, b) => b.faturamento - a.faturamento);
                                     const top = sorted.slice(0, TOP);
@@ -1842,8 +1842,8 @@ export default function CompanyDashboard() {
                     </div>
                     <div style={whitePanel}>
                         <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 8, fontSize: 12, color: C.text2 }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />Faturamento</span>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />Despesas</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#80C342", borderRadius: 2 }} />Faturamento</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#E99B00", borderRadius: 2 }} />Despesas</span>
                         </div>
                         <ResponsiveContainer width="100%" height={230}>
                             <BarChart data={serieAnoBarras} margin={{ top: 12, right: 8, left: 0, bottom: 4 }} barCategoryGap="8%" barGap={1}>
@@ -1855,10 +1855,10 @@ export default function CompanyDashboard() {
                                     formatter={(v: number, name: string) => [fmtFull(v), name === "faturamento" ? "Faturamento" : "Despesas"]}
                                     cursor={{ fill: "rgba(3, 152, 85, 0.08)" }}
                                 />
-                                <Bar dataKey="faturamento" name="faturamento" fill="#039855" radius={[4, 4, 0, 0]} maxBarSize={70} />
-                                <Bar dataKey="despesa" name="despesa" fill="#EF9F27" radius={[4, 4, 0, 0]} maxBarSize={70} />
-                                <ReferenceLine y={mediaFatAnoMes} stroke="#047857" strokeWidth={1.5} strokeDasharray="5 5" label={{ value: "Fat. médio", position: "insideTopRight", fill: "#047857", fontSize: 10, fontWeight: 600 }} />
-                                <ReferenceLine y={mediaDespAnoMes} stroke="#B45309" strokeWidth={1.5} strokeDasharray="5 5" label={{ value: "Desp. média", position: "insideTopRight", fill: "#B45309", fontSize: 10, fontWeight: 600 }} />
+                                <Bar dataKey="faturamento" name="faturamento" fill="#80C342" radius={[4, 4, 0, 0]} maxBarSize={70} />
+                                <Bar dataKey="despesa" name="despesa" fill="#E99B00" radius={[4, 4, 0, 0]} maxBarSize={70} />
+                                <ReferenceLine y={mediaFatAnoMes} stroke="#4F8A28" strokeWidth={1.5} strokeDasharray="5 5" label={{ value: "Fat. médio", position: "insideTopRight", fill: "#4F8A28", fontSize: 10, fontWeight: 600 }} />
+                                <ReferenceLine y={mediaDespAnoMes} stroke="#B07700" strokeWidth={1.5} strokeDasharray="5 5" label={{ value: "Desp. média", position: "insideTopRight", fill: "#B07700", fontSize: 10, fontWeight: 600 }} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -1897,19 +1897,19 @@ export default function CompanyDashboard() {
                                 </div>
                                 <div style={whitePanel}>
                                 <div style={{ display: "flex", justifyContent: "flex-start", gap: 24, marginBottom: 8, fontSize: 12, color: C.text2 }}>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />Faturamento acumulado</span>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />Despesa acumulada</span>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#80C342", borderRadius: 2 }} />Faturamento acumulado</span>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#E99B00", borderRadius: 2 }} />Despesa acumulada</span>
                                 </div>
                                 <ResponsiveContainer width="100%" height={230}>
                                     <ComposedChart data={rows} margin={{ top: 14, right: 14, left: 0, bottom: 4 }}>
                                         <defs>
                                             <linearGradient id="accFat" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#039855" stopOpacity={0.18} />
-                                                <stop offset="100%" stopColor="#039855" stopOpacity={0} />
+                                                <stop offset="0%" stopColor="#80C342" stopOpacity={0.18} />
+                                                <stop offset="100%" stopColor="#80C342" stopOpacity={0} />
                                             </linearGradient>
                                             <linearGradient id="accDesp" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#EF9F27" stopOpacity={0.16} />
-                                                <stop offset="100%" stopColor="#EF9F27" stopOpacity={0} />
+                                                <stop offset="0%" stopColor="#E99B00" stopOpacity={0.16} />
+                                                <stop offset="100%" stopColor="#E99B00" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
@@ -1921,8 +1921,8 @@ export default function CompanyDashboard() {
                                             cursor={{ stroke: "rgba(3, 152, 85, 0.12)", strokeWidth: 36 }}
                                         />
                                         <ReferenceLine y={mediaFatMes} {...refLineProps} label={refLabel("Média mensal")} />
-                                        <Area type="monotone" dataKey="fat" stroke="#039855" strokeWidth={2.2} fill="url(#accFat)" dot={false} name="fat" />
-                                        <Area type="monotone" dataKey="desp" stroke="#EF9F27" strokeWidth={2.2} fill="url(#accDesp)" dot={false} name="desp" />
+                                        <Area type="monotone" dataKey="fat" stroke="#80C342" strokeWidth={2.2} fill="url(#accFat)" dot={false} name="fat" />
+                                        <Area type="monotone" dataKey="desp" stroke="#E99B00" strokeWidth={2.2} fill="url(#accDesp)" dot={false} name="desp" />
                                         <Customized component={renderAxisArrows} />
                                     </ComposedChart>
                                 </ResponsiveContainer>

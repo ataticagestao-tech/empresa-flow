@@ -12,7 +12,7 @@ export interface ContratoParcela {
     data_vencimento: string;
     data_pagamento: string | null;
     status: string;
-    tipo: "reserva" | "parcela";
+    tipo: "entrada" | "parcela";
 }
 
 export interface ContratoVenda {
@@ -50,8 +50,15 @@ export interface CreateContratoInput {
     valor_total: number;
     data_venda: string;
     previsao_cirurgia?: string | null;
+    // reserva_valor/reserva_data mapeiam as colunas vendas.reserva_valor/_data
+    // e representam a ENTRADA (sinal) do contrato — abatida do valor total.
     reserva_valor: number;
     reserva_data: string | null;
+    // Quando a entrada já foi recebida no fechamento: a CR da entrada nasce
+    // paga e cai na conta bancária escolhida (trigger gera a movimentação).
+    entrada_recebida?: boolean;
+    entrada_forma?: string;                 // pix, cartao_credito, dinheiro...
+    entrada_conta_bancaria_id?: string | null;
     condicoes: CondicaoPagamento[];
 }
 
@@ -103,7 +110,9 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                     data_vencimento: c.data_vencimento,
                     data_pagamento: c.data_pagamento,
                     status: c.status,
-                    tipo: (c.observacoes || "").toLowerCase().includes("reserva") ? "reserva" : "parcela",
+                    // "entrada" = sinal/reserva (marcador no observacoes). Mantém
+                    // "reserva" no regex p/ contratos antigos já cadastrados.
+                    tipo: /reserva|entrada|sinal/.test((c.observacoes || "").toLowerCase()) ? "entrada" : "parcela",
                 }));
                 const total_pago = parcelas.reduce((s, p) => s + p.valor_pago, 0);
                 const valor_total = parseFloat(v.valor_total || 0);
@@ -174,18 +183,24 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             // Gera CRs: reserva (se houver) + cada condicao gera suas parcelas
             const crsPayload: any[] = [];
 
+            // Entrada/sinal. Se foi recebida no fechamento, a CR nasce PAGA com
+            // conta bancária → o trigger garantir_mov_ao_quitar_cr cria a
+            // movimentação e o dinheiro entra no saldo. Senão, fica em aberto.
             if (input.reserva_valor && input.reserva_valor > 0 && input.reserva_data) {
+                const recebida = !!(input.entrada_recebida && input.entrada_conta_bancaria_id);
                 crsPayload.push({
                     company_id: selectedCompany.id,
                     pagador_nome: input.clientName,
                     pagador_cpf_cnpj: docLimpo,
                     valor: input.reserva_valor,
-                    valor_pago: 0,
+                    valor_pago: recebida ? input.reserva_valor : 0,
                     data_vencimento: input.reserva_data,
-                    status: "aberto",
-                    forma_recebimento: "reserva",
+                    data_pagamento: recebida ? input.reserva_data : null,
+                    status: recebida ? "pago" : "aberto",
+                    forma_recebimento: recebida ? (input.entrada_forma || "pix") : "entrada",
+                    conta_bancaria_id: recebida ? input.entrada_conta_bancaria_id : null,
                     venda_id: venda.id,
-                    observacoes: "Reserva de data — " + input.procedimento,
+                    observacoes: "Entrada (sinal) — " + input.procedimento,
                 });
             }
 
@@ -269,9 +284,10 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                 throw new Error(`Valor total (${formatBRL(input.valor_total)}) nao pode ser menor que o ja pago (${formatBRL(totalPreservado)})`);
             }
 
-            // 3. Reserva: se a reserva ja foi paga, valor/data sao imutaveis
+            // 3. Entrada/sinal: se ja foi paga, valor/data sao imutaveis
+            //    (regex aceita o marcador antigo "reserva" tambem)
             const reservaPaga = crsPagas.find((c: any) =>
-                (c.observacoes || "").toLowerCase().includes("reserva")
+                /reserva|entrada|sinal/.test((c.observacoes || "").toLowerCase())
             );
 
             // 4. Soft-delete das CRs em aberto
@@ -312,17 +328,20 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             const crsPayload: any[] = [];
 
             if (!reservaPaga && input.reserva_valor && input.reserva_valor > 0 && input.reserva_data) {
+                const recebida = !!(input.entrada_recebida && input.entrada_conta_bancaria_id);
                 crsPayload.push({
                     company_id: selectedCompany.id,
                     pagador_nome: input.clientName,
                     pagador_cpf_cnpj: docLimpo,
                     valor: input.reserva_valor,
-                    valor_pago: 0,
+                    valor_pago: recebida ? input.reserva_valor : 0,
                     data_vencimento: input.reserva_data,
-                    status: "aberto",
-                    forma_recebimento: "reserva",
+                    data_pagamento: recebida ? input.reserva_data : null,
+                    status: recebida ? "pago" : "aberto",
+                    forma_recebimento: recebida ? (input.entrada_forma || "pix") : "entrada",
+                    conta_bancaria_id: recebida ? input.entrada_conta_bancaria_id : null,
                     venda_id: input.vendaId,
-                    observacoes: "Reserva de data — " + input.procedimento,
+                    observacoes: "Entrada (sinal) — " + input.procedimento,
                 });
             }
 

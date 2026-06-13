@@ -14,7 +14,9 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { PersistentLayout } from "@/components/layout/PersistentLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
+import { useProfessionalSelf } from "@/hooks/useProfessionalSelf";
 // Telas leves do "esqueleto" (login, 404) ficam embutidas — abrem na hora.
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -27,6 +29,7 @@ const Indicadores = lazy(() => import("./pages/Indicadores"));
 const RadarLegislativo = lazy(() => import("./pages/RadarLegislativo"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const Cadastros = lazy(() => import("./pages/Cadastros"));
+const Integracoes = lazy(() => import("./pages/Integracoes"));
 const Implantacao = lazy(() => import("./pages/Implantacao"));
 const Empresas = lazy(() => import("./pages/Empresas"));
 const Clientes = lazy(() => import("./pages/Clientes"));
@@ -88,11 +91,14 @@ const FluxoCaixa = lazy(() => import("./pages/FluxoCaixa"));
 const MapeamentoContabil = lazy(() => import("./pages/MapeamentoContabil"));
 const NfseEmissao = lazy(() => import("./pages/NfseEmissao"));
 const NfseConfiguracoes = lazy(() => import("./pages/NfseConfiguracoes"));
+const AsaasConfiguracoes = lazy(() => import("./pages/AsaasConfiguracoes"));
 const PrevisaoImpostos = lazy(() => import("./pages/PrevisaoImpostos"));
 const AreaContador = lazy(() => import("./pages/AreaContador"));
 const VendaSistema = lazy(() => import("./pages/VendaSistema"));
 const Privacidade = lazy(() => import("./pages/Privacidade"));
 const Checkout = lazy(() => import("./pages/Checkout"));
+const MinhasComissoes = lazy(() => import("./pages/MinhasComissoes"));
+const Comissoes = lazy(() => import("./pages/Comissoes"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -165,6 +171,23 @@ const RequireActiveAccount = () => {
   return <Outlet />;
 };
 
+// Confina o profissional (funcionário com login próprio, sem vínculo de empresa)
+// à página de comissões dele — ele não deve acessar o resto do sistema.
+const RequireNotProfissional = () => {
+  const { isProfessional, isLoading } = useProfessionalSelf();
+  const { companies, loading } = useCompany();
+
+  if (isLoading || loading) {
+    return <LoadingScreen />;
+  }
+
+  if (isProfessional && (companies?.length ?? 0) === 0) {
+    return <Navigate to="/minhas-comissoes" replace />;
+  }
+
+  return <Outlet />;
+};
+
 const RootRedirect = () => {
   const { user, loading } = useAuth();
 
@@ -200,7 +223,9 @@ const App = () => (
                 <Route path="/reset-password" element={<Auth />} />
                 <Route element={<RequireAuth />}>
                   <Route path="/conta-bloqueada" element={<ContaBloqueada />} />
+                  <Route path="/minhas-comissoes" element={<MinhasComissoes />} />
                   <Route element={<RequireActiveAccount />}>
+                    <Route element={<RequireNotProfissional />}>
                     <Route element={<PersistentLayout />}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/dashboard/:id" element={<CompanyDashboard />} />
@@ -208,6 +233,7 @@ const App = () => (
                     <Route path="/radar-legislativo" element={<RadarLegislativo />} />
                     <Route path="/financeiro" element={<Financeiro />} />
                     <Route path="/cadastros" element={<Cadastros />} />
+                    <Route path="/integracoes" element={<Integracoes />} />
                     <Route path="/implantacao" element={<Implantacao />} />
                     <Route path="/empresas" element={<Empresas />} />
                     <Route path="/empresas/:id" element={<EmpresaResumo />} />
@@ -232,6 +258,7 @@ const App = () => (
                     <Route path="/previsao-receitas" element={<PrevisaoReceitas />} />
                     <Route path="/cenarios" element={<Cenarios />} />
                     <Route path="/vendas" element={<Vendas />} />
+                    <Route path="/comissoes" element={<Comissoes />} />
                     <Route path="/ficha-tecnica" element={<FichaTecnica />} />
                     <Route path="/composicao-custo" element={<ComposicaoCusto />} />
                     <Route path="/margens-desconto" element={<MargensDesconto />} />
@@ -256,6 +283,7 @@ const App = () => (
                     <Route path="/nfse" element={<NfseEmissao />} />
                     <Route path="/previsao-impostos" element={<PrevisaoImpostos />} />
                     <Route path="/configuracoes/nfse" element={<NfseConfiguracoes />} />
+                    <Route path="/configuracoes/asaas" element={<AsaasConfiguracoes />} />
                     <Route path="/area-contador" element={<AreaContador />} />
                     <Route path="/importacao-xml" element={<ImportacaoXML />} />
                     <Route path="/folha-pagamento" element={<FolhaPagamento />} />
@@ -274,6 +302,7 @@ const App = () => (
                       <Route path="/admin/whatsapp-autorizados" element={<WhatsappAutorizados />} />
                       <Route path="/admin/whatsapp-inbox" element={<WhatsAppInbox />} />
                       <Route path="/admin/log-atividades" element={<LogAtividades />} />
+                    </Route>
                     </Route>
                     </Route>
                   </Route>

@@ -131,9 +131,11 @@ export const menuGroups: MenuGroup[] = [
     section: 'Operar (dia a dia)',
     items: [
       { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true },
+      { titleKey: 'Comissões', icon: Percent, url: '/comissoes', isHardcoded: true },
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
+      { titleKey: 'Cobrança Asaas', icon: Banknote, url: '/configuracoes/asaas', isHardcoded: true },
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true, ownerOnly: true },
     ]
   },

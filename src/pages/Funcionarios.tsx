@@ -9,6 +9,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatNumero, toTitleCase } from "@/lib/format";
 import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
+import AbaServicosComissao from "@/components/funcionarios/AbaServicosComissao";
+import ComissoesReaisFuncionario from "@/components/funcionarios/ComissoesReaisFuncionario";
 import { InteracoesCadastro } from "@/components/interacoes/InteracoesCadastro";
 import { EmployeeDuplicatesDialog } from "@/components/funcionarios/DuplicatesDialog";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -845,6 +847,7 @@ export default function Funcionarios() {
             <>
               <div className="bg-[#059669] px-3 py-2 flex items-center gap-1 overflow-x-auto">
                 {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Salários" },
+                  { id: "servicos", label: "Serviços" },
                   { id: "comissoes", label: "Comissões" }, { id: "beneficios_pagos", label: "Benefícios" },
                   { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Calc. Benefícios" },
                   { id: "interacoes", label: "Interações" }].map(t => (
@@ -1062,11 +1065,26 @@ export default function Funcionarios() {
                   </div>
                 )}
 
+                {tab === "servicos" && selected && selectedCompany && (
+                  <AbaServicosComissao
+                    companyId={selectedCompany.id}
+                    employeeId={selected.id}
+                    employeeNome={getName(selected)}
+                  />
+                )}
+
                 {tab === "comissoes" && (
                   <div className="space-y-4">
+                    {selected && selectedCompany && (
+                      <ComissoesReaisFuncionario
+                        companyId={selectedCompany.id}
+                        employeeId={selected.id}
+                        employeeNome={getName(selected)}
+                      />
+                    )}
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
                       <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-white">Comissões pagas</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white">Comissões pagas (lançamentos manuais)</span>
                         <span className="text-[10px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalComissoesPago)}</span>
                       </div>
                       {loadingPagamentos ? (

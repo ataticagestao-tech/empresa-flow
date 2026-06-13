@@ -1,44 +1,21 @@
 // ============================================================
 // gerar-overnight-pdf — Edge Function (Deno)
-// Gera o PDF "Overnight Financeiro" do dia para uma empresa.
-// Layout segue o template Tática (hero navy + seções numeradas):
-//   1. Resumo Executivo  ·  2. Vendas (agrupado por forma)
+// Coleta os dados do "Overnight Financeiro" do dia para uma empresa
+// e delega o desenho do PDF para ./render.ts.
+//   1. Resumo Executivo  ·  2. Vendas (uma linha por venda)
 //   3. Contas a Pagar    ·  4. Contas a Receber
 //   5. Consolidado Dia/Mês
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "npm:pdf-lib@1.17.1";
+import { renderizarPdf } from "./render.ts";
+import type { OvernightDados, EmpresaInfo, VendaLinha, TituloComCategoria } from "./render.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// ── Layout A4 ──────────────────────────────────────────────
-const A4: [number, number] = [595.28, 841.89];
-const MARGIN_TOP = 40;
-const MARGIN_BOTTOM = 50;
-const MARGIN_LEFT = 50;
-const MARGIN_RIGHT = 50;
-const CONTENT_WIDTH = A4[0] - MARGIN_LEFT - MARGIN_RIGHT;
-
-// ── Paleta (extraída do template impresso) ─────────────────
-const COLOR_HERO_BG = rgb(0.118, 0.235, 0.471);     // #1E3C78  navy
-const COLOR_HERO_ACCENT = rgb(0.357, 0.745, 0.502); // #5BBE80  verde claro do TÁTICA
-const COLOR_WHITE = rgb(1, 1, 1);
-const COLOR_BODY = rgb(0.114, 0.161, 0.224);        // #1D2939
-const COLOR_MUTED = rgb(0.408, 0.471, 0.553);       // #68748D
-const COLOR_BORDER = rgb(0.85, 0.87, 0.91);
-const COLOR_BG_SOFT = rgb(0.953, 0.961, 0.973);     // cinza claríssimo
-const COLOR_BG_HEADER = rgb(0.118, 0.235, 0.471);   // mesmo navy do hero (header tabela)
-const COLOR_BG_TOTAL = rgb(0.918, 0.945, 0.969);    // azul muito claro p/ linha total
-const COLOR_GREEN_BAR = rgb(0.094, 0.549, 0.361);   // #18A55C  barra verde dos títulos
-const COLOR_GREEN = rgb(0.094, 0.549, 0.361);
-const COLOR_RED = rgb(0.784, 0.157, 0.192);
-
-const HERO_HEIGHT = 100;
 
 interface OvernightRequest {
     empresa_id: string;
@@ -125,52 +102,21 @@ function jsonError(msg: string, status: number) {
 // DATA LAYER
 // ============================================================
 
-interface EmpresaInfo { id: string; nome: string; }
-interface VendaPorForma { forma_label: string; qtd: number; valor: number; }
-interface TituloComCategoria {
-    categoria: string;
-    descricao: string;
-    vencimento: string;
-    valor: number;
-}
-interface Consolidado { entradas: number; saidas: number; resultado: number; }
-
-interface OvernightDados {
-    empresa: EmpresaInfo;
-    hoje_brt: Date;
-    saldo_consolidado: number;
-    faturamento_mes: number; // soma vendas confirmadas do mes (competencia)
-    vendas_por_forma: VendaPorForma[];
-    vendas_total: number;
-    vendas_qtd_total: number;
-    contas_pagar: TituloComCategoria[];
-    cp_total: number;
-    contas_receber: TituloComCategoria[];
-    cr_total: number;
-    consolidado_dia: Consolidado;
-    consolidado_mes: Consolidado;
-}
-
-// Ordem fixa das 6 categorias de venda do template
-const ORDEM_FORMAS: { key: string; label: string }[] = [
-    { key: "dinheiro",            label: "Dinheiro / Espécie" },
-    { key: "pix",                 label: "PIX" },
-    { key: "cartao_debito",       label: "Cartão de Débito" },
-    { key: "cartao_credito_avista", label: "Cartão de Crédito — à vista" },
-    { key: "cartao_credito_parcelado", label: "Cartão de Crédito — parcelado" },
-    { key: "boleto_outros",       label: "Boleto / Outros" },
-];
-
-function bucketForma(forma: string | null, parcelas: number): string {
+// Rótulo amigável da forma de pagamento de uma venda (uma linha por venda).
+function formaPagamentoLabel(forma: string | null, parcelas: number): string {
     const f = (forma || "").toLowerCase().trim();
-    if (f === "pix" || f === "ted") return "pix";
-    if (f === "dinheiro" || f === "especie" || f === "espécie") return "dinheiro";
-    if (f === "cartao_debito" || f === "debito") return "cartao_debito";
-    if (f === "cartao_credito" || f === "credito") {
-        return parcelas > 1 ? "cartao_credito_parcelado" : "cartao_credito_avista";
+    if (!f) return "—";
+    if (f === "multiplo" || f === "múltiplo") return "Múltiplo";
+    if (f === "pix") return "PIX";
+    if (f === "ted") return "TED";
+    if (f === "dinheiro" || f === "especie" || f === "espécie") return "Dinheiro / Espécie";
+    if (f === "cartao_debito" || f === "debito") return "Cartão de Débito";
+    if (f === "boleto") return "Boleto";
+    if (f === "cartao_credito" || f === "credito" || f === "parcelado") {
+        return parcelas > 1 ? `Cartão de Crédito — ${parcelas}x` : "Cartão de Crédito — à vista";
     }
-    if (f === "parcelado") return "cartao_credito_parcelado";
-    return "boleto_outros"; // boleto, outros, vazio etc.
+    // fallback: primeira letra maiúscula
+    return forma!.charAt(0).toUpperCase() + forma!.slice(1);
 }
 
 function hojeBRT(): Date {
@@ -239,14 +185,44 @@ async function coletarDados(client: SupabaseClient, companyId: string, refDateIs
         (acc: number, r: any) => acc + (Number(r.valor_pago) || 0), 0,
     );
 
-    // Vendas do dia — agrupadas por forma de recebimento
+    // Vendas do dia — uma linha por venda (produto + forma de pagamento)
     const { data: vendasRaw, error: vendasErr } = await client
         .from("vendas")
-        .select("valor_liquido, parcelas, forma_pagamento")
+        .select("id, cliente_nome, observacoes, valor_liquido, parcelas, forma_pagamento")
         .eq("company_id", companyId)
         .eq("data_venda", hojeIso)
-        .eq("status", "confirmado");
+        .eq("status", "confirmado")
+        .order("created_at", { ascending: true });
     if (vendasErr) throw new Error(`vendas: ${vendasErr.message}`);
+
+    // Produtos (itens) das vendas do dia — pra montar o rótulo da coluna PRODUTO
+    const vendaIds = (vendasRaw ?? []).map((v: any) => v.id);
+    const itensPorVenda: Record<string, string[]> = {};
+    if (vendaIds.length > 0) {
+        const { data: itensRaw, error: itensErr } = await client
+            .from("vendas_itens")
+            .select("venda_id, descricao")
+            .in("venda_id", vendaIds);
+        if (itensErr) throw new Error(`vendas_itens: ${itensErr.message}`);
+        for (const it of itensRaw ?? []) {
+            const desc = (it.descricao || "").trim();
+            if (!desc) continue;
+            (itensPorVenda[it.venda_id] ??= []).push(desc);
+        }
+    }
+
+    const vendas_dia: VendaLinha[] = (vendasRaw ?? []).map((v: any) => {
+        const itens = itensPorVenda[v.id] || [];
+        const produto = itens.length > 0
+            ? itens.join(", ")
+            : ((v.observacoes || "").trim() || "—");
+        return {
+            produto,
+            forma_label: formaPagamentoLabel(v.forma_pagamento, Number(v.parcelas) || 1),
+            valor: Number(v.valor_liquido) || 0,
+        };
+    });
+    const vendas_total = vendas_dia.reduce((a, b) => a + b.valor, 0);
 
     // Faturamento do mes (competencia) — soma das vendas confirmadas do mes
     const { data: vendasMesRaw, error: vendasMesErr } = await client
@@ -260,21 +236,6 @@ async function coletarDados(client: SupabaseClient, companyId: string, refDateIs
     const faturamento_mes = (vendasMesRaw ?? []).reduce(
         (acc: number, v: any) => acc + (Number(v.valor_liquido) || 0), 0,
     );
-
-    const buckets: Record<string, { qtd: number; valor: number }> = {};
-    for (const cat of ORDEM_FORMAS) buckets[cat.key] = { qtd: 0, valor: 0 };
-    for (const v of vendasRaw ?? []) {
-        const k = bucketForma(v.forma_pagamento, Number(v.parcelas) || 1);
-        buckets[k].qtd += 1;
-        buckets[k].valor += Number(v.valor_liquido) || 0;
-    }
-    const vendas_por_forma: VendaPorForma[] = ORDEM_FORMAS.map(cat => ({
-        forma_label: cat.label,
-        qtd: buckets[cat.key].qtd,
-        valor: buckets[cat.key].valor,
-    }));
-    const vendas_total = vendas_por_forma.reduce((a, b) => a + b.valor, 0);
-    const vendas_qtd_total = vendas_por_forma.reduce((a, b) => a + b.qtd, 0);
 
     // Contas a pagar do dia (vencimento = hoje) com categoria contábil
     const { data: cpRaw, error: cpErr } = await client
@@ -347,7 +308,7 @@ async function coletarDados(client: SupabaseClient, companyId: string, refDateIs
         hoje_brt: hoje,
         saldo_consolidado,
         faturamento_mes,
-        vendas_por_forma, vendas_total, vendas_qtd_total,
+        vendas_dia, vendas_total,
         contas_pagar, cp_total,
         contas_receber, cr_total,
         consolidado_dia: {
@@ -361,619 +322,6 @@ async function coletarDados(client: SupabaseClient, companyId: string, refDateIs
             resultado: entradas_mes - saidas_mes,
         },
     };
-}
-
-// ============================================================
-// PDF RENDERING
-// ============================================================
-
-interface RenderCtx {
-    doc: PDFDocument;
-    page: PDFPage;
-    font: PDFFont;
-    fontBold: PDFFont;
-    fontItalic: PDFFont;
-    y: number;
-    pages: PDFPage[]; // p/ rodapé "página X de N" no fim
-}
-
-async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
-    const doc = await PDFDocument.create();
-    doc.setTitle(sanitizeWinAnsi(`Overnight Financeiro — ${d.empresa.nome}`));
-    doc.setProducer("Tatica Gestao Empresarial");
-    doc.setCreator("Tatica Overnight");
-
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
-    const fontItalic = await doc.embedFont(StandardFonts.HelveticaOblique);
-
-    const page = doc.addPage(A4);
-    const ctx: RenderCtx = { doc, page, font, fontBold, fontItalic, y: A4[1], pages: [page] };
-
-    desenharHero(ctx);
-    desenharCabecalhoEmpresa(ctx, d);
-    ctx.y -= 18;
-
-    ensureSpace(ctx, 110);
-    desenharTituloSecao(ctx, "1.", "RESUMO EXECUTIVO — MÊS");
-    desenharResumoBoxes(ctx, d);
-    ctx.y -= 14;
-
-    ensureSpace(ctx, 180);
-    desenharTituloSecao(ctx, "2.", "VENDAS DO DIA");
-    desenharTabelaVendas(ctx, d);
-    ctx.y -= 14;
-
-    ensureSpace(ctx, 120);
-    desenharTituloSecao(ctx, "3.", "CONTAS A PAGAR");
-    desenharTabelaTitulos(
-        ctx,
-        d.contas_pagar,
-        d.cp_total,
-        ["CATEGORIA", "FORNECEDOR / DESCRIÇÃO", "VENCIMENTO", "VALOR (R$)"],
-        "TOTAL PAGO / A PAGAR NO DIA",
-        "Nenhum vencimento de pagamento hoje",
-    );
-    ctx.y -= 14;
-
-    ensureSpace(ctx, 120);
-    desenharTituloSecao(ctx, "4.", "CONTAS A RECEBER");
-    desenharTabelaTitulos(
-        ctx,
-        d.contas_receber,
-        d.cr_total,
-        ["CATEGORIA", "CLIENTE / DESCRIÇÃO", "VENCIMENTO", "VALOR (R$)"],
-        "TOTAL RECEBIDO / A RECEBER NO DIA",
-        "Nenhum vencimento de recebimento hoje",
-    );
-    ctx.y -= 14;
-
-    ensureSpace(ctx, 120);
-    desenharTituloSecao(ctx, "5.", "CONSOLIDADO — DIA E MÊS");
-    desenharTabelaConsolidado(ctx, d);
-    ctx.y -= 24;
-
-    desenharAssinatura(ctx);
-    desenharRodapesFinais(ctx);
-
-    return await doc.save();
-}
-
-// ── Hero (banda navy + EMPRESA/DATA) ───────────────────────
-
-function desenharHero(ctx: RenderCtx) {
-    // Faixa navy
-    ctx.page.drawRectangle({
-        x: 0,
-        y: A4[1] - HERO_HEIGHT,
-        width: A4[0],
-        height: HERO_HEIGHT,
-        color: COLOR_HERO_BG,
-    });
-
-    // OVERNIGHT (esquerda)
-    ctx.page.drawText("OVERNIGHT", {
-        x: MARGIN_LEFT,
-        y: A4[1] - 50,
-        size: 26,
-        font: ctx.fontBold,
-        color: COLOR_WHITE,
-    });
-    ctx.page.drawText("Atualização Financeira Diária", {
-        x: MARGIN_LEFT,
-        y: A4[1] - 70,
-        size: 9,
-        font: ctx.font,
-        color: COLOR_HERO_ACCENT,
-    });
-
-    // TÁTICA GESTÃO / EMPRESARIAL (direita)
-    const dirText1 = "TÁTICA GESTÃO";
-    const dirText2 = "EMPRESARIAL";
-    const w1 = ctx.fontBold.widthOfTextAtSize(dirText1, 9);
-    const w2 = ctx.fontBold.widthOfTextAtSize(dirText2, 9);
-    ctx.page.drawText(dirText1, {
-        x: A4[0] - MARGIN_RIGHT - w1,
-        y: A4[1] - 45,
-        size: 9,
-        font: ctx.fontBold,
-        color: COLOR_WHITE,
-    });
-    ctx.page.drawText(dirText2, {
-        x: A4[0] - MARGIN_RIGHT - w2,
-        y: A4[1] - 58,
-        size: 9,
-        font: ctx.fontBold,
-        color: COLOR_HERO_ACCENT,
-    });
-
-    ctx.y = A4[1] - HERO_HEIGHT - 8;
-}
-
-function desenharCabecalhoEmpresa(ctx: RenderCtx, d: OvernightDados) {
-    // Caixa cinza-clara com 2 colunas: EMPRESA | DATA DE REFERÊNCIA
-    const h = 48;
-    const colW = CONTENT_WIDTH / 2;
-    const y0 = ctx.y - h;
-
-    ctx.page.drawRectangle({
-        x: MARGIN_LEFT, y: y0,
-        width: CONTENT_WIDTH, height: h,
-        color: COLOR_BG_SOFT,
-        borderColor: COLOR_BORDER,
-        borderWidth: 0.6,
-    });
-    // separador entre colunas
-    ctx.page.drawLine({
-        start: { x: MARGIN_LEFT + colW, y: y0 },
-        end: { x: MARGIN_LEFT + colW, y: y0 + h },
-        thickness: 0.6,
-        color: COLOR_BORDER,
-    });
-
-    // Coluna 1 — EMPRESA
-    ctx.page.drawText("EMPRESA", {
-        x: MARGIN_LEFT + 10, y: ctx.y - 14,
-        size: 7.5, font: ctx.fontBold, color: COLOR_MUTED,
-    });
-    const nome = truncar(d.empresa.nome, ctx.fontBold, 12, colW - 20);
-    ctx.page.drawText(nome, {
-        x: MARGIN_LEFT + 10, y: ctx.y - 32,
-        size: 12, font: ctx.fontBold, color: COLOR_HERO_BG,
-    });
-
-    // Coluna 2 — DATA DE REFERÊNCIA
-    ctx.page.drawText("DATA DE REFERÊNCIA", {
-        x: MARGIN_LEFT + colW + 10, y: ctx.y - 14,
-        size: 7.5, font: ctx.fontBold, color: COLOR_MUTED,
-    });
-    ctx.page.drawText(formatarDataExtensa(d.hoje_brt), {
-        x: MARGIN_LEFT + colW + 10, y: ctx.y - 32,
-        size: 12, font: ctx.fontBold, color: COLOR_HERO_BG,
-    });
-
-    ctx.y = y0 - 4;
-}
-
-// ── Título de seção (barra verde + numeração + texto) ──────
-
-function desenharTituloSecao(ctx: RenderCtx, num: string, titulo: string) {
-    const barH = 14;
-    const barW = 4;
-    // barra verde
-    ctx.page.drawRectangle({
-        x: MARGIN_LEFT, y: ctx.y - barH - 1,
-        width: barW, height: barH,
-        color: COLOR_GREEN_BAR,
-    });
-    // numeração + título
-    ctx.page.drawText(`${num}  ${titulo}`, {
-        x: MARGIN_LEFT + barW + 8,
-        y: ctx.y - barH + 2,
-        size: 11,
-        font: ctx.fontBold,
-        color: COLOR_BODY,
-    });
-    ctx.y -= barH + 8;
-}
-
-// ── Seção 1 — Resumo Executivo (3 boxes) ───────────────────
-
-function desenharResumoBoxes(ctx: RenderCtx, d: OvernightDados) {
-    const boxH = 56;
-    const gap = 8;
-    const boxW = (CONTENT_WIDTH - gap * 2) / 3;
-    const topY = ctx.y;
-    const bottomY = topY - boxH;
-
-    const resultadoMes = d.faturamento_mes - d.consolidado_mes.saidas;
-    const itens = [
-        { titulo: "FATURAMENTO DO MÊS (vendas)", valor: formatarMoeda(d.faturamento_mes),        cor: COLOR_GREEN },
-        { titulo: "DESPESAS DO MÊS (CP pagas)",  valor: formatarMoeda(d.consolidado_mes.saidas), cor: COLOR_RED },
-        { titulo: "RESULTADO DO MÊS (=)",        valor: signedMoeda(resultadoMes),               cor: corResultado(resultadoMes) },
-    ];
-
-    for (let i = 0; i < 3; i++) {
-        const x = MARGIN_LEFT + i * (boxW + gap);
-        const it = itens[i];
-
-        ctx.page.drawRectangle({
-            x, y: bottomY, width: boxW, height: boxH,
-            color: COLOR_BG_SOFT,
-            borderColor: COLOR_BORDER,
-            borderWidth: 0.6,
-        });
-
-        ctx.page.drawText(it.titulo, {
-            x: x + 10, y: topY - 14,
-            size: 7.5, font: ctx.fontBold, color: COLOR_MUTED,
-        });
-        ctx.page.drawText(it.valor, {
-            x: x + 10, y: topY - 38,
-            size: 14, font: ctx.fontBold, color: it.cor,
-        });
-    }
-    ctx.y = bottomY - 4;
-}
-
-// ── Seção 2 — Vendas do dia (agrupado por forma) ───────────
-
-function desenharTabelaVendas(ctx: RenderCtx, d: OvernightDados) {
-    const cols = [
-        { x: MARGIN_LEFT,                                w: 270, align: "left" as const },
-        { x: MARGIN_LEFT + 270,                          w: 110, align: "center" as const },
-        { x: MARGIN_LEFT + 380,                          w: CONTENT_WIDTH - 380, align: "right" as const },
-    ];
-    desenharHeaderTabela(ctx, cols, ["FORMA DE RECEBIMENTO", "QTD. TRANSAÇÕES", "VALOR (R$)"]);
-
-    const formasComVenda = d.vendas_por_forma.filter(v => v.qtd > 0);
-    if (formasComVenda.length === 0) {
-        desenharLinhaVazia(ctx, "Nenhuma venda confirmada hoje");
-    } else {
-        for (const v of formasComVenda) {
-            desenharLinhaTabela(ctx, cols, [
-                v.forma_label,
-                String(v.qtd),
-                formatarMoeda(v.valor),
-            ], 18, 9, ctx.font);
-        }
-    }
-
-    desenharLinhaTotal(
-        ctx, cols,
-        ["TOTAL DE VENDAS DO DIA", String(d.vendas_qtd_total), formatarMoeda(d.vendas_total)],
-        ctx.fontBold, COLOR_HERO_BG,
-    );
-}
-
-// ── Seções 3/4 — Contas a Pagar / Receber (com categoria) ──
-
-function desenharTabelaTitulos(
-    ctx: RenderCtx,
-    itens: TituloComCategoria[],
-    total: number,
-    headers: string[],
-    rotuloTotal: string,
-    msgVazio: string,
-) {
-    const cols = [
-        { x: MARGIN_LEFT,                                w: 150, align: "left" as const },
-        { x: MARGIN_LEFT + 150,                          w: 195, align: "left" as const },
-        { x: MARGIN_LEFT + 345,                          w: 80,  align: "center" as const },
-        { x: MARGIN_LEFT + 425,                          w: CONTENT_WIDTH - 425, align: "right" as const },
-    ];
-    desenharHeaderTabela(ctx, cols, headers);
-
-    if (itens.length === 0) {
-        desenharLinhaVazia(ctx, msgVazio);
-    } else {
-        for (const it of itens) {
-            desenharLinhaTabela(ctx, cols, [
-                truncar(it.categoria, ctx.font, 9, cols[0].w - 8),
-                truncar(it.descricao, ctx.font, 9, cols[1].w - 8),
-                formatarDataBr(it.vencimento),
-                formatarMoeda(it.valor),
-            ], 18, 9, ctx.font);
-        }
-    }
-
-    desenharLinhaTotal(
-        ctx, cols,
-        [rotuloTotal, "", "", formatarMoeda(total)],
-        ctx.fontBold, COLOR_HERO_BG,
-    );
-}
-
-// ── Seção 5 — Consolidado Dia/Mês ──────────────────────────
-
-function desenharTabelaConsolidado(ctx: RenderCtx, d: OvernightDados) {
-    const cols = [
-        { x: MARGIN_LEFT,                                w: 280, align: "left" as const },
-        { x: MARGIN_LEFT + 280,                          w: (CONTENT_WIDTH - 280) / 2, align: "right" as const },
-        { x: MARGIN_LEFT + 280 + (CONTENT_WIDTH - 280) / 2, w: (CONTENT_WIDTH - 280) / 2, align: "right" as const },
-    ];
-    desenharHeaderTabela(ctx, cols, ["DEMONSTRATIVO CONSOLIDADO", "DIA (R$)", "ACUMULADO MÊS (R$)"]);
-
-    desenharLinhaTabela(ctx, cols, [
-        "(+) Total de Entradas",
-        formatarMoeda(d.consolidado_dia.entradas),
-        formatarMoeda(d.consolidado_mes.entradas),
-    ], 18, 9, ctx.font, COLOR_GREEN);
-
-    desenharLinhaTabela(ctx, cols, [
-        "(-) Total de Saídas",
-        formatarMoeda(d.consolidado_dia.saidas),
-        formatarMoeda(d.consolidado_mes.saidas),
-    ], 18, 9, ctx.font, COLOR_RED);
-
-    const corDia = corResultado(d.consolidado_dia.resultado);
-    const corMes = corResultado(d.consolidado_mes.resultado);
-    desenharLinhaTotalMulticor(
-        ctx, cols,
-        ["(=) RESULTADO LÍQUIDO",
-         signedMoeda(d.consolidado_dia.resultado),
-         signedMoeda(d.consolidado_mes.resultado)],
-        ctx.fontBold,
-        [COLOR_BODY, corDia, corMes],
-    );
-}
-
-// ── Helpers de tabela ──────────────────────────────────────
-
-function desenharHeaderTabela(
-    ctx: RenderCtx,
-    cols: { x: number; w: number; align: "left" | "right" | "center" }[],
-    headers: string[],
-) {
-    const h = 22;
-    ctx.page.drawRectangle({
-        x: MARGIN_LEFT, y: ctx.y - h,
-        width: CONTENT_WIDTH, height: h,
-        color: COLOR_BG_HEADER,
-    });
-    for (let i = 0; i < cols.length; i++) {
-        const label = headers[i];
-        const c = cols[i];
-        const size = 8;
-        const labelW = ctx.fontBold.widthOfTextAtSize(label, size);
-        const textX =
-            c.align === "right"  ? c.x + c.w - labelW - 8 :
-            c.align === "center" ? c.x + (c.w - labelW) / 2 :
-                                   c.x + 8;
-        ctx.page.drawText(label, {
-            x: textX, y: ctx.y - 14,
-            size, font: ctx.fontBold, color: COLOR_WHITE,
-        });
-    }
-    ctx.y -= h;
-}
-
-function desenharLinhaTabela(
-    ctx: RenderCtx,
-    cols: { x: number; w: number; align: "left" | "right" | "center" }[],
-    valores: string[],
-    rowHeight: number,
-    fontSize: number,
-    fnt: PDFFont,
-    corValor?: ReturnType<typeof rgb>,
-) {
-    for (let i = 0; i < cols.length; i++) {
-        const v = valores[i];
-        if (!v) continue;
-        const c = cols[i];
-        const valW = fnt.widthOfTextAtSize(v, fontSize);
-        const textX =
-            c.align === "right"  ? c.x + c.w - valW - 8 :
-            c.align === "center" ? c.x + (c.w - valW) / 2 :
-                                   c.x + 8;
-        const cor = (i > 0 && corValor) ? corValor : COLOR_BODY;
-        ctx.page.drawText(v, {
-            x: textX, y: ctx.y - rowHeight + 6,
-            size: fontSize, font: fnt, color: cor,
-        });
-    }
-    // borda inferior
-    ctx.page.drawLine({
-        start: { x: MARGIN_LEFT, y: ctx.y - rowHeight },
-        end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: ctx.y - rowHeight },
-        thickness: 0.3,
-        color: COLOR_BORDER,
-    });
-    ctx.y -= rowHeight;
-}
-
-function desenharLinhaVazia(ctx: RenderCtx, msg: string) {
-    const h = 22;
-    ctx.page.drawText(msg, {
-        x: MARGIN_LEFT + 10, y: ctx.y - 14,
-        size: 9, font: ctx.fontItalic, color: COLOR_MUTED,
-    });
-    ctx.page.drawLine({
-        start: { x: MARGIN_LEFT, y: ctx.y - h },
-        end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: ctx.y - h },
-        thickness: 0.3,
-        color: COLOR_BORDER,
-    });
-    ctx.y -= h;
-}
-
-function desenharLinhaTotal(
-    ctx: RenderCtx,
-    cols: { x: number; w: number; align: "left" | "right" | "center" }[],
-    valores: string[],
-    fnt: PDFFont,
-    corValor: ReturnType<typeof rgb>,
-) {
-    const h = 22;
-    ctx.page.drawRectangle({
-        x: MARGIN_LEFT, y: ctx.y - h,
-        width: CONTENT_WIDTH, height: h,
-        color: COLOR_BG_TOTAL,
-    });
-    for (let i = 0; i < cols.length; i++) {
-        const v = valores[i];
-        if (!v) continue;
-        const c = cols[i];
-        const size = i === 0 ? 9 : 9.5;
-        const valW = fnt.widthOfTextAtSize(v, size);
-        const textX =
-            c.align === "right"  ? c.x + c.w - valW - 8 :
-            c.align === "center" ? c.x + (c.w - valW) / 2 :
-                                   c.x + 8;
-        ctx.page.drawText(v, {
-            x: textX, y: ctx.y - 14,
-            size, font: fnt, color: corValor,
-        });
-    }
-    ctx.y -= h;
-}
-
-function desenharLinhaTotalMulticor(
-    ctx: RenderCtx,
-    cols: { x: number; w: number; align: "left" | "right" | "center" }[],
-    valores: string[],
-    fnt: PDFFont,
-    cores: ReturnType<typeof rgb>[],
-) {
-    const h = 22;
-    ctx.page.drawRectangle({
-        x: MARGIN_LEFT, y: ctx.y - h,
-        width: CONTENT_WIDTH, height: h,
-        color: COLOR_BG_TOTAL,
-    });
-    for (let i = 0; i < cols.length; i++) {
-        const v = valores[i];
-        if (!v) continue;
-        const c = cols[i];
-        const size = i === 0 ? 9 : 9.5;
-        const valW = fnt.widthOfTextAtSize(v, size);
-        const textX =
-            c.align === "right"  ? c.x + c.w - valW - 8 :
-            c.align === "center" ? c.x + (c.w - valW) / 2 :
-                                   c.x + 8;
-        ctx.page.drawText(v, {
-            x: textX, y: ctx.y - 14,
-            size, font: fnt, color: cores[i] ?? COLOR_BODY,
-        });
-    }
-    ctx.y -= h;
-}
-
-// ── Assinatura final ───────────────────────────────────────
-
-function desenharAssinatura(ctx: RenderCtx) {
-    ensureSpace(ctx, 60);
-    ctx.page.drawLine({
-        start: { x: MARGIN_LEFT, y: ctx.y - 4 },
-        end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: ctx.y - 4 },
-        thickness: 0.4, color: COLOR_BORDER,
-    });
-    ctx.page.drawText("Atenciosamente,", {
-        x: MARGIN_LEFT, y: ctx.y - 22,
-        size: 10, font: ctx.font, color: COLOR_BODY,
-    });
-    ctx.page.drawText("Tática Gestão Empresarial Ltda.", {
-        x: MARGIN_LEFT, y: ctx.y - 36,
-        size: 10, font: ctx.fontBold, color: COLOR_BODY,
-    });
-    ctx.page.drawText("contato@taticagestao.com.br  |  Varginha — MG", {
-        x: MARGIN_LEFT, y: ctx.y - 50,
-        size: 8.5, font: ctx.font, color: COLOR_MUTED,
-    });
-}
-
-// ── Rodapés "Página X de N" em todas as páginas ────────────
-
-function desenharRodapesFinais(ctx: RenderCtx) {
-    const total = ctx.pages.length;
-    for (let i = 0; i < total; i++) {
-        const p = ctx.pages[i];
-        // linha
-        p.drawLine({
-            start: { x: MARGIN_LEFT, y: 35 },
-            end: { x: A4[0] - MARGIN_RIGHT, y: 35 },
-            thickness: 0.3, color: COLOR_BORDER,
-        });
-        // esquerda — Tática
-        p.drawText("Tática Gestão Empresarial Ltda.", {
-            x: MARGIN_LEFT, y: 22,
-            size: 7.5, font: ctx.fontBold, color: COLOR_BODY,
-        });
-        p.drawText("  |  Documento confidencial — uso restrito do destinatário", {
-            x: MARGIN_LEFT + ctx.fontBold.widthOfTextAtSize("Tática Gestão Empresarial Ltda.", 7.5),
-            y: 22,
-            size: 7.5, font: ctx.font, color: COLOR_MUTED,
-        });
-        // direita — Página X de N
-        const pagText = `Página ${i + 1} de ${total}`;
-        const w = ctx.font.widthOfTextAtSize(pagText, 7.5);
-        p.drawText(pagText, {
-            x: A4[0] - MARGIN_RIGHT - w, y: 22,
-            size: 7.5, font: ctx.font, color: COLOR_MUTED,
-        });
-    }
-}
-
-// ── Quebra de página ───────────────────────────────────────
-
-function ensureSpace(ctx: RenderCtx, needed: number) {
-    if (ctx.y - needed < MARGIN_BOTTOM) {
-        const novaPagina = ctx.doc.addPage(A4);
-        ctx.page = novaPagina;
-        ctx.pages.push(novaPagina);
-        ctx.y = A4[1] - MARGIN_TOP;
-    }
-}
-
-// ============================================================
-// HELPERS
-// ============================================================
-
-function corResultado(v: number): ReturnType<typeof rgb> {
-    if (v > 0) return COLOR_GREEN;
-    if (v < 0) return COLOR_RED;
-    return COLOR_BODY;
-}
-
-function signedMoeda(v: number): string {
-    const sign = v > 0 ? "+ " : v < 0 ? "- " : "";
-    return `${sign}${formatarMoeda(Math.abs(v))}`;
-}
-
-function formatarMoeda(v: number): string {
-    return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-        minimumFractionDigits: 2,
-    }).format(v);
-}
-
-function formatarDataBr(iso: string): string {
-    const [y, m, d] = iso.split("-");
-    return `${d}/${m}/${y}`;
-}
-
-function formatarDataExtensa(d: Date): string {
-    const diasSemana = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
-    const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-    return `${diasSemana[d.getUTCDay()]}, ${d.getUTCDate()} de ${meses[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
-}
-
-function truncar(s: string, fnt: PDFFont, size: number, maxW: number): string {
-    const safe = sanitizeWinAnsi(s);
-    if (fnt.widthOfTextAtSize(safe, size) <= maxW) return safe;
-    let out = safe;
-    while (out.length > 1 && fnt.widthOfTextAtSize(out + "…", size) > maxW) {
-        out = out.slice(0, -1);
-    }
-    return out + "…";
-}
-
-// Helvetica padrão usa codificação WinAnsi — caracteres fora dela
-// (setas, símbolos matemáticos, emoji, asiáticos) lançam erro ao desenhar.
-// Esta função troca por equivalentes ASCII ou "?" como fallback.
-const TRANSLIT: Record<string, string> = {
-    "−": "-", "–": "-", "—": "-",      // travessões e sinal de menos
-    "→": "->", "←": "<-", "↑": "^", "↓": "v",
-    "≤": "<=", "≥": ">=", "≠": "!=", "≈": "~",
-    "•": "-", "·": "-",
-    "“": '"', "”": '"', "‘": "'", "’": "'",
-    " ": " ",                       // NBSP -> espaço comum
-};
-
-function sanitizeWinAnsi(s: string | null | undefined): string {
-    if (!s) return "";
-    let out = "";
-    for (const ch of s) {
-        if (TRANSLIT[ch] !== undefined) { out += TRANSLIT[ch]; continue; }
-        const code = ch.charCodeAt(0);
-        // ASCII imprimível + Latin-1 (acentos pt-BR) + €,…,",–,— já mapeados pelo WinAnsi
-        if (code >= 0x20 && code <= 0x7E) { out += ch; continue; }
-        if (code >= 0xA0 && code <= 0xFF) { out += ch; continue; }
-        if ("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ".includes(ch)) { out += ch; continue; }
-        out += "?"; // qualquer outra coisa vira "?"
-    }
-    return out;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

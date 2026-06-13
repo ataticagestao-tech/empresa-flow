@@ -62,8 +62,33 @@ const SUGESTOES = [
 ];
 
 /**
- * Renderiza o texto do assistente preservando quebras de linha e
- * *negrito* (um asterisco, mesmo padrão do WhatsApp do agente).
+ * Renderiza um trecho de texto puro transformando URLs (http/https) em
+ * links clicáveis. PDFs de relatório (signed URL longa) viram um rótulo
+ * amigável "📄 Baixar PDF" em vez de despejar a URL inteira.
+ */
+function renderComLinks(texto: string, keyBase: string) {
+  const segs = texto.split(/(https?:\/\/[^\s]+)/g);
+  return segs.map((s, i) => {
+    if (!/^https?:\/\//.test(s)) return <span key={`${keyBase}-t-${i}`}>{s}</span>;
+    const ePdf = /\.pdf(\?|$)|relatorios-temp|\/storage\/v1\/object\/sign/i.test(s);
+    return (
+      <a
+        key={`${keyBase}-a-${i}`}
+        href={s}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline font-medium text-emerald-700 hover:text-emerald-800 break-all"
+      >
+        {ePdf ? "📄 Baixar PDF" : s}
+      </a>
+    );
+  });
+}
+
+/**
+ * Renderiza o texto do assistente preservando quebras de linha,
+ * *negrito* (um asterisco, mesmo padrão do WhatsApp do agente) e
+ * transformando URLs em links clicáveis.
  */
 function renderConteudo(texto: string) {
   const linhas = texto.split("\n");
@@ -75,7 +100,7 @@ function renderConteudo(texto: string) {
           p.startsWith("*") && p.endsWith("*") && p.length > 2 ? (
             <strong key={pi}>{p.slice(1, -1)}</strong>
           ) : (
-            <span key={pi}>{p}</span>
+            renderComLinks(p, `${li}-${pi}`)
           ),
         )}
         {li < linhas.length - 1 && <br />}

@@ -12,9 +12,11 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { formatBRL } from "@/lib/format";
 import { useClientContratos, ContratoVenda, CreateContratoInput, CondicaoPagamento } from "../hooks/useClientContratos";
 import { RegistrarPagamentoDialog } from "../components/RegistrarPagamentoDialog";
+import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const PROCEDIMENTOS = ["FUE", "DHI", "FUE + DHI", "Outro"];
@@ -26,6 +28,15 @@ const FORMAS_PAGAMENTO = [
     { value: "transferencia", label: "Transferência bancária" },
     { value: "dinheiro", label: "Dinheiro" },
     { value: "misto", label: "Misto" },
+];
+
+// Formas válidas para a ENTRADA recebida no ato (sem boleto/parcelado)
+const FORMAS_ENTRADA = [
+    { value: "pix", label: "PIX" },
+    { value: "cartao_credito", label: "Cartão de crédito" },
+    { value: "cartao_debito", label: "Cartão de débito" },
+    { value: "dinheiro", label: "Dinheiro" },
+    { value: "transferencia", label: "Transferência bancária" },
 ];
 
 const formaLabel = (v: string | null | undefined) =>
@@ -191,6 +202,9 @@ function ContratoCard({
     const fileRef = useRef<HTMLInputElement>(null);
     const progresso = contrato.valor_total > 0 ? (contrato.total_pago / contrato.valor_total) * 100 : 0;
     const statusInfo = statusLabel[contrato.status] || statusLabel.confirmado;
+    // Parcelas reais = exclui a entrada/sinal (que é contada à parte em Pago/Saldo)
+    const parcelasReais = contrato.crs.filter((c) => c.tipo !== "entrada");
+    const parcelasReaisPagas = parcelasReais.filter((c) => c.status === "pago").length;
 
     return (
         <div className="border border-[#e0e0e0] rounded p-4 hover:border-[#059669] transition-colors">
@@ -230,7 +244,7 @@ function ContratoCard({
                             {formaLabel(contrato.forma_pagamento)}
                             {contrato.parcelas_qtd > 1 && ` em ${contrato.parcelas_qtd}x`}
                             {contrato.reserva_valor
-                                ? ` · Reserva: ${formatBRL(contrato.reserva_valor)}${contrato.reserva_data ? ` (${formatDate(contrato.reserva_data)})` : ""}`
+                                ? ` · Entrada: ${formatBRL(contrato.reserva_valor)}${contrato.reserva_data ? ` (${formatDate(contrato.reserva_data)})` : ""}`
                                 : ""}
                         </div>
                     </div>
@@ -287,7 +301,7 @@ function ContratoCard({
                 <Metric label="Saldo" value={formatBRL(contrato.saldo)} color={contrato.saldo > 0 ? "#E53E3E" : "#039855"} />
                 <Metric
                     label="Parcelas"
-                    value={contrato.crs.length > 0 ? `${contrato.parcelas_pagas}/${contrato.crs.length}` : "—"}
+                    value={parcelasReais.length > 0 ? `${parcelasReaisPagas}/${parcelasReais.length}` : "—"}
                 />
             </div>
 
@@ -344,6 +358,7 @@ interface ContratoDialogProps {
 
 function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, saving }: ContratoDialogProps) {
     const isEdit = !!contrato;
+    const { accounts: bankAccounts } = useBankAccounts();
 
     // CRs preservadas em edicao (ja tem pagamento)
     const crsPreservadas = useMemo(
@@ -355,7 +370,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
         [crsPreservadas]
     );
     const reservaPaga = useMemo(
-        () => crsPreservadas.find((c) => c.tipo === "reserva"),
+        () => crsPreservadas.find((c) => c.tipo === "entrada"),
         [crsPreservadas]
     );
 
@@ -365,8 +380,11 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
     const [valorTotal, setValorTotal] = useState("");
     const [dataVenda, setDataVenda] = useState(new Date().toISOString().slice(0, 10));
     const [previsaoCirurgia, setPrevisaoCirurgia] = useState("");
-    const [reservaValor, setReservaValor] = useState("");
-    const [reservaData, setReservaData] = useState("");
+    const [reservaValor, setReservaValor] = useState("");   // = entrada/sinal
+    const [reservaData, setReservaData] = useState("");      // data do recebimento (ou vencimento)
+    const [entradaRecebida, setEntradaRecebida] = useState(true);
+    const [entradaForma, setEntradaForma] = useState("pix");
+    const [entradaConta, setEntradaConta] = useState("");
 
     type CondicaoForm = { forma: string; valor: string; parcelas: string; primeiro_vencimento: string };
 
@@ -395,6 +413,10 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
             setPrevisaoCirurgia(contrato.previsao_cirurgia || "");
             setReservaValor(contrato.reserva_valor ? String(contrato.reserva_valor) : "");
             setReservaData(contrato.reserva_data || "");
+            // Se a entrada já foi paga, fica travada como recebida; senão, ainda pendente.
+            setEntradaRecebida(!!reservaPaga);
+            setEntradaForma("pix");
+            setEntradaConta("");
             setCondicoes([{
                 forma: "cartao_credito",
                 valor: "",
@@ -409,7 +431,10 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
             setDataVenda(new Date().toISOString().slice(0, 10));
             setPrevisaoCirurgia("");
             setReservaValor("");
-            setReservaData("");
+            setReservaData(new Date().toISOString().slice(0, 10));
+            setEntradaRecebida(true);
+            setEntradaForma("pix");
+            setEntradaConta("");
             setCondicoes([{
                 forma: "cartao_credito",
                 valor: "",
@@ -459,8 +484,18 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
         if (!consultora.trim()) return alert("Consultora é obrigatória");
         if (calc.vt <= 0) return alert("Valor total inválido");
         if (!dataVenda) return alert("Data de assinatura é obrigatória");
-        if (calc.rv > 0 && !reservaData && !reservaPaga) return alert("Informe a data da reserva");
-        if (calc.rv > calc.vt) return alert("Reserva não pode ser maior que o valor total");
+
+        // Entrada/sinal (apenas se houver valor e ainda não estiver paga)
+        const temEntrada = calc.rv > 0 && !reservaPaga;
+        const entradaDataFinal = reservaData || new Date().toISOString().slice(0, 10);
+        if (temEntrada) {
+            if (entradaRecebida) {
+                if (!entradaConta) return alert("Selecione a conta que recebeu a entrada");
+            } else if (!reservaData) {
+                return alert("Informe a data de vencimento da entrada");
+            }
+        }
+        if (calc.rv > calc.vt) return alert("Entrada não pode ser maior que o valor total");
         if (isEdit && calc.vt < calc.preservado - 0.01) {
             return alert(`Valor total não pode ser menor que ${formatBRL(calc.preservado)} (já pago)`);
         }
@@ -498,7 +533,10 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
             data_venda: dataVenda,
             previsao_cirurgia: previsaoCirurgia || null,
             reserva_valor: calc.rv,
-            reserva_data: reservaData || null,
+            reserva_data: calc.rv > 0 ? entradaDataFinal : null,
+            entrada_recebida: temEntrada && entradaRecebida,
+            entrada_forma: entradaForma,
+            entrada_conta_bancaria_id: temEntrada && entradaRecebida ? entradaConta : null,
             condicoes: condicoesValidas,
         });
     };
@@ -636,17 +674,18 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                     <section>
                         <SectionHeader
                             number="03"
-                            title="Reserva de data"
-                            hint="Opcional — abatida do valor total"
+                            title="Entrada / Sinal"
+                            hint="Opcional — valor pago no fechamento, abatido do total"
                         />
-                        <div className="border-l-2 border-[#059669]/15 pl-5">
+                        <div className="border-l-2 border-[#059669]/15 pl-5 space-y-4">
                             {reservaPaga && (
-                                <p className="text-[11px] text-[#039855] mb-3 font-medium">
-                                    Reserva já paga em {formatDate(reservaPaga.data_vencimento)} — valor e data não podem ser alterados.
+                                <p className="text-[11px] text-[#039855] font-medium">
+                                    Entrada já recebida em {formatDate(reservaPaga.data_vencimento)} — valor e data não podem ser alterados.
                                 </p>
                             )}
+
                             <div className="grid grid-cols-2 gap-5">
-                                <Field label="Valor (R$)">
+                                <Field label="Valor da entrada (R$)">
                                     <Input
                                         type="number"
                                         step="0.01"
@@ -657,24 +696,94 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                                         className="h-10 bg-white tabular-nums disabled:bg-[#f3f4f6] disabled:text-[#667085]"
                                     />
                                 </Field>
-                                <Field label="Data do pagamento">
-                                    <Input
-                                        type="date"
-                                        value={reservaData}
-                                        onChange={(e) => setReservaData(e.target.value)}
-                                        disabled={!!reservaPaga}
-                                        className="h-10 bg-white disabled:bg-[#f3f4f6] disabled:text-[#667085]"
-                                    />
-                                </Field>
+
+                                {!reservaPaga && calc.rv > 0 && (
+                                    <div className="flex items-end pb-1">
+                                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                                            <Switch checked={entradaRecebida} onCheckedChange={setEntradaRecebida} />
+                                            <span className="text-[12px] font-medium text-[#344054]">
+                                                Recebida agora
+                                                <span className="block text-[10.5px] text-[#98A2B3] font-normal">
+                                                    {entradaRecebida ? "Já caiu — escolha a conta" : "Fica em aberto p/ receber depois"}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Detalhes: recebida agora → conta+forma; em aberto → vencimento */}
+                            {!reservaPaga && calc.rv > 0 && (
+                                entradaRecebida ? (
+                                    <div className="grid grid-cols-3 gap-5">
+                                        <Field label="Data do recebimento">
+                                            <Input
+                                                type="date"
+                                                value={reservaData}
+                                                onChange={(e) => setReservaData(e.target.value)}
+                                                className="h-10 bg-white"
+                                            />
+                                        </Field>
+                                        <Field label="Forma">
+                                            <Select value={entradaForma} onValueChange={setEntradaForma}>
+                                                <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {FORMAS_ENTRADA.map((f) => (
+                                                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </Field>
+                                        <Field label="Conta que recebeu">
+                                            <Select value={entradaConta} onValueChange={setEntradaConta}>
+                                                <SelectTrigger className="h-10 bg-white">
+                                                    <SelectValue placeholder="Selecione..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {bankAccounts.map((b: any) => (
+                                                        <SelectItem key={b.id} value={b.id}>
+                                                            {b.name}{b.banco ? ` · ${b.banco}` : ""}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </Field>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-5">
+                                        <Field label="Vencimento da entrada">
+                                            <Input
+                                                type="date"
+                                                value={reservaData}
+                                                onChange={(e) => setReservaData(e.target.value)}
+                                                className="h-10 bg-white"
+                                            />
+                                        </Field>
+                                    </div>
+                                )
+                            )}
+
+                            {reservaPaga && (
+                                <div className="grid grid-cols-2 gap-5">
+                                    <Field label="Data do recebimento">
+                                        <Input
+                                            type="date"
+                                            value={reservaData}
+                                            disabled
+                                            className="h-10 bg-white disabled:bg-[#f3f4f6] disabled:text-[#667085]"
+                                        />
+                                    </Field>
+                                </div>
+                            )}
+
                             {calc.vt > 0 && calc.rv > 0 && (
-                                <p className="text-[11px] text-[#667085] mt-3 tabular-nums">
+                                <p className="text-[11px] text-[#667085] tabular-nums">
                                     <span className="text-[#059669] font-semibold">{formatBRL(calc.vt)}</span>
                                     <span className="mx-1.5 text-[#98A2B3]">−</span>
                                     <span className="text-[#059669] font-semibold">{formatBRL(calc.rv)}</span>
                                     <span className="mx-1.5 text-[#98A2B3]">=</span>
                                     <span className="text-[#059669] font-bold">{formatBRL(calc.saldo)}</span>
-                                    <span className="ml-2 text-[#98A2B3]">de saldo a distribuir</span>
+                                    <span className="ml-2 text-[#98A2B3]">de saldo a distribuir nas parcelas</span>
                                 </p>
                             )}
                         </div>
@@ -783,7 +892,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                         {calc.vt > 0 && (
                             <div className="mt-5 grid grid-cols-4 border border-[#EAECF0] rounded-md bg-white overflow-hidden">
                                 <SummaryCell label="Valor total" value={formatBRL(calc.vt)} />
-                                <SummaryCell label="Reserva" value={formatBRL(calc.rv)} />
+                                <SummaryCell label="Entrada" value={formatBRL(calc.rv)} />
                                 <SummaryCell label="Saldo" value={formatBRL(calc.saldo)} emphasize />
                                 <SummaryCell
                                     label="Alocado"
