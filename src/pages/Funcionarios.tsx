@@ -34,6 +34,7 @@ interface Employee {
   banco_folha: string | null; agencia_folha: string | null;
   conta_folha: string | null; tipo_conta_folha: string | null;
   chave_pix_folha: string | null; centro_custo_id: string | null;
+  ir_retido_percentual: number | null; taxa_sala_percentual: number | null;
   status: string; created_at: string;
 }
 
@@ -46,6 +47,7 @@ const emptyForm = {
   pis: "", ctps_numero: "", ctps_serie: "",
   banco_folha: "", agencia_folha: "", conta_folha: "", tipo_conta_folha: "", chave_pix_folha: "",
   centro_custo_id: "",
+  ir_retido_percentual: "", taxa_sala_percentual: "",
   status: "ativo",
 };
 
@@ -565,6 +567,8 @@ export default function Funcionarios() {
       banco_folha: emp.banco_folha || "", agencia_folha: emp.agencia_folha || "",
       conta_folha: emp.conta_folha || "", tipo_conta_folha: emp.tipo_conta_folha || "",
       chave_pix_folha: emp.chave_pix_folha || "", centro_custo_id: emp.centro_custo_id || "",
+      ir_retido_percentual: emp.ir_retido_percentual != null ? String(emp.ir_retido_percentual) : "",
+      taxa_sala_percentual: emp.taxa_sala_percentual != null ? String(emp.taxa_sala_percentual) : "",
       status: emp.status || "ativo",
     });
     setCalcSalario(emp.salario_base || emp.salary || 0);
@@ -614,6 +618,10 @@ export default function Funcionarios() {
       if (formData.tipo_conta_folha) payload.tipo_conta_folha = formData.tipo_conta_folha;
       if (formData.chave_pix_folha) payload.chave_pix_folha = formData.chave_pix_folha.trim();
       if (formData.centro_custo_id) payload.centro_custo_id = formData.centro_custo_id;
+      const irPct = formData.ir_retido_percentual ? parseFloat(String(formData.ir_retido_percentual).replace(",", ".")) : 0;
+      const salaPct = formData.taxa_sala_percentual ? parseFloat(String(formData.taxa_sala_percentual).replace(",", ".")) : 0;
+      payload.ir_retido_percentual = Number.isNaN(irPct) ? 0 : irPct;
+      payload.taxa_sala_percentual = Number.isNaN(salaPct) ? 0 : salaPct;
       payload.status = (formData.status || "ativo").toLowerCase();
 
       console.log("Payload:", JSON.stringify(payload));
@@ -952,6 +960,17 @@ export default function Funcionarios() {
                     <div className="flex flex-col gap-1">
                       <label className={LB}>Chave PIX</label>
                       <input value={formData.chave_pix_folha} onChange={e => set("chave_pix_folha", e.target.value)} className={IC} placeholder="CPF, email, telefone ou chave aleatória" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 max-w-[420px]">
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>IR retido (%)</label>
+                        <input type="number" step="0.01" value={formData.ir_retido_percentual} onChange={e => set("ir_retido_percentual", e.target.value)} className={IC} placeholder="0" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Taxa de sala (%)</label>
+                        <input type="number" step="0.01" value={formData.taxa_sala_percentual} onChange={e => set("taxa_sala_percentual", e.target.value)} className={IC} placeholder="0" />
+                      </div>
+                      <div className="col-span-2 text-[10px] text-[#999] -mt-1">% padrão usado no repasse de comissão (editável na hora de gerar o repasse).</div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className={LB}>Status</label>

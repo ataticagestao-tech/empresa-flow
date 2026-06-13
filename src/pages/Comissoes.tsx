@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { formatNumero } from "@/lib/format";
 import ComissaoConfigEmMassa from "@/components/comissoes/ComissaoConfigEmMassa";
+import AbaRepasses from "@/components/comissoes/AbaRepasses";
 import {
     exportarRelatorioExcel,
     exportarRelatorioPDF,
@@ -40,7 +41,7 @@ export default function Comissoes() {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const companyId = selectedCompany?.id;
-    const [aba, setAba] = useState<"relatorio" | "config">("relatorio");
+    const [aba, setAba] = useState<"relatorio" | "repasses" | "config">("relatorio");
     const [inicio, setInicio] = useState(firstOfMonth());
     const [fim, setFim] = useState(today());
     const [profFiltro, setProfFiltro] = useState("__todos__");
@@ -111,7 +112,7 @@ export default function Comissoes() {
                 <PagePanel title="Comissões" subtitle="Comissões geradas pelas vendas, por profissional">
                     {/* Abas */}
                     <div className="flex gap-1 mb-4 border-b border-[#eee]">
-                        {([["relatorio", "Relatório"], ["config", "Configurar % dos procedimentos"]] as const).map(([id, label]) => (
+                        {([["relatorio", "Relatório"], ["repasses", "Repasses"], ["config", "Configurar % dos procedimentos"]] as const).map(([id, label]) => (
                             <button key={id} onClick={() => setAba(id)}
                                 className={`text-[12px] font-bold px-3 py-2 -mb-px border-b-2 transition-colors ${
                                     aba === id ? "border-[#059669] text-[#064E3B]" : "border-transparent text-[#888] hover:text-[#555]"
@@ -120,6 +121,8 @@ export default function Comissoes() {
                     </div>
 
                     {aba === "config" && <ComissaoConfigEmMassa />}
+
+                    {aba === "repasses" && <AbaRepasses />}
 
                     {aba === "relatorio" && (<>
                     {/* Filtros */}
