@@ -136,7 +136,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
       { titleKey: 'Cobrança Asaas', icon: Banknote, url: '/configuracoes/asaas', isHardcoded: true },
-      { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true, ownerOnly: true },
+      { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
     ]
   },
   {
