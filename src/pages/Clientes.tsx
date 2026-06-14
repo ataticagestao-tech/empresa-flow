@@ -597,6 +597,9 @@ export default function Clientes() {
             const now = new Date().toISOString();
             const companyId = selectedCompany?.id;
             const cpfCnpj = (client.cpf_cnpj || "").replace(/\D/g, "");
+            // O CPF/CNPJ é gravado inconsistente (limpo OU mascarado). Casamos ambos
+            // os formatos para não deixar vendas/CRs órfãs ao excluir o cliente.
+            const cpfFormatos = cpfCnpj ? Array.from(new Set([cpfCnpj, formatDoc(cpfCnpj)])) : [];
 
             // 1. Buscar vendas vinculadas (match por CPF/CNPJ — vendas nao tem FK para clients)
             let vendasIds: string[] = [];
@@ -605,7 +608,7 @@ export default function Clientes() {
                     .from("vendas")
                     .select("id")
                     .eq("company_id", companyId)
-                    .eq("cliente_cpf_cnpj", cpfCnpj);
+                    .in("cliente_cpf_cnpj", cpfFormatos);
                 if (vErr) throw vErr;
                 vendasIds = (vendas || []).map((v: any) => v.id);
             }
@@ -625,7 +628,7 @@ export default function Clientes() {
                         .from("contas_receber")
                         .update({ deleted_at: now })
                         .eq("company_id", companyId)
-                        .eq("pagador_cpf_cnpj", cpfCnpj)
+                        .in("pagador_cpf_cnpj", cpfFormatos)
                         .is("deleted_at", null);
                     if (crErr2) throw crErr2;
                 }
