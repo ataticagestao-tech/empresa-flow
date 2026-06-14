@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Company as CompanyRow } from "@/types/company";
 
@@ -48,6 +48,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(() => loadStoredCompany());
   const [loading, setLoading] = useState(true);
+  // Só mostra a tela-cheia de "carregando" no PRIMEIRO load; recarregamentos
+  // (troca de empresa, refresh) acontecem em silêncio, sem piscar o app.
+  const hasLoadedRef = useRef(false);
 
   // Persiste selectedCompany em localStorage sempre que mudar (independente da origem
   // do set: CompanySelector, fetchCompanies default, delete company, etc).
@@ -59,13 +62,14 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, [selectedCompany]);
 
   const fetchCompanies = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     if (!user) {
       // Enquanto auth ainda carrega ou apos logout: nao limpar selectedCompany,
       // senao perdemos o valor restaurado do localStorage antes do user chegar.
       // O persist useEffect ja sincroniza naturalmente se houver logout real.
       setCompanies([]);
       setLoading(false);
+      hasLoadedRef.current = false;
       return;
     }
 
@@ -120,8 +124,12 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       setSelectedCompany(null);
     } finally {
       setLoading(false);
+      hasLoadedRef.current = true;
     }
-  }, [activeClient, user]);
+    // Depende do user?.id (string estável), NÃO do objeto user — assim refresh
+    // de token / foco da aba não re-disparam o fetch nem piscam a tela.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeClient, user?.id]);
 
   useEffect(() => {
     fetchCompanies();

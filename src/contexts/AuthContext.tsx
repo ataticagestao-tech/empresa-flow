@@ -46,7 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       usingSecondary: boolean;
     }) => {
       setSession(params.session);
-      setUser(params.user);
+      // Preserva a MESMA referência de `user` quando o id não mudou (ex.: refresh
+      // de token / foco da aba disparam onAuthStateChange com um objeto novo).
+      // Sem isso, todo efeito/queryKey que depende de `user` re-executa a cada
+      // evento — em especial o CompanyContext, que piscava a tela inteira.
+      setUser((prev) => (prev && params.user && prev.id === params.user.id ? prev : params.user));
       setActiveClient(params.client);
       isUsingSecondaryRef.current = params.usingSecondary;
       setIsUsingSecondary(params.usingSecondary);
