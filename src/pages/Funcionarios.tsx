@@ -559,7 +559,7 @@ export default function Funcionarios() {
     setFormData({
       name: getName(emp), role: emp.role || "",
       email: emp.email || "", phone: emp.phone || "",
-      cpf: emp.cpf || "", rg: emp.rg || "", data_nascimento: emp.data_nascimento || "",
+      cpf: emp.cpf ? formatCPF(emp.cpf) : "", rg: emp.rg || "", data_nascimento: emp.data_nascimento || "",
       hire_date: emp.hire_date || "", data_demissao: emp.data_demissao || "",
       salary: emp.salario_base ? String(emp.salario_base) : emp.salary ? String(emp.salary) : "",
       tipo_contrato: emp.tipo_contrato || "clt",
