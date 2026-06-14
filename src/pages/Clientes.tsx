@@ -408,7 +408,14 @@ export default function Clientes() {
             .order("data_vencimento", { ascending: false });
 
         if (docValido) {
-            query = query.eq("pagador_cpf_cnpj", cliente.cpf_cnpj!);
+            // O CPF/CNPJ é gravado de forma inconsistente nos CRs: uns limpos
+            // ("60572617333"), outros mascarados ("605.726.173-33"). Um .eq exato
+            // só casaria um dos formatos, deixando o histórico vazio quando o
+            // cadastro do cliente e o CR usam máscaras diferentes. Casamos ambos.
+            const formatos = Array.from(new Set([docLimpo, formatDoc(docLimpo)]));
+            query = query.or(
+                formatos.map((f) => `pagador_cpf_cnpj.eq.${f}`).join(",")
+            );
         } else {
             query = query.ilike("pagador_nome", `%${cliente.razao_social.trim()}%`);
         }
