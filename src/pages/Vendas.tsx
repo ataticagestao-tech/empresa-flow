@@ -268,6 +268,12 @@ export default function Vendas() {
   // violation 23503 quando produto carrega conta_contabil_id órfão (ex.: plano
   // de contas resetado e produto manteve referência antiga).
   const [validContaContabilIds, setValidContaContabilIds] = useState<Set<string>>(new Set())
+  // Lista de contas de receita analíticas (para o seletor de categoria do modal)
+  // e a categoria escolhida pra esta venda. 'touched' = usuária alterou manualmente,
+  // então paramos de sobrescrever com a sugestão automática.
+  const [receitaContas, setReceitaContas] = useState<{ id: string; code: string; name: string }[]>([])
+  const [formContaContabilCR, setFormContaContabilCR] = useState<string>('')
+  const [formContaContabilTouched, setFormContaContabilTouched] = useState(false)
 
   // ─── Filter state ────────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('')
@@ -851,14 +857,12 @@ export default function Vendas() {
       ac.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
       ac.from('products').select('id, code, description, price, unidade_medida, conta_contabil_id').eq('company_id', companyId).order('description'),
       ac.from('chart_of_accounts')
-        .select('id, code')
+        .select('id, code, name')
         .eq('company_id', companyId)
         .eq('account_type', 'revenue')
         .eq('is_analytical', true)
         .eq('status', 'active')
-        .order('code')
-        .limit(1)
-        .maybeSingle(),
+        .order('code'),
       ac.from('chart_of_accounts').select('id').eq('company_id', companyId),
     ])
 
@@ -869,8 +873,10 @@ export default function Vendas() {
       razao_social: toTitleCase(c.razao_social),
       nome_fantasia: c.nome_fantasia ? toTitleCase(c.nome_fantasia) : c.nome_fantasia,
     })))
-    setDefaultReceitaContaId((receitaContaRes.data as any)?.id || null)
-    if (!(receitaContaRes.data as any)?.id) {
+    const receitas = ((receitaContaRes.data as any[]) || []) as { id: string; code: string; name: string }[]
+    setReceitaContas(receitas)
+    setDefaultReceitaContaId(receitas[0]?.id || null)
+    if (!receitas.length) {
       console.warn('[Vendas] Nenhuma conta de receita analítica encontrada no plano de contas — CRs serão criados sem classificação e não aparecerão no DRE.')
     }
     setValidContaContabilIds(new Set(((allContasRes.data as any[]) || []).map((r: any) => r.id)))
@@ -1164,6 +1170,8 @@ export default function Vendas() {
     setErroModal(null)
     setContratosAbertosCliente([])
     setBannerContratoDispensado(false)
+    setFormContaContabilCR('')
+    setFormContaContabilTouched(false)
   }
 
   async function carregarVendaParaEdicao(venda: Venda) {
@@ -1207,9 +1215,12 @@ export default function Vendas() {
     try {
       const { data: crs } = await db
         .from('contas_receber')
-        .select('valor, forma_recebimento, conta_bancaria_id, data_vencimento')
+        .select('valor, forma_recebimento, conta_bancaria_id, data_vencimento, conta_contabil_id')
         .eq('venda_id', venda.id)
         .is('deleted_at', null)
+      // Preserva a categoria já lançada (marca touched p/ a sugestão não sobrescrever).
+      const catExistente = (crs as any[])?.find(c => c.conta_contabil_id)?.conta_contabil_id || ''
+      if (catExistente) { setFormContaContabilCR(catExistente); setFormContaContabilTouched(true) }
       const groups = new Map<string, { forma: string; conta: string; valor: number; parcelas: number; vencimento?: string }>()
       for (const cr of (crs as any[]) || []) {
         const forma = cr.forma_recebimento || venda.forma_pagamento || 'pix'
@@ -1254,6 +1265,40 @@ export default function Vendas() {
     setModalDetalhes(null)
     setModalAberto(true)
   }
+
+  // Sugere a categoria contábil (conta de receita) desta venda: usa a categoria
+  // dominante dos itens (quando há produto vinculado); senão, tenta casar o texto
+  // do item com uma conta por palavra-chave (ex.: transplante → "Transplante
+  // Capilar"); por fim cai na receita padrão do plano. Para de sugerir quando a
+  // usuária escolhe manualmente (touched) — aí o seletor manda.
+  useEffect(() => {
+    if (formContaContabilTouched) return
+    const totalPorConta = new Map<string, number>()
+    for (const it of formItens) {
+      let contaId = it.conta_contabil_id ?? null
+      if (!contaId && it.descricao) {
+        const prod = produtos.find(p =>
+          (it.produto_id && p.id === it.produto_id) ||
+          p.description.trim().toLowerCase() === it.descricao.trim().toLowerCase()
+        )
+        contaId = prod?.conta_contabil_id ?? null
+      }
+      if (!contaId) continue
+      totalPorConta.set(contaId, (totalPorConta.get(contaId) || 0) + (it.quantidade || 0) * (it.valor_unitario || 0))
+    }
+    let melhor: string | null = null
+    let melhorV = -1
+    for (const [c, s] of totalPorConta) { if (s > melhorV) { melhorV = s; melhor = c } }
+    // Heurística por palavra-chave quando nenhum item trouxe categoria (texto livre).
+    if (!melhor && receitaContas.length > 0) {
+      const txt = formItens.map(i => (i.descricao || '')).join(' ').toLowerCase()
+      if (/transplant|capilar|\bfue\b|\bdhi\b/.test(txt)) {
+        const acct = receitaContas.find(c => /transplant|capilar/i.test(c.name))
+        if (acct) melhor = acct.id
+      }
+    }
+    setFormContaContabilCR(melhor || defaultReceitaContaId || '')
+  }, [formItens, produtos, receitaContas, defaultReceitaContaId, formContaContabilTouched])
 
   function selectCliente(c: Cliente) {
     setFormClienteId(c.id)
@@ -1753,6 +1798,8 @@ export default function Vendas() {
         }
         if (melhorConta) contaContabilCR = melhorConta
       }
+      // A categoria escolhida no seletor do modal prevalece sobre a heurística.
+      if (formContaContabilCR) contaContabilCR = formContaContabilCR
       // Anti-FK violation 23503: se a conta escolhida vier de um produto com
       // referência órfã (plano de contas foi resetado/recriado), cai pro default
       // analítico válido — ou null se nem o default existir mais.
@@ -3329,6 +3376,27 @@ export default function Vendas() {
                 >
                   <Plus size={12} /> Item
                 </button>
+              </div>
+
+              {/* Categoria contábil (conta de receita) — define onde a venda entra no DRE.
+                  Sugerida pelos itens; trocável (ex.: contrato de transplante → "Transplante Capilar"). */}
+              <div>
+                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1">
+                  Categoria contábil (receita)
+                </label>
+                <select
+                  value={formContaContabilCR}
+                  onChange={e => { setFormContaContabilCR(e.target.value); setFormContaContabilTouched(true) }}
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
+                >
+                  <option value="">— Sem categoria (não entra no DRE) —</option>
+                  {receitaContas.map(c => (
+                    <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[10.5px] text-[#888]">
+                  Onde esta venda aparece no DRE. Confira ao lançar pagamento de contrato (ex.: transplante).
+                </p>
               </div>
 
               {/* Formas de pagamento (múltiplas) */}
