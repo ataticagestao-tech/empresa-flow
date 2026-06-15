@@ -83,8 +83,8 @@ serve(async (req: Request) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        // Extrato pode ter centenas de linhas → saída grande. Sonnet 4 suporta bem.
+        model: "claude-sonnet-4-6",
+        // Extrato pode ter centenas de linhas → saída grande. Sonnet 4.6 suporta bem.
         max_tokens: 16000,
         messages: [{ role: "user", content: [fileBlock, { type: "text", text: PROMPT }] }],
       }),
