@@ -2724,8 +2724,8 @@ export default function Conciliacao() {
                                                                             </Badge>
                                                                         )}
                                                                     </div>
-                                                                    <p className="text-xs text-muted-foreground pl-1 mt-1 truncate" title={`${st.entity_name} • Venc: ${format(parseISO(st.date), 'dd/MM/yyyy')}`}>
-                                                                        {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
+                                                                    <p className="text-xs text-muted-foreground pl-1 mt-1 truncate" title={`${formatBRL(st.amount)} • ${st.entity_name} • Venc: ${format(parseISO(st.date), 'dd/MM/yyyy')}`}>
+                                                                        <span className="font-bold text-foreground">{formatBRL(st.amount)}</span> • {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
                                                                         {st.status !== 'conciliado' && ` • ${st.status}`}
                                                                     </p>
                                                                 </div>
