@@ -25,6 +25,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+// Modelo de visão (trocável via secret ANTHROPIC_VISION_MODEL, sem novo deploy).
+// Default: Sonnet 4.6 (suporta visão). NÃO usa ANTHROPIC_MODEL pra não herdar
+// o modelo dos agentes (que pode ser Opus, ~5x mais caro).
+const VISION_MODEL = Deno.env.get("ANTHROPIC_VISION_MODEL") ?? "claude-sonnet-4-6";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,7 +61,7 @@ serve(async (req: Request) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: VISION_MODEL,
         max_tokens: 2000,
         messages: [{ role: "user", content: [fileBlock, { type: "text", text: PROMPT }] }],
       }),
