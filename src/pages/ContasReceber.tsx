@@ -57,6 +57,7 @@ interface CR {
   forma_recebimento: string | null
   conta_contabil_id: string | null
   centro_custo_id: string | null
+  descricao: string | null
   observacoes: string | null
   venda_id: string | null
   contrato_recorrente_id: string | null
@@ -150,13 +151,13 @@ export default function ContasReceber() {
 
   // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
   // 'sel' = coluna do checkbox de seleção (NÃO ocultável).
-  const CR_COL_ORDER = ['sel', 'pagador', 'categoria', 'vencimento', 'valor', 'pago', 'saldo', 'status', 'acoes']
+  const CR_COL_ORDER = ['sel', 'pagador', 'descricao', 'categoria', 'vencimento', 'valor', 'pago', 'saldo', 'status', 'acoes']
   const CR_COL_LABELS: Record<string, string> = {
-    pagador: 'Pagador', categoria: 'Categoria', vencimento: 'Vencimento',
+    pagador: 'Pagador', descricao: 'Descrição', categoria: 'Categoria', vencimento: 'Vencimento',
     valor: 'Valor', pago: 'Pago', saldo: 'Saldo', status: 'Status', acoes: 'Ações',
   }
   const CR_COL_WIDTHS_DEFAULT: Record<string, number> = {
-    sel: 44, pagador: 220, categoria: 200, vencimento: 130, valor: 110, pago: 110, saldo: 110, status: 110, acoes: 130,
+    sel: 44, pagador: 220, descricao: 220, categoria: 200, vencimento: 130, valor: 110, pago: 110, saldo: 110, status: 110, acoes: 130,
   }
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
     try {
@@ -1469,8 +1470,9 @@ export default function ContasReceber() {
                   rows={() => filtered}
                   columns={[
                     { header: 'Vencimento', value: (cr) => formatData(cr.data_vencimento), pdfFlex: 8 },
-                    { header: 'Cliente / Descrição', value: (cr) => cr.pagador_nome || '—', pdfFlex: 20 },
-                    { header: 'Categoria', value: (cr) => cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—', pdfFlex: 18 },
+                    { header: 'Cliente', value: (cr) => cr.pagador_nome || '—', pdfFlex: 16 },
+                    { header: 'Descrição', value: (cr) => cr.descricao || cr.observacoes || '—', pdfFlex: 16 },
+                    { header: 'Categoria', value: (cr) => cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—', pdfFlex: 16 },
                     { header: 'Valor', value: (cr) => formatBRL(cr.valor), numericValue: (cr) => Number(cr.valor || 0), align: 'right', pdfFlex: 9 },
                     { header: 'Pago', value: (cr) => formatBRL(cr.valor_pago || 0), numericValue: (cr) => Number(cr.valor_pago || 0), align: 'right', pdfFlex: 9 },
                     { header: 'Saldo', value: (cr) => formatBRL(cr.valor - (cr.valor_pago || 0)), numericValue: (cr) => Number(cr.valor || 0) - Number(cr.valor_pago || 0), align: 'right', pdfFlex: 9 },
@@ -1512,6 +1514,10 @@ export default function ContasReceber() {
                     <th className={`px-3 py-2 text-left text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('pagador') ? '' : 'hidden'}`}>
                       <span onMouseDown={startResize('pagador')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       Pagador
+                    </th>
+                    <th className={`px-3 py-2 text-left text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('descricao') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('descricao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      Descrição
                     </th>
                     <th className={`px-3 py-2 text-left text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('categoria') ? '' : 'hidden'}`}>
                       <span onMouseDown={startResize('categoria')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
@@ -1581,6 +1587,12 @@ export default function ContasReceber() {
                           ) : cr.pagador_cpf_cnpj && (
                             <div className="text-[11px] text-[#999] leading-tight truncate">{cr.pagador_cpf_cnpj}</div>
                           )}
+                        </td>
+                        {/* Descrição (bandeira/crédito-débito em repasses de cartão; nota nos demais) */}
+                        <td className={`px-3 py-1 text-[11.5px] text-[#555] align-middle border-r border-[#F1F3F5] ${isColVisible('descricao') ? '' : 'hidden'}`}>
+                          <div className="truncate" title={cr.descricao || cr.observacoes || ''}>
+                            {cr.descricao || cr.observacoes || '—'}
+                          </div>
                         </td>
                         {/* Categoria */}
                         <td className={`px-3 py-1 text-[11.5px] text-[#555] align-middle border-r border-[#F1F3F5] ${isColVisible('categoria') ? '' : 'hidden'}`}>

@@ -113,7 +113,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     .limit(2000),
                 (activeClient as any)
                     .from('contas_receber')
-                    .select('id, pagador_nome, valor, data_vencimento, data_pagamento, status, conta_contabil_id')
+                    .select('id, pagador_nome, descricao, valor, data_vencimento, data_pagamento, status, conta_contabil_id')
                     .eq('company_id', companyId)
                     .in('status', ['aberto', 'parcial', 'vencido', 'pago'])
                     .order('data_vencimento', { ascending: false })
@@ -174,7 +174,10 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 normalized.push({
                     id: r.id,
                     type: 'receivable',
-                    description: r.pagador_nome || '',
+                    // Em repasses de cartão a bandeira/crédito-débito mora em `descricao`
+                    // (gravado pela substituição da agenda Stone). Mostra isso na sugestão
+                    // pra dar pra conciliar sabendo a bandeira; cai pro pagador nos demais.
+                    description: r.descricao || r.pagador_nome || '',
                     amount: Number(r.valor || 0),
                     date: referenceDate,
                     status: jaConciliado ? 'conciliado' : r.status,
