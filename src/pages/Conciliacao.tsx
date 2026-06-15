@@ -2729,7 +2729,7 @@ export default function Conciliacao() {
                                                                         {st.status !== 'conciliado' && ` • ${st.status}`}
                                                                     </p>
                                                                 </div>
-                                                                <span className="font-bold text-foreground whitespace-nowrap">{formatBRL(st.amount)}</span>
+                                                                <span className="font-bold text-foreground whitespace-nowrap flex-shrink-0 pl-2">{formatBRL(st.amount)}</span>
                                                             </div>
                                                         );
                                                     })}
