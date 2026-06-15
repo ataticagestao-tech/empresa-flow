@@ -224,6 +224,13 @@ export default function CompanyDashboard() {
         }
     }, [period, today, todayStr, customStart, customEnd, specificMonth, specificYear]);
 
+    // Quando o mês ainda está em andamento, capa o fim do período em "hoje" para
+    // os KPIs do período atual (faturamento/despesa/resultado) considerarem só até
+    // o dia vigente — consistente com o cabeçalho e com a comparação alinhada por
+    // dia do mês anterior (effectivePeriodEnd / prevMonthEnd, abaixo). Datas ISO
+    // "yyyy-MM-dd" comparam corretamente como string.
+    const periodEndCapped = periodEnd > todayStr ? todayStr : periodEnd;
+
     // ─── Transfer account IDs (excluir de todos os cálculos) ─
     const { data: transferAccountIds = [] } = useQuery({
         queryKey: ["dash_transfer_ids", cId],
@@ -354,19 +361,19 @@ export default function CompanyDashboard() {
     // Caixa: contas_receber pagas por data_pagamento + cartão de crédito por data_venda
     //        (cliente já pagou no ato, repasse da operadora é tratado em CR separadamente).
     const { data: receitaPeriodo = 0 } = useQuery({
-        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd, regime, transferAccountIds],
+        queryKey: ["dash_receita_periodo", cId, periodStart, periodEndCapped, regime, transferAccountIds],
         queryFn: async () => {
             if (regime === "competencia") {
                 const { data } = await db.from("vendas")
                     .select("valor_liquido")
                     .eq("company_id", cId).eq("status", "confirmado")
                     .is("deleted_at", null)
-                    .gte("data_venda", periodStart).lte("data_venda", periodEnd)
+                    .gte("data_venda", periodStart).lte("data_venda", periodEndCapped)
                     .limit(10000);
                 return (data || [])
                     .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
             }
-            const itens = await fetchReceitaCaixaItens(periodStart, periodEnd);
+            const itens = await fetchReceitaCaixaItens(periodStart, periodEndCapped);
             return itens.reduce((s, r) => s + r.valor, 0);
         },
         enabled: !!cId,
@@ -376,7 +383,7 @@ export default function CompanyDashboard() {
     // Competência: contas_pagar (aberto/parcial/vencido/pago) por data_vencimento, valor cheio.
     // Caixa: contas_pagar pagas por data_pagamento, valor efetivamente pago.
     const { data: despesaPeriodo = 0 } = useQuery({
-        queryKey: ["dash_despesa_periodo", cId, periodStart, periodEnd, regime, transferAccountIds],
+        queryKey: ["dash_despesa_periodo", cId, periodStart, periodEndCapped, regime, transferAccountIds],
         queryFn: async () => {
             if (regime === "competencia") {
                 const { data } = await db.from("contas_pagar")
@@ -384,7 +391,7 @@ export default function CompanyDashboard() {
                     .eq("company_id", cId)
                     .in("status", ["aberto", "parcial", "vencido", "pago"])
                     .is("deleted_at", null)
-                    .gte("data_vencimento", periodStart).lte("data_vencimento", periodEnd)
+                    .gte("data_vencimento", periodStart).lte("data_vencimento", periodEndCapped)
                     .limit(10000);
                 return (data || [])
                     .filter((r: any) => !isTransfer(r))
@@ -394,7 +401,7 @@ export default function CompanyDashboard() {
                 .select("valor_pago, conta_contabil_id")
                 .eq("company_id", cId).eq("status", "pago")
                 .is("deleted_at", null)
-                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
+                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEndCapped)
                 .limit(5000);
             return (data || [])
                 .filter((r: any) => !isTransfer(r))
