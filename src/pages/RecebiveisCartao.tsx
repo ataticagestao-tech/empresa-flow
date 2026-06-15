@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -187,9 +187,73 @@ export default function RecebiveisCartao() {
     },
   });
 
+  // Plano de contas da empresa — pra categorizar os repasses (default: 1.3.01 maquininha/Stone).
+  const { data: contasContabeis = [] } = useQuery({
+    queryKey: ["chart_accounts_cartao", cId],
+    enabled: !!db && !!cId,
+    queryFn: async () => {
+      const { data } = await db
+        .from("chart_of_accounts")
+        .select("id, code, name")
+        .eq("company_id", cId)
+        .order("code");
+      return (data || []) as { id: string; code: string; name: string }[];
+    },
+  });
+
+  // Conta default pros repasses: 1.3.01 (ou nome maquininha/Recebimentos Stone).
+  const contaMaquininha =
+    contasContabeis.find((c) => c.code === "1.3.01") ||
+    contasContabeis.find((c) => /maquininha|recebimentos stone/i.test(c.name));
+
+  // CR de repasse (vindas da agenda) que estão SEM categoria — travam a conciliação.
+  const { data: semCategoria = 0 } = useQuery({
+    queryKey: ["card_cr_sem_categoria", cId],
+    enabled: !!db && !!cId,
+    queryFn: async () => {
+      const { count } = await db
+        .from("contas_receber")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", cId)
+        .not("card_receivable_id", "is", null)
+        .is("conta_contabil_id", null)
+        .is("deleted_at", null);
+      return count || 0;
+    },
+  });
+
+  const [catId, setCatId] = useState<string>("");
+  const [categorizando, setCategorizando] = useState(false);
+  // Pré-seleciona a conta de maquininha assim que o plano de contas carrega.
+  useEffect(() => {
+    if (!catId && contaMaquininha) setCatId(contaMaquininha.id);
+  }, [catId, contaMaquininha]);
+
   const invalidarTudo = () => {
-    for (const k of ["cr_cartao_sistema", "cr_gerados", "card_receivables_resumo"]) {
+    for (const k of ["cr_cartao_sistema", "cr_gerados", "card_receivables_resumo", "card_cr_sem_categoria"]) {
       queryClient.invalidateQueries({ queryKey: [k, cId] });
+    }
+  };
+
+  // ── Categorizar os repasses de cartão sem categoria (destrava a conciliação) ──
+  const categorizarRepasses = async () => {
+    if (!cId || !catId) return;
+    setCategorizando(true);
+    try {
+      const { error } = await db
+        .from("contas_receber")
+        .update({ conta_contabil_id: catId })
+        .eq("company_id", cId)
+        .not("card_receivable_id", "is", null)
+        .is("conta_contabil_id", null)
+        .is("deleted_at", null);
+      if (error) throw error;
+      toast.success(`Repasses categorizados. A conciliação agora não vai mais travar.`);
+      invalidarTudo();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao categorizar");
+    } finally {
+      setCategorizando(false);
     }
   };
 
@@ -249,6 +313,8 @@ export default function RecebiveisCartao() {
         status: "aberto",
         forma_recebimento: "cartao_credito",
         pagador_nome: "Stone (repasse cartão)",
+        // Já nasce categorizado (1.3.01 maquininha) pra não travar a conciliação depois.
+        conta_contabil_id: catId || contaMaquininha?.id || null,
         descricao: [a.bandeira, a.produto, a.num_parcela ? `${a.num_parcela}/${a.qtd_parcelas}` : null].filter(Boolean).join(" · "),
       }));
       const CHUNK = 500;
@@ -376,6 +442,44 @@ export default function RecebiveisCartao() {
               <Kpi label="Parcelas importadas" value={String(resumo.total)} sub={`${resumo.futuras} a receber`} />
               <Kpi label="A receber (líquido)" value={fmt2(resumo.aReceber)} sub="futuras, não pagas" cor={VERDE} />
               <Kpi label="Taxa total (MDR+antec.)" value={fmt2(resumo.taxaTotal)} sub="custo de adquirência" cor={VERMELHO} />
+            </div>
+          )}
+
+          {/* Repasses sem categoria — destrava a conciliação */}
+          {semCategoria > 0 && (
+            <div style={{ background: "#FFFFFF", border: "1px solid #FDA29B", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", background: "#B42318" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, color: "#fff" }}>Categorizar repasses (destrava a conciliação)</span>
+              </div>
+              <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontSize: 13, color: "#912018" }}>
+                  ⚠️ <strong>{semCategoria}</strong> repasse(s) de cartão estão <strong>sem categoria contábil</strong>. A conciliação trava nesses (a movimentação não pode ficar sem categoria). Escolha a conta e aplique.
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <select
+                    value={catId}
+                    onChange={(e) => setCatId(e.target.value)}
+                    style={{ flex: "1 1 320px", minWidth: 260, padding: "9px 12px", border: "1px solid #D0D5DD", borderRadius: 8, fontSize: 13, color: "#1D2939", background: "#fff" }}
+                  >
+                    <option value="">Selecione a conta…</option>
+                    {contasContabeis.map((c) => (
+                      <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={categorizarRepasses}
+                    disabled={categorizando || !catId}
+                    style={{ background: "#059669", color: "#fff", fontWeight: 700, fontSize: 14, padding: "9px 18px", borderRadius: 8, border: "none", cursor: categorizando || !catId ? "default" : "pointer", opacity: categorizando || !catId ? 0.6 : 1 }}
+                  >
+                    {categorizando ? "Aplicando…" : `Aplicar a ${semCategoria} repasse(s)`}
+                  </button>
+                </div>
+                {contaMaquininha && (
+                  <span style={{ fontSize: 11.5, color: "#98A2B3" }}>
+                    Sugerido: <strong>{contaMaquininha.code} — {contaMaquininha.name}</strong> — zera o recebível da maquininha, sem duplicar receita no DRE.
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
