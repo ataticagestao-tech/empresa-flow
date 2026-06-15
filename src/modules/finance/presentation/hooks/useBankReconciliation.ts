@@ -477,6 +477,18 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             const accountId: string | null = existingRow?.conta_contabil_id || null;
             const existingStatus: string | null = existingRow?.status || null;
 
+            // Guard: a movimentacao exige categoria (trigger no Postgres). Se o CR/CP
+            // estiver sem categoria, FALHA AGORA — antes de marcar 'pago'/criar mov.
+            // Sem isso, marcar 'pago' commitava e a mov falhava depois, deixando o
+            // lancamento preso em 'pago' sem conciliacao (caso dos repasses de cartao
+            // sem categoria). Categorize o lancamento antes de conciliar.
+            if (!accountId) {
+                throw new Error(
+                    `"${sysTx.entity_name || sysTx.description || 'Lançamento'}" está sem categoria contábil. ` +
+                    `Categorize antes de conciliar (em repasses de cartão: tela "Recebíveis de Cartão" → "Categorizar repasses").`
+                );
+            }
+
             // Atualizar para 'pago' apenas se ainda nao estiver pago.
             // Trigger no Postgres bloqueia UPDATE em CR/CP ja pago — sem essa
             // checagem o match falhava com "Registro com status 'pago' nao pode
