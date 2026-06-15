@@ -1248,15 +1248,36 @@ export default function ContasPagar() {
         }
       }
 
+      // Tenta casar o fornecedor lido com um cadastro existente pra já
+      // SELECIONAR no dropdown (que é por credorId, não texto livre). Match
+      // por nome normalizado: exato primeiro, depois um contém o outro.
+      const fornecedorLido = (data.fornecedor || '').trim()
+      let credorMatch: { credorId: string; credorTipo: CredorTipo } | null = null
+      if (fornecedorLido) {
+        const alvo = normalizeName(fornecedorLido)
+        const sup =
+          suppliers.find(s => normalizeName(s.razao_social) === alvo) ||
+          suppliers.find(s => {
+            const n = normalizeName(s.razao_social)
+            return alvo.length >= 5 && n.length >= 5 && (n.includes(alvo) || alvo.includes(n))
+          })
+        if (sup) credorMatch = { credorId: sup.id, credorTipo: 'fornecedor' }
+      }
+
       // Preencher formulário com dados extraídos
       setNewForm(prev => ({
         ...prev,
         descricao: data.descricao || prev.descricao,
-        credorNome: data.fornecedor || prev.credorNome,
+        credorNome: fornecedorLido || prev.credorNome,
+        credorTipo: credorMatch ? credorMatch.credorTipo : prev.credorTipo,
+        credorId: credorMatch ? credorMatch.credorId : prev.credorId,
         valor: data.valor || prev.valor,
         dataVencimento: data.vencimento || prev.dataVencimento,
         competencia: data.competencia || prev.competencia,
         codigoBarras: data.codigo_barras || prev.codigoBarras,
+        ...(credorMatch && !pixTouched
+          ? { chavePix: getCredorPix(credorMatch.credorTipo, credorMatch.credorId) }
+          : {}),
       }))
 
       alert('Boleto lido com sucesso! Verifique os campos preenchidos.' + avisoCodigo)
@@ -3192,6 +3213,13 @@ export default function ContasPagar() {
                     {newForm.credorTipo === 'funcionario' && employees.map((e) => (<option key={e.id} value={e.id}>{e.nome_completo || e.name}</option>))}
                     {newForm.credorTipo === 'cliente' && clients.map((c) => (<option key={c.id} value={c.id}>{c.razao_social}</option>))}
                   </SearchableSelect>
+                  {newForm.credorTipo === 'fornecedor' && !newForm.credorId && newForm.credorNome.trim() && (
+                    <p className="mt-1.5 text-[11px] leading-snug" style={{ color: '#B54708' }}>
+                      Usando <strong>"{newForm.credorNome}"</strong> como credor — não está cadastrado como fornecedor.{' '}
+                      <button type="button" onClick={() => setIsSupplierSheetOpen(true)} className="font-semibold underline" style={{ color: '#039855' }}>Cadastrar</button>{' '}
+                      ou escolha um da lista.
+                    </p>
+                  )}
                 </div>
 
                 {/* Valor + Vencimento */}
