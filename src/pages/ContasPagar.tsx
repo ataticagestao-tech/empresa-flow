@@ -433,13 +433,18 @@ export default function ContasPagar() {
   }, [searchParams])
 
   // ─── KPIs ─────────────────────────────────────────────────────────
-  // Total a pagar e Pago no período seguem o filtro (dateFrom..dateTo).
-  // Vence hoje e Próximos 7 dias permanecem ancorados na data atual — é a
-  // semântica deles (não fariam sentido fora desse contexto).
+  // Total a pagar e Pago no período seguem o filtro (dateFrom..dateTo), mas com
+  // o fim do intervalo capado em "hoje" quando o mês ainda está em andamento —
+  // assim batem com o dashboard (que conta só até o dia vigente). Os vencimentos
+  // que ainda vão ocorrer no resto do mês continuam visíveis em "Próximos 7 dias"
+  // e na lista. Vence hoje e Próximos 7 dias permanecem ancorados na data atual.
   const kpis = useMemo(() => {
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
     const seteDias = addDays(hoje, 7)
+    const todayStr = format(hoje, 'yyyy-MM-dd')
+    const dateToCapped = dateTo > todayStr ? todayStr : dateTo
+    const cappedToToday = dateToCapped !== dateTo
 
     let totalPagar = 0
     let totalCount = 0
@@ -455,7 +460,7 @@ export default function ContasPagar() {
 
       // Pago no período: olha data_pagamento (não vencimento)
       if (cp.status === 'pago') {
-        if (cp.data_pagamento && cp.data_pagamento >= dateFrom && cp.data_pagamento <= dateTo) {
+        if (cp.data_pagamento && cp.data_pagamento >= dateFrom && cp.data_pagamento <= dateToCapped) {
           pagoPeriodo += Number(cp.valor_pago || 0)
           pagoPeriodoCount++
         }
@@ -468,8 +473,8 @@ export default function ContasPagar() {
       const venc = parseISO(dataVenc)
       venc.setHours(0, 0, 0, 0)
 
-      // Total a pagar: respeita o filtro (vencimento no intervalo)
-      if (dataVenc >= dateFrom && dataVenc <= dateTo) {
+      // Total a pagar: respeita o filtro (vencimento no intervalo), capado em hoje
+      if (dataVenc >= dateFrom && dataVenc <= dateToCapped) {
         totalPagar += s
         totalCount++
       }
@@ -479,7 +484,7 @@ export default function ContasPagar() {
       if ((isToday(venc) || (isAfter(venc, hoje) && (isBefore(venc, seteDias) || venc.getTime() === seteDias.getTime())))) { prox7 += s; prox7Count++ }
     }
 
-    return { totalPagar, totalCount, venceHoje, hojeCount, prox7, prox7Count, pagoPeriodo, pagoPeriodoCount }
+    return { totalPagar, totalCount, venceHoje, hojeCount, prox7, prox7Count, pagoPeriodo, pagoPeriodoCount, cappedToToday }
   }, [contas, dateFrom, dateTo])
 
   // ─── Agenda do mês corrente (heatmap estilo GitHub) ──────────────
@@ -1972,7 +1977,7 @@ export default function ContasPagar() {
             label={"Total a pagar"}
             value={formatBRL(kpis.totalPagar)}
             valueColor="#1D2939"
-            sub={`${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto no per\u00edodo`}
+            sub={`${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto${kpis.cappedToToday ? ' at\u00e9 hoje' : ' no per\u00edodo'}`}
           />
           <KpiCard
             label={"Vence hoje"}
