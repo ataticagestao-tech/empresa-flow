@@ -32,7 +32,7 @@ const emptyForm = {
 
 export default function Empresas() {
   const { user, activeClient } = useAuth();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, setSelectedCompany, refreshCompanies } = useCompany();
   const navigate = useNavigate();
   const { companies, isLoading, error: companiesError, forceDeleteCompany, refetch } = useCompanies(user?.id);
 
@@ -106,7 +106,9 @@ export default function Empresas() {
     setSaving(true);
     try {
       const payload = {
-        cnpj: form.cnpj.replace(/\D/g, ""),
+        // null (não "") quando sem CNPJ: a coluna é UNIQUE, e duas empresas com
+        // cnpj="" colidiriam. NULL não conflita — permite vários "Sem CNPJ".
+        cnpj: form.cnpj.replace(/\D/g, "") || null,
         razao_social: form.razao_social,
         nome_fantasia: form.nome_fantasia || null,
         data_abertura: form.data_abertura || null,
@@ -132,24 +134,43 @@ export default function Empresas() {
         const { error } = await (activeClient as any).from("companies").update(payload).eq("id", editingId);
         if (error) throw error;
         toast.success("Empresa atualizada");
-      } else {
-        const { data: empresa, error } = await (activeClient as any)
-          .from("companies").insert(payload).select().single();
-        if (error) throw error;
-        await (activeClient as any).from("user_companies").insert({ user_id: user.id, company_id: empresa.id });
-        try {
-          await (activeClient as any).rpc("copiar_plano_template", { p_company_id: empresa.id });
-        } catch (e) {
-          console.warn("Template copy failed:", e);
-        }
-        toast.success("Empresa criada com sucesso!");
+        refetch();
+        await refreshCompanies();      // sincroniza o seletor global (nome/dados editados)
+        setMode("list");
+        setStep(0);
+        setForm(emptyForm);
+        setAutoFilled(new Set());
+        setEditingId(null);
+        return;
       }
+
+      const { data: empresa, error } = await (activeClient as any)
+        .from("companies").insert(payload).select().single();
+      if (error) throw error;
+      // upsert (não insert) p/ não estourar erro de chave duplicada caso o gatilho
+      // do banco já tenha vinculado o dono a esta empresa nova.
+      await (activeClient as any)
+        .from("user_companies")
+        .upsert({ user_id: user.id, company_id: empresa.id }, { onConflict: "user_id,company_id" });
+      try {
+        await (activeClient as any).rpc("copiar_plano_template", { p_company_id: empresa.id });
+      } catch (e) {
+        console.warn("Template copy failed:", e);
+      }
+      toast.success("Empresa criada com sucesso!");
+
+      // Sem isto, o seletor GLOBAL (CompanyContext) não conhece a empresa nova e o
+      // app continua mostrando — e redirecionando para — a empresa anterior até o
+      // próximo reload. Atualiza a lista global e já entra na empresa recém-criada.
       refetch();
+      await refreshCompanies();
+      setSelectedCompany(empresa);
       setMode("list");
       setStep(0);
       setForm(emptyForm);
       setAutoFilled(new Set());
       setEditingId(null);
+      navigate(`/empresas/${empresa.id}`);
     } catch (err: any) {
       toast.error("Erro ao salvar: " + (err.message || "Erro desconhecido"));
     } finally { setSaving(false); }
