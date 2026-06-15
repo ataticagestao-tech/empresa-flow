@@ -474,19 +474,40 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 .select('conta_contabil_id, status')
                 .eq('id', sysTx.id)
                 .single();
-            const accountId: string | null = existingRow?.conta_contabil_id || null;
+            let accountId: string | null = existingRow?.conta_contabil_id || null;
             const existingStatus: string | null = existingRow?.status || null;
 
-            // Guard: a movimentacao exige categoria (trigger no Postgres). Se o CR/CP
-            // estiver sem categoria, FALHA AGORA — antes de marcar 'pago'/criar mov.
-            // Sem isso, marcar 'pago' commitava e a mov falhava depois, deixando o
-            // lancamento preso em 'pago' sem conciliacao (caso dos repasses de cartao
-            // sem categoria). Categorize o lancamento antes de conciliar.
+            // A movimentacao exige categoria (trigger no Postgres). Se o CR/CP estiver
+            // sem categoria, NAO podemos marcar 'pago'/criar mov — senao o registro fica
+            // preso em 'pago' sem conciliacao (caso dos repasses de cartao sem categoria).
             if (!accountId) {
-                throw new Error(
-                    `"${sysTx.entity_name || sysTx.description || 'Lançamento'}" está sem categoria contábil. ` +
-                    `Categorize antes de conciliar (em repasses de cartão: tela "Recebíveis de Cartão" → "Categorizar repasses").`
-                );
+                // Auto-cura p/ repasse de cartao: resolve a conta de maquininha (1.3.01 ou
+                // nome maquininha/Recebimentos Stone) e grava no proprio CR/CP. A trigger
+                // bloquear_edicao_pago libera reclassificar categoria mesmo em pago.
+                const isRepasse = sysTx.type === 'receivable'
+                    && /repasse/i.test(sysTx.entity_name || sysTx.description || '');
+                if (isRepasse) {
+                    const { data: accs } = await (activeClient as any)
+                        .from('chart_of_accounts')
+                        .select('id, code, name')
+                        .eq('company_id', companyId);
+                    const acc = (accs || []).find((c: any) => c.code === '1.3.01')
+                        || (accs || []).find((c: any) => /maquininha|recebimentos stone/i.test(c.name || ''));
+                    if (acc?.id) {
+                        const { error: catErr } = await (activeClient as any)
+                            .from(table)
+                            .update({ conta_contabil_id: acc.id })
+                            .eq('id', sysTx.id);
+                        if (catErr) throw catErr;
+                        accountId = acc.id;
+                    }
+                }
+                if (!accountId) {
+                    throw new Error(
+                        `"${sysTx.entity_name || sysTx.description || 'Lançamento'}" está sem categoria contábil. ` +
+                        `Categorize antes de conciliar (em repasses de cartão: tela "Recebíveis de Cartão" → "Categorizar repasses").`
+                    );
+                }
             }
 
             // Atualizar para 'pago' apenas se ainda nao estiver pago.
