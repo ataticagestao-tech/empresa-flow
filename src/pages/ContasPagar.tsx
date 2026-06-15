@@ -1222,7 +1222,22 @@ export default function ContasPagar() {
         body: { fileBase64: base64, mimeType },
       })
 
-      if (error) throw error
+      if (error) {
+        // supabase-js coloca a Response em error.context. Lê o body real
+        // pra mostrar o motivo de verdade em vez do "non-2xx status code".
+        const ctx: any = (error as any).context
+        let detail = error.message || 'Falha ao ler boleto'
+        try {
+          if (ctx && typeof ctx.json === 'function') {
+            const parsed = await ctx.clone().json()
+            detail = parsed?.error || parsed?.erro || JSON.stringify(parsed)
+          } else if (ctx && typeof ctx.text === 'function') {
+            const txt = await ctx.clone().text()
+            if (txt) detail = txt
+          }
+        } catch { /* mantém detail */ }
+        throw new Error(detail)
+      }
       if (data?.error) throw new Error(data.error)
 
       let avisoCodigo = ''
