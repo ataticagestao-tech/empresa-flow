@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { OWNER_EMAIL } from "@/config/menuConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,6 +95,8 @@ const accountTypeColors = {
 
 export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProps) {
     const { activeClient, user } = useAuth();
+    // owner-only apos incidente 29/04/2026 (reset acidental do plano)
+    const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase();
     const confirm = useConfirm();
     const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
     const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
@@ -786,10 +789,12 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleResetAndReimport} className="gap-2">
-                        <RefreshCw className="w-4 h-4" />
-                        Reinicializar Template
-                    </Button>
+                    {isOwner && (
+                        <Button variant="outline" onClick={handleResetAndReimport} className="gap-2">
+                            <RefreshCw className="w-4 h-4" />
+                            Reinicializar Template
+                        </Button>
+                    )}
                     <Button onClick={() => setShowForm(!showForm)} className="gap-2">
                         <Plus className="w-4 h-4" />
                         Nova Categoria
