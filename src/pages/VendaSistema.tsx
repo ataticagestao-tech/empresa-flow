@@ -72,12 +72,12 @@ const heroCards = [
 ];
 
 const entregas = [
-  { icon: TrendingUp, txt: <>Negociação que devolve <strong className="text-[#34D399]">3 a 8% do faturamento</strong> ao seu caixa</> },
-  { icon: BarChart3, txt: <>Acompanhamento <strong className="text-[#34D399]">contábil</strong> completo</> },
-  { icon: Users2, txt: <><strong className="text-[#34D399]">Contratação</strong> de parceiros e funcionários regularizada</> },
-  { icon: Target, txt: <><strong className="text-[#34D399]">Precificação</strong> que melhora sua margem</> },
-  { icon: Layers, txt: <>Ecossistema: <strong className="text-[#34D399]">contadores, advogados</strong> e mais</> },
-  { icon: Cpu, txt: <><strong className="text-[#34D399]">Sistema próprio</strong> pra controlar a clínica e falar com o paciente</> },
+  { icon: TrendingUp, txt: <>Negociação que devolve <strong className="font-bold text-[#059669]">3 a 8% do faturamento</strong> ao seu caixa</> },
+  { icon: BarChart3, txt: <>Acompanhamento <strong className="font-bold text-[#059669]">contábil</strong> completo</> },
+  { icon: Users2, txt: <><strong className="font-bold text-[#059669]">Contratação</strong> de parceiros e funcionários regularizada</> },
+  { icon: Target, txt: <><strong className="font-bold text-[#059669]">Precificação</strong> que melhora sua margem</> },
+  { icon: Layers, txt: <>Ecossistema: <strong className="font-bold text-[#059669]">contadores, advogados</strong> e mais</> },
+  { icon: Cpu, txt: <><strong className="font-bold text-[#059669]">Sistema próprio</strong> pra controlar a clínica e falar com o paciente</> },
 ];
 
 const sistemaCards = [
@@ -243,7 +243,7 @@ export default function VendaSistema() {
     };
   }, []);
 
-  // Fontes (Fraunces + Nunito Sans) + textura de grão — escopado à landing.
+  // Fontes (Playfair Display + Nunito Sans) — escopado à landing.
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -252,11 +252,10 @@ export default function VendaSistema() {
     document.head.appendChild(link);
     const style = document.createElement("style");
     style.textContent =
-      ".tatica-lp{font-family:'Nunito Sans',system-ui,sans-serif;background-color:#FFFFFF;background-image:linear-gradient(to right,rgba(12,42,82,.08) 1px,transparent 1px),linear-gradient(to bottom,rgba(12,42,82,.08) 1px,transparent 1px);background-size:64px 64px;background-repeat:repeat}" +
-      ".tatica-navy{background-color:#060E1C;background-image:linear-gradient(to right,rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.06) 1px,transparent 1px);background-size:64px 64px}" +
+      ".tatica-lp{font-family:'Nunito Sans',system-ui,sans-serif;background-color:#FBFAF8}" +
+      ".tatica-navy{background-color:#060E1C;background-image:radial-gradient(110% 75% at 50% -10%,rgba(19,81,180,.16),transparent 58%)}" +
       ".tatica-lp h1,.tatica-lp h2,.tatica-lp h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;letter-spacing:-.01em}" +
-      ".tatica-marquee{animation:tatica-mq 90s linear infinite}.tatica-marquee:hover{animation-play-state:paused}@keyframes tatica-mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}.tatica-marquee-mask{-webkit-mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent)}.tatica-vscroll{animation:tatica-vs 15s ease-in-out infinite}.tatica-vscroll:hover{animation-play-state:paused}@keyframes tatica-vs{0%,16%{transform:translateY(0)}50%,66%{transform:translateY(-464px)}100%{transform:translateY(0)}}" +
-      ".tatica-lp::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.55;mix-blend-mode:soft-light;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='gr'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23gr)' opacity='0.5'/%3E%3C/svg%3E\")}";
+      ".tatica-marquee{animation:tatica-mq 90s linear infinite}.tatica-marquee:hover{animation-play-state:paused}@keyframes tatica-mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}.tatica-marquee-mask{-webkit-mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent)}.tatica-vscroll{animation:tatica-vs 15s ease-in-out infinite}.tatica-vscroll:hover{animation-play-state:paused}@keyframes tatica-vs{0%,16%{transform:translateY(0)}50%,66%{transform:translateY(-464px)}100%{transform:translateY(0)}}";
     document.head.appendChild(style);
     return () => {
       link.remove();
@@ -265,7 +264,7 @@ export default function VendaSistema() {
   }, []);
 
   return (
-    <div className="tatica-lp min-h-screen overflow-x-clip bg-white text-[#0C2340] font-sans antialiased">
+    <div className="tatica-lp min-h-screen overflow-x-clip bg-[#FBFAF8] text-[#0C2340] font-sans antialiased">
       <TopBar />
       <div className="h-[72px] md:h-[92px]" aria-hidden="true" />
       <Hero />
@@ -456,7 +455,7 @@ function TopBar() {
 function Hero() {
   return (
     <section className="relative overflow-hidden bg-transparent text-[#020A17]">
-      <div className="relative mx-auto grid max-w-6xl items-stretch gap-10 px-5 pb-16 pt-8 md:gap-14 md:px-6 md:pb-24 md:pt-16 lg:grid-cols-[0.92fr_1.08fr]">
+      <div className="relative mx-auto grid max-w-6xl items-stretch gap-10 px-5 pb-12 pt-6 md:gap-12 md:px-6 md:pb-16 md:pt-10 lg:grid-cols-[0.92fr_1.08fr]">
         <div>
           <Badge className="max-w-full whitespace-normal rounded-2xl bg-[#1351B4] px-3.5 py-1.5 text-[10px] font-bold uppercase leading-snug tracking-[0.04em] text-white shadow-[0_8px_22px_-8px_rgba(19,81,180,0.65)] hover:bg-[#1351B4] lg:whitespace-nowrap lg:rounded-full">
             <Sparkles className="mr-1.5 h-3 w-3" />
@@ -492,8 +491,16 @@ function Hero() {
           </div>
         </div>
 
-        <div className="relative h-full min-h-[380px] w-full overflow-hidden rounded-2xl border border-black/8 bg-[#060E1C] shadow-[0_36px_80px_-32px_rgba(12,42,82,0.5)]">
-          <img src="/images/equipe/medica.png" alt="Médica usando o sistema da Tática" className="h-full w-full object-cover object-center" />
+        <div
+          role="img"
+          aria-label="Izabel Vieira e Dr. Gustavo Alex, sócios da Tática"
+          className="relative h-[460px] w-full self-start overflow-hidden rounded-2xl border border-black/8 bg-[#060E1C] bg-no-repeat shadow-[0_36px_80px_-32px_rgba(12,42,82,0.5)] md:h-[560px]"
+          style={{
+            backgroundImage: "url('/images/equipe/fundadores-casal.jpg')",
+            backgroundSize: "92% auto",
+            backgroundPosition: "50% 40%",
+          }}
+        >
           <div className="absolute inset-x-4 bottom-4 rounded-xl bg-white/95 px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur md:inset-x-5 md:bottom-5">
             <p className="text-[13.5px] font-medium leading-snug text-[#1A1A1A]">
               Cuidamos do seu <strong className="text-[#1351B4]">contas a pagar, receber</strong>, conciliação de <strong className="text-[#1351B4]">procedimentos parcelados</strong> e administração de <strong className="text-[#1351B4]">contratos cirúrgicos</strong> para garantir completa fluidez e unicidade das informações da sua clínica.
@@ -549,43 +556,52 @@ function HeroCarousel() {
 function Sobre() {
   return (
     <section id="sobre" className="bg-transparent">
-      <div className="mx-auto max-w-7xl px-5 pt-8 pb-14 md:px-6 md:pt-10 md:pb-24">
-        <div className="rounded-3xl border border-white/10 bg-[#060E1C] p-10 shadow-[0_30px_70px_-28px_rgba(6,14,28,0.75)] md:p-16">
-          <p className="text-center text-[12px] font-extrabold uppercase tracking-[0.18em] text-[#34D399]">Nossas entregas</p>
-          <h3 className="mb-14 mt-2 text-center text-[clamp(1.6rem,3.2vw,2.2rem)] font-black tracking-tight text-white">
-            O que a gente <span className="text-[#34D399]">faz por você</span>
-          </h3>
-          <div className="hidden md:block">
-            <div className="relative">
-              <div className="absolute left-[7%] right-[7%] top-8 h-1 rounded-full bg-gradient-to-r from-[#3B82F6] via-[#34D399] to-[#3B82F6]" />
-              <div className="relative grid grid-cols-6 gap-3">
-                {entregas.map(({ icon: Icon, txt }, i) => (
-                  <div key={i} className="flex flex-col items-center px-1 text-center">
-                    <span className="grid h-16 w-16 place-items-center rounded-full border-[3px] border-[#34D399] bg-white text-[#0C2A52] shadow-[0_8px_22px_-6px_rgba(52,211,153,0.5)]">
-                      <Icon className="h-7 w-7" />
-                    </span>
-                    <span className="mt-4 text-[18px] font-semibold leading-snug text-white/90">{txt}</span>
-                  </div>
-                ))}
-              </div>
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
+        <div className="grid items-stretch gap-9 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16">
+          {/* Foto editorial + selo */}
+          <div className="relative min-h-[440px] self-stretch overflow-hidden rounded-[28px] shadow-[0_40px_90px_-40px_rgba(12,42,82,0.45)] ring-1 ring-[#0C2340]/10">
+            <img
+              src="/images/equipe/escritorio.jpg"
+              alt="Equipe da Tática cuidando da gestão financeira da sua clínica"
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/60 bg-white/85 px-6 py-5 shadow-[0_18px_40px_-18px_rgba(12,42,82,0.4)] backdrop-blur-md">
+              <p
+                className="text-[30px] font-extrabold leading-none text-[#0C2340]"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
+                +R$ 14 milhões
+              </p>
+              <p className="mt-1.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0C2340]/55">
+                sob gestão · 100% foco em área médica
+              </p>
             </div>
           </div>
 
-          <div className="relative space-y-5 pl-9 md:hidden">
-            <span className="pointer-events-none absolute left-[15px] top-1 bottom-3 w-0.5 bg-gradient-to-b from-[#10B981] to-[#10B981]/15" />
-            {entregas.map(({ icon: Icon, txt }, i) => (
-              <div key={i} className="relative flex items-center">
-                <span className="absolute -left-9 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border-2 border-[#34D399] bg-white text-[#0C2A52]">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="text-[18px] font-semibold leading-snug text-white/90">{txt}</span>
-              </div>
-            ))}
-          </div>
+          {/* Conteúdo */}
+          <div className="flex flex-col justify-center">
+            <p className="text-[12px] font-extrabold uppercase tracking-[0.18em] text-[#059669]">Nossas entregas</p>
+            <h3 className="mt-2 text-[clamp(1.9rem,3.4vw,2.6rem)] font-black tracking-tight text-[#0C2340]">
+              O que a gente <span className="text-[#059669]">faz por você</span>
+            </h3>
+            <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-[#0C2340]/70">
+              Mais que um sistema: uma equipe que assume o financeiro da sua clínica de ponta a ponta — pra você focar no paciente.
+            </p>
 
-          <p className="mt-14 text-center text-[15.5px] text-white/65">
-            <span className="font-black text-white">+R$ 14 milhões</span> sob gestão · <span className="font-black text-white">100%</span> foco em área médica
-          </p>
+            <ul className="mt-8">
+              {entregas.map(({ icon: Icon, txt }, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-4 border-t border-[#0C2340]/10 py-5 first:border-t-0 first:pt-0"
+                >
+                  <span className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#059669]/10 text-[#059669] ring-1 ring-[#059669]/25">
+                    <Icon className="h-5 w-5" strokeWidth={1.75} />
+                  </span>
+                  <p className="text-[16.5px] leading-relaxed text-[#0C2340]/85">{txt}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </section>
@@ -615,7 +631,7 @@ function Sistema() {
   return (
     <>
     <section id="sistema" className="relative overflow-hidden bg-transparent text-[#020A17]">
-      <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+      <div className="relative mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="overflow-hidden rounded-full border border-black/8 bg-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)]">
           <div className="flex items-stretch">
             <div className="flex shrink-0 items-center rounded-l-full bg-[#060E1C] px-4 md:px-5">
@@ -634,7 +650,7 @@ function Sistema() {
           </div>
         </div>
 
-        <div className="mt-12 grid items-stretch gap-10 md:mt-14 md:grid-cols-[1.1fr_0.9fr]">
+        <div className="mt-12 grid items-stretch gap-10 md:mt-12 md:grid-cols-[1.1fr_0.9fr]">
           <div className="flex flex-col">
             <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#1351B4]">Nosso grande diferencial</p>
             <h2 className="mt-3 text-[clamp(2.2rem,5vw,3.4rem)] font-black leading-[1.05] tracking-tight text-[#020A17]">
@@ -722,7 +738,7 @@ function Sistema() {
           </div>
         </div>
 
-        <div className="relative mt-12 ml-[calc(50%-50vw)] w-screen bg-[#060E1C] py-7 md:mt-14 md:py-10">
+        <div className="relative mt-12 ml-[calc(50%-50vw)] w-screen bg-[#060E1C] py-7 md:mt-12 md:py-10">
           <div className="mx-auto mb-8 h-px max-w-6xl bg-gradient-to-r from-transparent via-white/25 to-transparent" />
           <div className="mx-auto max-w-6xl overflow-hidden px-5 md:px-6">
             <div className="tatica-marquee flex w-max gap-5 py-2">
@@ -752,7 +768,7 @@ function Sistema() {
           </div>
         </div>
 
-        <div className="mt-14 grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
+        <div className="mt-10 grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
           {sistemaCards.map(({ icon: Icon, t, d, img }) => (
             <button
               key={t}
@@ -832,7 +848,7 @@ function Sistema() {
 function GaleriaSistema() {
   return (
     <section id="plataforma" className="bg-transparent">
-      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">A plataforma</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
@@ -844,7 +860,7 @@ function GaleriaSistema() {
           </p>
         </div>
 
-        <div className="relative mx-auto mt-10 max-w-5xl md:mt-14">
+        <div className="relative mx-auto mt-10 max-w-5xl md:mt-12">
           <div className="absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-br from-[#065F46]/20 via-transparent to-[#065F46]/15 blur-2xl" />
           <div className="overflow-hidden rounded-2xl border border-black/8 bg-[#060E1C] p-3 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.3)] md:p-4">
             <img
@@ -872,7 +888,7 @@ function TudoNumSistema() {
   ];
   return (
     <section className="relative overflow-hidden tatica-navy text-white">
-      <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+      <div className="relative mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Por que é diferente</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight">
@@ -1040,7 +1056,7 @@ function Overnight() {
   );
   return (
     <section className="bg-transparent">
-      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="grid items-center gap-12 lg:grid-cols-[1fr_0.82fr]">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Exclusivo Tática · Overnight</p>
@@ -1149,48 +1165,54 @@ function Especialidades() {
 }
 
 function Servicos() {
+  const serif = { fontFamily: "'Playfair Display', Georgia, serif" } as const;
   return (
     <section id="servicos" className="relative overflow-hidden tatica-navy text-white">
       <div className="relative mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
-          <h2 className="text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-white">
-            O que <span className="text-[#34D399]">fazemos</span> e o que <span className="text-[#FB923C]">não fazemos</span>
+          <p className="text-[12px] font-extrabold uppercase tracking-[0.2em] text-[#34D399]">Transparência total</p>
+          <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-white">
+            O que <span className="text-[#34D399]">fazemos</span> e o que <span className="text-[#FBBF24]">não fazemos</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[15.5px] leading-relaxed text-white/75">
             Transparência desde o primeiro dia. Você sabe exatamente o que esperar da Tática.
           </p>
         </div>
 
-        <div className="mt-9 grid grid-cols-2 gap-3 md:gap-6">
-          <div className="rounded-2xl border border-[#10B981]/30 bg-[#10B981]/[0.07] p-4 sm:p-6 md:p-8">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#10B981] text-white sm:h-9 sm:w-9">
-                <Check className="h-4 w-4 sm:h-5 sm:w-5" />
+        <div className="mt-10 grid gap-5 md:grid-cols-2 md:gap-7">
+          {/* O que fazemos */}
+          <div className="relative overflow-hidden rounded-[22px] border border-white/60 bg-white p-7 shadow-[0_34px_80px_-30px_rgba(0,0,0,0.6)] ring-1 ring-black/5 md:p-9">
+            <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#047857] to-[#34D399]" />
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#059669]/10 text-[#059669] ring-1 ring-[#059669]/25">
+                <Check className="h-5 w-5" strokeWidth={2.25} />
               </span>
-              <p className="text-[12px] font-black uppercase leading-tight tracking-wide text-white sm:text-[15px] md:text-[17px]">O que fazemos</p>
+              <p className="text-[13px] font-bold uppercase tracking-[0.16em] text-[#0C2340]">O que fazemos</p>
             </div>
-            <ul className="mt-4 space-y-2.5 sm:mt-6 sm:space-y-3.5">
-              {fazemos.map((t) => (
-                <li key={t} className="flex items-start gap-1.5 text-[12px] leading-snug text-white/90 sm:gap-3 sm:text-[14px] md:text-[15.5px]">
-                  <Check className="mt-0.5 h-3 w-3 shrink-0 text-[#34D399] sm:h-4 sm:w-4" />
-                  {t}
+            <ul className="mt-5">
+              {fazemos.map((t, i) => (
+                <li key={t} className="flex items-baseline gap-4 border-t border-[#0C2340]/8 py-3.5 first:border-t-0 first:pt-1">
+                  <span style={serif} className="w-7 shrink-0 text-[19px] font-bold leading-none text-[#059669] [font-variant-numeric:tabular-nums]">{String(i + 1).padStart(2, "0")}</span>
+                  <p className="text-[15.5px] leading-relaxed text-[#0C2340]/85">{t}</p>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="rounded-2xl border border-[#FB923C]/25 bg-[#FB923C]/[0.06] p-4 sm:p-6 md:p-8">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#F97316] text-white sm:h-9 sm:w-9">
-                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+          {/* O que não fazemos */}
+          <div className="relative overflow-hidden rounded-[22px] border border-white/60 bg-white p-7 shadow-[0_34px_80px_-30px_rgba(0,0,0,0.6)] ring-1 ring-black/5 md:p-9">
+            <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#9A3412] to-[#F59E0B]" />
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#B45309]/10 text-[#B45309] ring-1 ring-[#B45309]/25">
+                <X className="h-5 w-5" strokeWidth={2.25} />
               </span>
-              <p className="text-[12px] font-black uppercase leading-tight tracking-wide text-white sm:text-[15px] md:text-[17px]">O que não fazemos</p>
+              <p className="text-[13px] font-bold uppercase tracking-[0.16em] text-[#0C2340]">O que não fazemos</p>
             </div>
-            <ul className="mt-4 space-y-2.5 sm:mt-6 sm:space-y-3.5">
-              {naoFazemos.map((t) => (
-                <li key={t} className="flex items-start gap-1.5 text-[12px] leading-snug text-white/85 sm:gap-3 sm:text-[14px] md:text-[15.5px]">
-                  <X className="mt-0.5 h-3 w-3 shrink-0 text-[#FB923C] sm:h-4 sm:w-4" />
-                  {t}
+            <ul className="mt-5">
+              {naoFazemos.map((t, i) => (
+                <li key={t} className="flex items-baseline gap-4 border-t border-[#0C2340]/8 py-3.5 first:border-t-0 first:pt-1">
+                  <span style={serif} className="w-7 shrink-0 text-[19px] font-bold leading-none text-[#B45309] [font-variant-numeric:tabular-nums]">{String(i + 1).padStart(2, "0")}</span>
+                  <p className="text-[15.5px] leading-relaxed text-[#0C2340]/70">{t}</p>
                 </li>
               ))}
             </ul>
@@ -1213,7 +1235,7 @@ function FAQ() {
   ];
   return (
     <section id="faq" className="bg-transparent">
-      <div className="mx-auto max-w-3xl px-5 py-14 md:px-6 md:py-24">
+      <div className="mx-auto max-w-3xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Dúvidas</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
@@ -1239,7 +1261,7 @@ function FAQ() {
 function Planos() {
   return (
     <section id="planos" className="bg-transparent">
-      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Investimento</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
@@ -1250,7 +1272,7 @@ function Planos() {
           </p>
         </div>
 
-        <div className="mt-16 grid grid-cols-2 gap-3 sm:gap-7 lg:grid-cols-3">
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-7 lg:grid-cols-3">
           {planos.map((p, idx) => (
             <Card
               key={p.nome}
@@ -1326,7 +1348,7 @@ function Planos() {
 function Consultoria() {
   return (
     <section id="solucao" className="bg-transparent">
-      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Solução completa</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
@@ -1338,7 +1360,7 @@ function Consultoria() {
           </p>
         </div>
 
-        <div className="mt-14 grid grid-cols-2 gap-3 md:gap-5">
+        <div className="mt-10 grid grid-cols-2 gap-3 md:gap-5">
           {consultoria.map(({ icon: Icon, t, d }) => (
             <div
               key={t}
@@ -1355,7 +1377,7 @@ function Consultoria() {
           ))}
         </div>
 
-        <div className="mt-14 text-center">
+        <div className="mt-10 text-center">
           <Button asChild size="lg" className="h-12 rounded-md bg-[#10B981] px-7 text-[17px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#059669]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
               Falar no WhatsApp
@@ -1371,7 +1393,7 @@ function Consultoria() {
 function Fundadores() {
   return (
     <section className="relative overflow-hidden tatica-navy text-white">
-      <div className="relative mx-auto max-w-5xl px-5 py-14 md:px-6 md:py-24">
+      <div className="relative mx-auto max-w-5xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#34D399]">Quem está por trás</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight">
@@ -1382,14 +1404,15 @@ function Fundadores() {
           </p>
         </div>
 
-        <div className="mt-14 grid gap-6 md:grid-cols-2">
+        <div className="mt-10 grid gap-6 md:grid-cols-2">
           {fundadores.map((f) => (
             <div key={f.nome} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur">
-              <div className="aspect-[4/3] w-full">
+              <div className="aspect-[4/5] w-full">
                 <PhotoFrame
                   src={f.foto}
                   alt={`Foto de ${f.nome}`}
                   rounded="rounded-none"
+                  className="object-top"
                   fallbackIcon={User}
                   fallbackLabel={`Foto · ${f.inicial}`}
                 />
@@ -1417,7 +1440,7 @@ function Seguranca() {
   ];
   return (
     <section className="bg-transparent">
-      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1351B4]">Confiança e segurança</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#020A17]">
@@ -1428,7 +1451,7 @@ function Seguranca() {
           </p>
         </div>
 
-        <div className="mt-14 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           {itens.map(({ icon: Icon, t, d }) => (
             <div key={t} className="rounded-2xl border border-black/5 bg-white p-4 shadow-[0_2px_16px_rgba(0,0,0,0.05)] sm:p-6">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#10B981]/10 text-[#059669] sm:h-12 sm:w-12">
@@ -1454,7 +1477,7 @@ function Seguranca() {
 function CTAFinal() {
   return (
     <section id="contato" className="tatica-navy text-center text-white">
-      <div className="mx-auto max-w-3xl px-5 py-14 md:px-6 md:py-24">
+      <div className="mx-auto max-w-3xl px-5 py-12 md:px-6 md:py-16">
         <h2 className="text-[clamp(2rem,4.5vw,2.8rem)] font-black leading-[1.12] tracking-tight">
           Descubra quanto sua clínica <span className="text-[#34D399]">está perdendo</span>
         </h2>
