@@ -62,6 +62,26 @@ export interface CreateContratoInput {
     condicoes: CondicaoPagamento[];
 }
 
+/**
+ * Categoria de receita padrão da empresa (primeira conta analítica de receita
+ * do plano de contas, ordenada por código) — mesma regra usada em Vendas.tsx
+ * (`defaultReceitaContaId`). Sem ela, os CRs/movimentações do contrato nascem
+ * "sem categoria" e somem do Fluxo de Caixa (DFC), que só soma o que tem
+ * categoria contábil. Retorna null se o plano não tiver conta de receita.
+ */
+async function fetchDefaultReceitaContaId(ac: any, companyId: string): Promise<string | null> {
+    const { data } = await ac
+        .from("chart_of_accounts")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("account_type", "revenue")
+        .eq("is_analytical", true)
+        .eq("status", "active")
+        .order("code")
+        .limit(1);
+    return data?.[0]?.id ?? null;
+}
+
 export function useClientContratos(clientCpfCnpj: string | null | undefined) {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
@@ -148,6 +168,11 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             if (!selectedCompany?.id) throw new Error("Empresa nao selecionada");
             const ac = activeClient as any;
 
+            // Categoria de receita padrão p/ TODOS os CRs do contrato (entrada +
+            // parcelas). Sem ela a movimentação nasce sem categoria e some do
+            // Fluxo de Caixa (DFC). Ajustável depois reclassificando o título.
+            const contaReceitaId = await fetchDefaultReceitaContaId(ac, selectedCompany.id);
+
             // Sumario das condicoes para preencher vendas.forma_pagamento / parcelas
             const totalParcelas = input.condicoes.reduce((s, c) => s + (c.parcelas || 1), 0);
             const formaResumo =
@@ -199,6 +224,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                     status: recebida ? "pago" : "aberto",
                     forma_recebimento: recebida ? (input.entrada_forma || "pix") : "entrada",
                     conta_bancaria_id: recebida ? input.entrada_conta_bancaria_id : null,
+                    conta_contabil_id: contaReceitaId,
                     venda_id: venda.id,
                     observacoes: "Entrada (sinal) — " + input.procedimento,
                 });
@@ -231,6 +257,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                         data_vencimento: iso,
                         status: "aberto",
                         forma_recebimento: cond.forma,
+                        conta_contabil_id: contaReceitaId,
                         venda_id: venda.id,
                         observacoes: `${input.procedimento} — parcela ${i + 1}/${n}${condTag}`,
                     });
@@ -266,6 +293,9 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             if (!selectedCompany?.id) throw new Error("Empresa nao selecionada");
             const ac = activeClient as any;
             const now = new Date().toISOString();
+
+            // Categoria de receita padrão p/ os novos CRs gerados (ver createContrato).
+            const contaReceitaId = await fetchDefaultReceitaContaId(ac, selectedCompany.id);
 
             // 1. Busca CRs atuais do contrato
             const { data: crsExistentes, error: crsErr } = await ac
@@ -340,6 +370,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                     status: recebida ? "pago" : "aberto",
                     forma_recebimento: recebida ? (input.entrada_forma || "pix") : "entrada",
                     conta_bancaria_id: recebida ? input.entrada_conta_bancaria_id : null,
+                    conta_contabil_id: contaReceitaId,
                     venda_id: input.vendaId,
                     observacoes: "Entrada (sinal) — " + input.procedimento,
                 });
@@ -369,6 +400,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                         data_vencimento: iso,
                         status: "aberto",
                         forma_recebimento: cond.forma,
+                        conta_contabil_id: contaReceitaId,
                         venda_id: input.vendaId,
                         observacoes: `${input.procedimento} — parcela ${i + 1}/${n}${condTag}`,
                     });

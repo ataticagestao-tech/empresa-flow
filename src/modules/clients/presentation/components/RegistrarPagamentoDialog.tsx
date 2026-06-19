@@ -102,7 +102,24 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                 .eq("venda_id", contrato.id)
                 .not("conta_contabil_id", "is", null)
                 .limit(1);
-            const contaContabilHerda = crsExistentes?.[0]?.conta_contabil_id ?? null;
+            let contaContabilHerda = crsExistentes?.[0]?.conta_contabil_id ?? null;
+
+            // Fallback p/ contratos antigos (criados antes de categorizar na
+            // origem): se nenhum CR do contrato tem categoria, usa a conta de
+            // receita padrão da empresa — senão o pagamento nasce sem categoria
+            // e some do Fluxo de Caixa (DFC).
+            if (!contaContabilHerda) {
+                const { data: receita } = await ac
+                    .from("chart_of_accounts")
+                    .select("id")
+                    .eq("company_id", selectedCompany.id)
+                    .eq("account_type", "revenue")
+                    .eq("is_analytical", true)
+                    .eq("status", "active")
+                    .order("code")
+                    .limit(1);
+                contaContabilHerda = receita?.[0]?.id ?? null;
+            }
 
             // INSERT CR com conta_bancaria_id + conta_contabil_id.
             // Trigger garantir_mov_ao_quitar_cr cria a mov automaticamente

@@ -263,7 +263,7 @@ export default function CompanyDashboard() {
         queryKey: ["dash_receivables", cId],
         queryFn: async () => {
             const { data } = await db.from("contas_receber")
-                .select("id, pagador_nome, valor, valor_pago, data_vencimento, status, conta_contabil_id")
+                .select("id, pagador_nome, valor, valor_pago, data_vencimento, status, conta_contabil_id, forma_recebimento")
                 .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"])
                 .is("deleted_at", null)
                 .limit(5000);
@@ -632,37 +632,6 @@ export default function CompanyDashboard() {
         [receivablesFiltered, periodStart, periodEnd]
     );
 
-    // ─── Receivables aging ──────────────────────────────────
-    const receivablesAging = useMemo(() => {
-        const buckets = { ate30: { total: 0, count: 0 }, de31a60: { total: 0, count: 0 }, acima60: { total: 0, count: 0 } };
-        const overdue: any[] = [];
-        let totalAberto = 0;
-        let totalCount = 0;
-
-        receivablesInPeriod.forEach((r: any) => {
-            const saldo = Number(r.valor || 0) - Number(r.valor_pago || 0);
-            if (saldo <= 0) return;
-            totalAberto += saldo;
-            totalCount++;
-
-            const diasAtraso = differenceInCalendarDays(today, new Date(r.data_vencimento + "T00:00:00"));
-            if (diasAtraso > 60) {
-                buckets.acima60.total += saldo;
-                buckets.acima60.count++;
-                overdue.push({ ...r, diasAtraso, saldo });
-            } else if (diasAtraso > 30) {
-                buckets.de31a60.total += saldo;
-                buckets.de31a60.count++;
-            } else {
-                buckets.ate30.total += saldo;
-                buckets.ate30.count++;
-            }
-        });
-
-        overdue.sort((a, b) => b.diasAtraso - a.diasAtraso);
-        return { buckets, overdue: overdue.slice(0, 5), totalAberto, totalCount };
-    }, [receivablesInPeriod, today]);
-
     // ─── CR Buckets (mockup: em dia / a vencer em breve / acima de 90 dias) ─
     const crBuckets = useMemo(() => {
         const today30 = addDays(today, 30);
@@ -693,10 +662,34 @@ export default function CompanyDashboard() {
         ? ((resultadoPeriodo - resultadoPeriodoAnterior) / Math.abs(resultadoPeriodoAnterior)) * 100
         : 0;
 
+    // ─── Recebíveis a vencer / vencidos (boletos e demais formas) ──
+    // Olha TODAS as contas a receber em aberto (independe do período da tela),
+    // pois o boleto futuro pode vencer fora do período selecionado. Exclui
+    // cartão/parcelado (repasse da operadora é quase automático — não é algo
+    // a cobrar). É isto que faltava: o sistema agora avisa do boleto futuro.
+    const brlAlert = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const next7Str = format(addDays(today, 7), "yyyy-MM-dd");
+    const crCobravel = receivablesFiltered
+        .filter((r: any) => r.forma_recebimento !== "cartao_credito" && r.forma_recebimento !== "parcelado")
+        .map((r: any) => ({ ...r, saldo: Number(r.valor || 0) - Number(r.valor_pago || 0) }))
+        .filter((r: any) => r.saldo > 0);
+    const crVencidas = crCobravel.filter((r: any) => r.data_vencimento < todayStr);
+    const crVenceHoje = crCobravel.filter((r: any) => r.data_vencimento === todayStr);
+    const crProx7 = crCobravel.filter((r: any) => r.data_vencimento > todayStr && r.data_vencimento <= next7Str);
+    const somaSaldoCr = (arr: any[]) => arr.reduce((s, r) => s + r.saldo, 0);
+    const nBoleto = (arr: any[]) => arr.filter((r: any) => r.forma_recebimento === "boleto").length;
+    const sufBoleto = (arr: any[]) => { const b = nBoleto(arr); return b > 0 ? ` · ${b} boleto${b > 1 ? "s" : ""}` : ""; };
+    const temAlertaReceber = crVencidas.length > 0 || crVenceHoje.length > 0 || crProx7.length > 0;
+
     // ─── Alert banner ───────────────────────────────────────
     const alertItems: string[] = [];
     if (vencem_hoje_pagar > 0) alertItems.push(`${vencem_hoje_pagar} conta${vencem_hoje_pagar > 1 ? "s" : ""} a pagar vence${vencem_hoje_pagar > 1 ? "m" : ""} hoje`);
-    if (receivablesAging.overdue.length > 0) alertItems.push(`${receivablesAging.overdue.length} titulo${receivablesAging.overdue.length > 1 ? "s" : ""} a receber com mais de 60 dias em atraso`);
+    if (crVencidas.length > 0) alertItems.push(`${crVencidas.length} a receber vencida${crVencidas.length > 1 ? "s" : ""} (${brlAlert(somaSaldoCr(crVencidas))})${sufBoleto(crVencidas)}`);
+    if (crVenceHoje.length > 0) alertItems.push(`${crVenceHoje.length} a receber vence${crVenceHoje.length > 1 ? "m" : ""} hoje (${brlAlert(somaSaldoCr(crVenceHoje))})${sufBoleto(crVenceHoje)}`);
+    if (crProx7.length > 0) alertItems.push(`${crProx7.length} a receber vence${crProx7.length > 1 ? "m" : ""} em até 7 dias (${brlAlert(somaSaldoCr(crProx7))})${sufBoleto(crProx7)}`);
+    // Destino do botão: prioriza contas a pagar se houver alerta de pagar hoje,
+    // senão leva direto às contas a receber pendentes.
+    const alertTarget = vencem_hoje_pagar > 0 ? "/contas-pagar" : temAlertaReceber ? "/contas-receber" : "/contas-pagar";
 
     // ─── Faturamento por período (granularidade dinâmica) ──
     // Períodos curtos (≤14 dias): barras diárias. Médios: semanais. Longos: mensais.
@@ -1477,7 +1470,7 @@ export default function CompanyDashboard() {
                                 {alertItems.join("  ·  ")}
                             </span>
                         </div>
-                        <button onClick={() => navigate("/contas-pagar")} style={{
+                        <button onClick={() => navigate(alertTarget)} style={{
                             fontSize: 13, fontWeight: 600, color: "#991B1B", background: "none", border: "none",
                             cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap",
                         }}>
