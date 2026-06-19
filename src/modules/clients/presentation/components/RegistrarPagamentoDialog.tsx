@@ -106,19 +106,19 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
 
             // Fallback p/ contratos antigos (criados antes de categorizar na
             // origem): se nenhum CR do contrato tem categoria, usa a conta de
-            // receita padrão da empresa — senão o pagamento nasce sem categoria
-            // e some do Fluxo de Caixa (DFC).
+            // receita de transplante (ou a 1ª receita do plano) — senão o
+            // pagamento nasce sem categoria e some do Fluxo de Caixa (DFC).
             if (!contaContabilHerda) {
-                const { data: receita } = await ac
+                const { data: receitas } = await ac
                     .from("chart_of_accounts")
-                    .select("id")
+                    .select("id, name")
                     .eq("company_id", selectedCompany.id)
                     .eq("account_type", "revenue")
                     .eq("is_analytical", true)
                     .eq("status", "active")
-                    .order("code")
-                    .limit(1);
-                contaContabilHerda = receita?.[0]?.id ?? null;
+                    .order("code");
+                const rows = (receitas as any[]) || [];
+                contaContabilHerda = rows.find((r) => /transplant/i.test(r.name || ""))?.id ?? rows[0]?.id ?? null;
             }
 
             // INSERT CR com conta_bancaria_id + conta_contabil_id.

@@ -63,23 +63,25 @@ export interface CreateContratoInput {
 }
 
 /**
- * Categoria de receita padrão da empresa (primeira conta analítica de receita
- * do plano de contas, ordenada por código) — mesma regra usada em Vendas.tsx
- * (`defaultReceitaContaId`). Sem ela, os CRs/movimentações do contrato nascem
- * "sem categoria" e somem do Fluxo de Caixa (DFC), que só soma o que tem
- * categoria contábil. Retorna null se o plano não tiver conta de receita.
+ * Categoria de receita para os CRs do contrato. Como contrato aqui é sempre
+ * contrato de transplante (feature gateada na HAIR), prefere a conta analítica
+ * de receita de "transplante" se existir; senão cai na 1ª conta de receita do
+ * plano (mesma regra de Vendas.tsx). Sem categoria, os CRs/movimentações do
+ * contrato nascem "sem categoria" e somem do Fluxo de Caixa (DFC), que só soma
+ * o que tem categoria contábil. Retorna null se o plano não tiver receita.
  */
-async function fetchDefaultReceitaContaId(ac: any, companyId: string): Promise<string | null> {
+async function fetchContratoReceitaContaId(ac: any, companyId: string): Promise<string | null> {
     const { data } = await ac
         .from("chart_of_accounts")
-        .select("id")
+        .select("id, name")
         .eq("company_id", companyId)
         .eq("account_type", "revenue")
         .eq("is_analytical", true)
         .eq("status", "active")
-        .order("code")
-        .limit(1);
-    return data?.[0]?.id ?? null;
+        .order("code");
+    const rows = (data as any[]) || [];
+    const transplante = rows.find((r) => /transplant/i.test(r.name || ""));
+    return transplante?.id ?? rows[0]?.id ?? null;
 }
 
 export function useClientContratos(clientCpfCnpj: string | null | undefined) {
@@ -171,7 +173,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             // Categoria de receita padrão p/ TODOS os CRs do contrato (entrada +
             // parcelas). Sem ela a movimentação nasce sem categoria e some do
             // Fluxo de Caixa (DFC). Ajustável depois reclassificando o título.
-            const contaReceitaId = await fetchDefaultReceitaContaId(ac, selectedCompany.id);
+            const contaReceitaId = await fetchContratoReceitaContaId(ac, selectedCompany.id);
 
             // Sumario das condicoes para preencher vendas.forma_pagamento / parcelas
             const totalParcelas = input.condicoes.reduce((s, c) => s + (c.parcelas || 1), 0);
@@ -295,7 +297,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             const now = new Date().toISOString();
 
             // Categoria de receita padrão p/ os novos CRs gerados (ver createContrato).
-            const contaReceitaId = await fetchDefaultReceitaContaId(ac, selectedCompany.id);
+            const contaReceitaId = await fetchContratoReceitaContaId(ac, selectedCompany.id);
 
             // 1. Busca CRs atuais do contrato
             const { data: crsExistentes, error: crsErr } = await ac
